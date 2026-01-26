@@ -8,7 +8,7 @@ const path = require('path')
 async function startMantra() {
     
     // --- SESSION INJECTION START ---
-    // This creates the session folder and creds.json from your long text string
+    // Checks for SESSION_ID in environment variables to prevent re-scanning QR codes
     if (!fs.existsSync(global.sessionName)) {
         fs.mkdirSync(global.sessionName)
     }
@@ -55,17 +55,36 @@ async function startMantra() {
     const plugins = new Map()
 
     const loadPlugins = () => {
-        fs.readdirSync(pluginFolder).forEach(file => {
-            if (file.endsWith('.js')) {
-                delete require.cache[require.resolve(`./plugins/${file}`)]
-                const plugin = require(`./plugins/${file}`)
-                if (plugin.cmd) plugins.set(plugin.cmd, plugin)
+        try {
+            // Clear existing plugins before reloading
+            plugins.clear()
+            
+            if (fs.existsSync(pluginFolder)) {
+                fs.readdirSync(pluginFolder).forEach(file => {
+                    if (file.endsWith('.js')) {
+                        const pluginPath = path.join(pluginFolder, file)
+                        delete require.cache[require.resolve(pluginPath)]
+                        const plugin = require(pluginPath)
+                        if (plugin.cmd) plugins.set(plugin.cmd, plugin)
+                    }
+                })
             }
-        })
-        console.log(`Loaded ${plugins.size} plugins`)
+            console.log(`Loaded ${plugins.size} plugins`)
+        } catch (err) {
+            console.error('Error loading plugins:', err)
+        }
     }
     
+    // Initial Load
     loadPlugins()
+
+    // Watch for plugin changes (Hot Reload)
+    fs.watch(pluginFolder, (eventType, filename) => {
+        if (filename && filename.endsWith('.js')) {
+            console.log(`Plugin updated: ${filename}`)
+            loadPlugins()
+        }
+    })
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
@@ -74,11 +93,14 @@ async function startMantra() {
             m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message
             if (m.key && m.key.remoteJid === 'status@broadcast') return
             
-            // Serialize
+            // Serialize and pass the connection object
             m = smsg(conn, m)
             
-            const isCmd = m.body.startsWith(global.prefa)
-            const command = isCmd ? m.body.slice(1).trim().split(' ').shift().toLowerCase() : ''
+            // Handle Prefixes (Environment Variable Support)
+            // If prefix matches, remove it to get command. If no prefix, check if it's a body match.
+            const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
+            const isCmd = m.body.startsWith(prefix)
+            const command = isCmd ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
