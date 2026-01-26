@@ -1,13 +1,9 @@
 module.exports = {
-    cmd: ['ping', 'speed', 'p'], // Aliases
-    desc: 'Checks bot latency',
-    run: async ({ sock, m, text }) => {
+    cmd: ['ping', 'speed'], // Commands that trigger this
+    run: async (conn, m, { args }) => {
         const start = Date.now();
-        
-        // Send a message
-        await sock.sendMessage(m.key.remoteJid, { text: 'Pong!' }, { quoted: m });
-        
+        await conn.sendMessage(m.chat, { text: 'Pong!' }, { quoted: m });
         const end = Date.now();
-        console.log(`Latency: ${end - start}ms`);
+        await conn.sendMessage(m.chat, { text: `Latency: ${end - start}ms` });
     }
 };
