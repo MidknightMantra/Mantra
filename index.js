@@ -1,27 +1,29 @@
-const { spawn } = require('child_process');
-const path = require('path');
+const { spawn } = require('child_process')
+const path = require('path')
 
 function start() {
-    let args = [path.join(__dirname, 'main.js'), ...process.argv.slice(2)];
+    let args = [path.join(__dirname, 'main.js'), ...process.argv.slice(2)]
+    console.log([process.argv[0], ...args].join(' '))
+    
     let p = spawn(process.argv[0], args, {
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
-    });
+    })
 
+    // Message from main.js (e.g., "reset")
     p.on('message', data => {
         if (data === 'reset') {
-            console.log('Restarting Mantra...');
-            p.kill();
-            start();
-            delete p;
+            console.log('Restarting Bot...')
+            p.kill()
+            start()
+            delete p
         }
-    });
+    })
 
+    // Handle exit code
     p.on('exit', code => {
-        console.error('Exited with code:', code);
-        if (code !== 0) {
-            start(); // Auto-restart on crash
-        }
-    });
+        console.error('Exited with code:', code)
+        if (code === '.' || code === 1 || code === 0) start()
+    })
 }
 
-start();
+start()
