@@ -1,14 +1,7 @@
-const fs = require('fs')
-
-global.owner = ['254700000000'] // Put your number here
-global.prefix = '.'
-global.sessionName = 'mantra-session'
-
-// Hot Reload mechanism for config.js
-let file = require.resolve(__filename)
-fs.watchFile(file, () => {
-    fs.unwatchFile(file)
-    console.log(`Update ${__filename}`)
-    delete require.cache[file]
-    require(file)
-})
+module.exports = {
+    SESSION_ID: process.env.SESSION_ID || "Mantra~", // Put your Mantra~ ID here
+    PREFIX: ".",
+    OWNER_NUM: "254700000000", // Your number
+    READ_MESSAGE: false,
+    MODE: 'public'
+};
