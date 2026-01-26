@@ -2,7 +2,7 @@
 FROM node:20-bullseye
 
 # Install System Dependencies (FFmpeg, ImageMagick, WebP)
-# We add --no-install-recommends to keep the image smaller
+# --no-install-recommends keeps the build lightweight
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
