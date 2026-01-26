@@ -2,8 +2,11 @@ module.exports = {
     cmd: 'ping',
     run: async (conn, m, args) => {
         const start = new Date().getTime()
-        await m.reply('Pong!')
+        const { key } = await conn.sendMessage(m.chat, { text: 'Pinging...' }, { quoted: m })
         const end = new Date().getTime()
-        await m.reply(`Response Time: ${end - start}ms`)
+        const ping = end - start
+        
+        // Edit the message with the speed
+        await conn.sendMessage(m.chat, { text: `Pong! 🏓\nSpeed: ${ping}ms`, edit: key })
     }
 }
