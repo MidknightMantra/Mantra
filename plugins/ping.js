@@ -1,9 +1,9 @@
 module.exports = {
-    cmd: ['ping', 'speed'], // Commands that trigger this
-    run: async (conn, m, { args }) => {
-        const start = Date.now();
-        await conn.sendMessage(m.chat, { text: 'Pong!' }, { quoted: m });
-        const end = Date.now();
-        await conn.sendMessage(m.chat, { text: `Latency: ${end - start}ms` });
+    cmd: 'ping',
+    run: async (conn, m, args) => {
+        const start = new Date().getTime()
+        await m.reply('Pong!')
+        const end = new Date().getTime()
+        await m.reply(`Response Time: ${end - start}ms`)
     }
-};
+}
