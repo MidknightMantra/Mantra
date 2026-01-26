@@ -3,7 +3,6 @@ const fs = require('fs');
 const SESSION_DIR = './session/';
 
 const setupSession = () => {
-    // 1. If we have a SESSION_ID environment variable
     if (process.env.SESSION_ID) {
         console.log('[MANTRA] Checking for Session ID...');
         
@@ -13,18 +12,34 @@ const setupSession = () => {
 
         const credsPath = SESSION_DIR + 'creds.json';
 
-        // Only write if creds.json doesn't exist yet
         if (!fs.existsSync(credsPath)) {
-            console.log('[MANTRA] Restoring session from ID...');
+            console.log('[MANTRA] Restoring session...');
             
-            // Assume the ID is just the raw JSON content of creds.json encoded in Base64
-            // (Standard for many bots)
+            // 1. Get the Raw ID
+            let sessId = process.env.SESSION_ID;
+
+            // 2. Check for the Prefix "Mantra~"
+            if (sessId.startsWith('Mantra~')) {
+                // Remove the prefix to get the real data
+                sessId = sessId.replace('Mantra~', '');
+            } else {
+                // Optional: Warn if the user pasted a raw code without the prefix
+                console.log('[WARN] Session ID missing "Mantra~" prefix, trying raw decode...');
+            }
+
+            // 3. Decode and Save
             try {
-                const decoded = Buffer.from(process.env.SESSION_ID, 'base64').toString('utf-8');
-                fs.writeFileSync(credsPath, decoded);
-                console.log('[MANTRA] Session restored successfully!');
+                const decoded = Buffer.from(sessId, 'base64').toString('utf-8');
+                
+                // Safety check: Ensure the result looks like JSON
+                if (decoded.startsWith('{')) {
+                    fs.writeFileSync(credsPath, decoded);
+                    console.log('[MANTRA] Session restored successfully!');
+                } else {
+                    console.error('[ERROR] Session ID decoding failed (Not JSON).');
+                }
             } catch (e) {
-                console.error('[MANTRA] Invalid Session ID format. Starting fresh.');
+                console.error('[ERROR] Invalid Session ID format.');
             }
         }
     } else {
