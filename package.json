@@ -12,7 +12,8 @@
     "chalk": "^4.1.2",
     "express": "^4.17.1",
     "fs-extra": "^10.0.0",
-    "pino": "^7.0.0"
+    "pino": "^7.0.0",
+    "googlethis": "^1.8.0"
   },
   "engines": {
     "node": "20.x"
