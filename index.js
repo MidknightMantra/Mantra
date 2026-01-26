@@ -9,6 +9,7 @@ function start() {
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     })
 
+    // Message from main.js (e.g., "reset")
     p.on('message', data => {
         if (data === 'reset') {
             console.log('Restarting Bot...')
@@ -18,6 +19,7 @@ function start() {
         }
     })
 
+    // Handle exit code
     p.on('exit', code => {
         console.error('Exited with code:', code)
         if (code === '.' || code === 1 || code === 0) start()
