@@ -1,66 +1,63 @@
-require('./config');
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeInMemoryStore } = require('@whiskeysockets/baileys');
+require('dotenv').config(); // Load .env file
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
+const { smsg } = require('./lib/simple');
+const { setupSession, SESSION_DIR } = require('./auth');
 
-// Simple in-memory store (optional, for message history)
-const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
+// Initialize Auth
+setupSession();
 
-async function connectToWhatsApp() {
-    const { state, saveCreds } = await useMultiFileAuthState('session_auth');
+async function startMantra() {
+    // Load auth state from the folder (which was just populated if ID existed)
+    const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
 
     const sock = makeWASocket({
-        logger: pino({ level: 'silent' }), // Keep it quiet and fast
+        logger: pino({ level: 'silent' }),
         printQRInTerminal: true,
         auth: state,
-        browser: ['MidKnight-Core', 'Safari', '1.0.0'], // "Fake" browser signature
-        syncFullHistory: false, // Make it lightweight: don't sync years of history
-        generateHighQualityLinkPreview: true,
+        syncFullHistory: false // Keep it lightweight
     });
 
-    store.bind(sock.ev);
-
-    // 1. Connection Logic
-    sock.ev.on('connection.update', async (update) => {
+    sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
-            let reason = lastDisconnect.error?.output?.statusCode;
-            if (reason !== DisconnectReason.loggedOut) {
-                connectToWhatsApp(); // Reconnect automatically
-            } else {
-                console.log('Logged out. Delete session_auth and scan again.');
-            }
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log('[MANTRA] Connection closed. Reconnecting?', shouldReconnect);
+            if (shouldReconnect) startMantra();
         } else if (connection === 'open') {
-            console.log('[MIDKNIGHT] Connected securely.');
+            console.log('[MANTRA] 🟢 Online');
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    // 2. The "Hot Reload" Message Handler
+    // Message Handler
     sock.ev.on('messages.upsert', async chatUpdate => {
         try {
             let m = chatUpdate.messages[0];
             if (!m.message) return;
             
-            // Minimal processing to handle "me" vs "sender"
-            const from = m.key.remoteJid;
-            const isMe = m.key.fromMe;
+            // SIMPLIFY THE MESSAGE (The Magic Step)
+            m = smsg(sock, m);
 
-            // DANGEROUSLY EFFECTIVE: Clear cache for handler every message
-            // This lets you edit 'handler.js' live.
+            // Ignore status updates and self-messages
+            if (m.key.remoteJid === 'status@broadcast') return;
+            if (!m.text) return;
+
+            // Clear cache for handler to allow HOT RELOADING
             const handlerPath = './handler.js';
             if (fs.existsSync(handlerPath)) {
                  delete require.cache[require.resolve(handlerPath)];
             }
             
-            // Pass the socket and message to the handler
-            require(handlerPath)(sock, m, chatUpdate);
+            // Pass execution to the brain
+            require(handlerPath)(sock, m);
 
         } catch (err) {
-            console.log(err);
+            console.error(err);
         }
     });
 }
 
-connectToWhatsApp();
+startMantra();
