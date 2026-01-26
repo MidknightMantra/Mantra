@@ -33,7 +33,6 @@ async function startMantra() {
         logger: pino({ level: 'silent' }),
         auth: state,
         version
-        // printQRInTerminal: true  <-- DELETED (Deprecated)
     })
 
     conn.ev.on('connection.update', async (update) => {
@@ -89,14 +88,29 @@ async function startMantra() {
             m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message
             if (m.key && m.key.remoteJid === 'status@broadcast') return
             
+            // Serialize
             m = smsg(conn, m)
             
+            // --- DEBUG LOGGING ---
+            // This will show us exactly what the bot sees
+            if (m.body) {
+                console.log('--------------------------------')
+                console.log(`💬 Received: "${m.body}"`)
+                console.log(`👤 From: ${m.sender}`)
+            }
+
             // Handle Prefixes
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             const isCmd = m.body.startsWith(prefix)
             const command = isCmd ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
+
+            // --- DEBUG COMMAND MATCHING ---
+            if (isCmd) {
+                console.log(`⚙️  Command Detected: "${command}"`)
+                console.log(`🔌 Plugin Found: ${plugins.has(command)}`)
+            }
 
             if (isCmd && plugins.has(command)) {
                 await plugins.get(command).run(conn, m, args, text)
