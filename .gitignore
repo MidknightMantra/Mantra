@@ -1,0 +1,5 @@
+node_modules/
+Mantra_Session/
+.DS_Store
+npm-debug.log
+.env
