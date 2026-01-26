@@ -6,6 +6,27 @@ const fs = require('fs')
 const path = require('path')
 
 async function startMantra() {
+    
+    // --- SESSION INJECTION START ---
+    // This creates the session folder and creds.json from your long text string
+    if (!fs.existsSync(global.sessionName)) {
+        fs.mkdirSync(global.sessionName)
+    }
+
+    if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
+        console.log('🔒 Injecting Session ID...')
+        const sessionParts = global.sessionId.split('Mantra~')
+        const sessionData = sessionParts[1] // The base64 part
+        
+        if (sessionData) {
+            const buffer = Buffer.from(sessionData, 'base64')
+            const creds = buffer.toString('utf-8')
+            fs.writeFileSync(path.join(global.sessionName, 'creds.json'), creds)
+            console.log('✅ Session Injected Successfully')
+        }
+    }
+    // --- SESSION INJECTION END ---
+
     const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
     const { version } = await fetchLatestBaileysVersion()
     
