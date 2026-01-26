@@ -8,7 +8,6 @@ const path = require('path')
 async function startMantra() {
     
     // --- SESSION INJECTION START ---
-    // Checks for SESSION_ID in environment variables to prevent re-scanning QR codes
     if (!fs.existsSync(global.sessionName)) {
         fs.mkdirSync(global.sessionName)
     }
@@ -16,7 +15,7 @@ async function startMantra() {
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
-        const sessionData = sessionParts[1] // The base64 part
+        const sessionData = sessionParts[1]
         
         if (sessionData) {
             const buffer = Buffer.from(sessionData, 'base64')
@@ -32,9 +31,9 @@ async function startMantra() {
     
     const conn = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state,
         version
+        // printQRInTerminal: true  <-- DELETED (Deprecated)
     })
 
     conn.ev.on('connection.update', async (update) => {
@@ -56,9 +55,7 @@ async function startMantra() {
 
     const loadPlugins = () => {
         try {
-            // Clear existing plugins before reloading
             plugins.clear()
-            
             if (fs.existsSync(pluginFolder)) {
                 fs.readdirSync(pluginFolder).forEach(file => {
                     if (file.endsWith('.js')) {
@@ -75,10 +72,9 @@ async function startMantra() {
         }
     }
     
-    // Initial Load
     loadPlugins()
 
-    // Watch for plugin changes (Hot Reload)
+    // Watch for plugin changes
     fs.watch(pluginFolder, (eventType, filename) => {
         if (filename && filename.endsWith('.js')) {
             console.log(`Plugin updated: ${filename}`)
@@ -93,18 +89,15 @@ async function startMantra() {
             m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message
             if (m.key && m.key.remoteJid === 'status@broadcast') return
             
-            // Serialize and pass the connection object
             m = smsg(conn, m)
             
-            // Handle Prefixes (Environment Variable Support)
-            // If prefix matches, remove it to get command. If no prefix, check if it's a body match.
+            // Handle Prefixes
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             const isCmd = m.body.startsWith(prefix)
             const command = isCmd ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
-            // Execute Plugin
             if (isCmd && plugins.has(command)) {
                 await plugins.get(command).run(conn, m, args, text)
             }
