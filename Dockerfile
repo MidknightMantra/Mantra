@@ -1,8 +1,10 @@
-FROM node:20-buster
+# Use Bullseye (Debian 11) - Stable and supported
+FROM node:20-bullseye
 
-# Install System Dependencies (FFmpeg & ImageMagick)
+# Install System Dependencies (FFmpeg, ImageMagick, WebP)
+# We add --no-install-recommends to keep the image smaller
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
     webp && \
