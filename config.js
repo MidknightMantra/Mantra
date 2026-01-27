@@ -9,6 +9,9 @@ global.sessionName = 'Mantra_Session'
 
 // --- PRIVACY SETTINGS ---
 global.antiViewOnce = true // Set to false to disable auto-saving
+global.alwaysOnline = true // true = Green Dot 24/7
+// ------------------------
+
 // ------------------------
 
 // --- HARDCODED PREFIX ---
