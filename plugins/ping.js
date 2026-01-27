@@ -4,8 +4,15 @@ export default {
     cmd: 'ping',
     run: async (conn, m, args) => {
         const start = performance.now()
-        await m.reply('Pong!!!')
+        
+        // Use m.reply which we defined in smsg (lib/simple.js)
+        await m.reply('Mantra is Active! 🚀')
+        
         const end = performance.now()
-        await conn.sendMessage(m.chat, { text: `🚀 Latency: ${(end - start).toFixed(2)}ms` }, { quoted: m })
+        const latency = (end - start).toFixed(2)
+        
+        await conn.sendMessage(m.chat, { 
+            text: `📍 *Latency:* ${latency}ms` 
+        }, { quoted: m })
     }
 }
