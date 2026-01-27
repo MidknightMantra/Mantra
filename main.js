@@ -7,10 +7,7 @@ import fs from 'fs/promises'
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// 1. Setup require for ESM bridge
 const require = createRequire(import.meta.url)
-
-// 2. Load Baileys (Stable v6.6.0 structure)
 const { 
   default: makeWASocket, 
   useMultiFileAuthState, 
@@ -19,226 +16,95 @@ const {
   makeInMemoryStore 
 } = require('@whiskeysockets/baileys')
 
-// ESM paths
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// 3. Initialize Store (Guaranteed to work in v6.6.0)
-const store = makeInMemoryStore({ 
-  logger: pino({ level: 'silent' }).child({ name: 'store' }) 
-})
-
-// Verification logging
-if (store) {
-  console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
-}
+const store = makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) })
+if (store) console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
 
 const msgRetryMap = new Map()
 let pluginsLoaded = false 
 
-// ViewOnce unwrap helper
-function unwrapViewOnce(msg) {
-  if (!msg) return null
-  let current = msg
-  while (current) {
-    if (current.viewOnceMessage?.message) current = current.viewOnceMessage.message
-    else if (current.viewOnceMessageV2?.message) current = current.viewOnceMessageV2.message
-    else if (current.viewOnceMessageV2Extension?.message) current = current.viewOnceMessageV2Extension.message
-    else break
-  }
-  return current
-}
-
 async function startMantra() {
   try {
-    const sessionDir = global.sessionName || './session'
+    const sessionDir = './session'
     await fs.mkdir(sessionDir, { recursive: true })
-
-    const credsPath = path.join(sessionDir, 'creds.json')
-    const credsExists = await fs.stat(credsPath).catch(() => false)
-
-    // Session Injection from Environment
-    if (!credsExists && global.sessionId) {
-      console.log('🔒 Injecting session from env...')
-      const parts = global.sessionId.split('Mantra~')
-      if (parts[1]) {
-        const decoded = Buffer.from(parts[1], 'base64').toString('utf-8')
-        await fs.writeFile(credsPath, decoded)
-      }
-    }
-
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
     
-    // Handshake version settings
-    let version = [2, 3000, 1015901307]
-    try {
-      const v = await fetchLatestBaileysVersion()
-      version = v.version
-      console.log('Fetched latest version:', version)
-    } catch (e) {
-      console.warn('Version fetch failed, using fallback:', e.message)
-    }
-
     const conn = makeWASocket({
       logger: pino({ level: 'silent' }),
       auth: state,
-      version,
-      connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 0,
-      keepAliveIntervalMs: 15000,
-      emitOwnEvents: true,
-      fireInitQueries: true,
-      generateHighQualityLinkPreview: true,
+      browser: ['Mantra', 'Chrome', '1.0.0'],
       syncFullHistory: true,
       markOnlineOnConnect: true,
-      browser: ['Mantra', 'Chrome', '1.0.0'],
-      shouldReconnect: (lastError) => {
-        const status = lastError?.output?.statusCode
-        return status !== DisconnectReason.loggedOut && status !== 408 
-      },
     })
 
-    // Bind store to connection for tracking
     if (store) store.bind(conn.ev)
 
     let myJid = null
     conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update
       if (connection === 'open') {
-        setTimeout(async () => {
-          myJid = conn.user?.jid || conn.user?.id?.split(':')[0] + '@s.whatsapp.net'
-          console.log('✅ Mantra Connected! Bot JID:', myJid)
-          console.log(`👀 Auto-Status Read: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
-          console.log(`🗑️ Anti-Delete: ${global.antiDelete ? 'ON' : 'OFF'}`)
-          console.log(`🕵️ Anti-ViewOnce: ${global.antiViewOnce ? 'ON' : 'OFF'}`)
-
-          if (global.alwaysOnline) {
-            setInterval(() => conn.sendPresenceUpdate('available'), 10000)
-          }
-        }, 2000)
+        myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+        console.log('✅ Mantra Connected! Bot JID:', myJid)
       } else if (connection === 'close') {
-        const status = lastDisconnect?.error?.output?.statusCode
-        console.log(`Connection closed (code: ${status})`)
-        if (status !== DisconnectReason.loggedOut) {
-          const delay = status === 408 ? 10000 : 5000
-          console.log(`🔄 Reconnecting in ${delay/1000} seconds...`)
-          setTimeout(startMantra, delay)
-        }
+        const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut
+        if (shouldReconnect) startMantra()
       }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
     // Plugin Loader
-    const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
-
     const loadPlugins = async () => {
       if (pluginsLoaded) return
-      try {
-        const files = await fs.readdir(pluginFolder)
-        for (const file of files) {
-          if (!file.endsWith('.js')) continue
-          const pluginPath = path.join(pluginFolder, file)
-          try {
-            const plugin = await import(`file://${pluginPath}`)
-            const cmdPlugin = plugin.default
-            if (cmdPlugin?.cmd) {
-              plugins.set(cmdPlugin.cmd.toLowerCase(), cmdPlugin)
-              console.log(`Loaded plugin: ${cmdPlugin.cmd}`)
-            }
-          } catch (e) {
-            console.error(`Failed loading plugin ${file}:`, e.message)
-          }
-        }
-        console.log(`🔌 Loaded ${plugins.size} plugins`)
-        pluginsLoaded = true
-      } catch (e) {
-        console.error('Plugin folder error:', e.message)
+      const pluginFolder = path.join(__dirname, 'plugins')
+      const files = await fs.readdir(pluginFolder)
+      for (const file of files) {
+        if (!file.endsWith('.js')) continue
+        const plugin = await import(`file://${path.join(pluginFolder, file)}`)
+        if (plugin.default?.cmd) plugins.set(plugin.default.cmd.toLowerCase(), plugin.default)
       }
+      pluginsLoaded = true
+      console.log(`🔌 Loaded ${plugins.size} plugins`)
     }
-
     await loadPlugins()
 
-    // Message Upsert Event
     conn.ev.on('messages.upsert', async (chatUpdate) => {
-      if (chatUpdate.type === 'append') return
       const m = chatUpdate.messages[0]
       if (!m?.message) return
-
-      const msgTime = m.messageTimestamp?.low ?? m.messageTimestamp ?? 0
-      if (Date.now() / 1000 - msgTime > 30) return
-      if (!myJid) return
-
-      // --- STATUS HANDLER ---
-      if (m.key.remoteJid === 'status@broadcast') {
-        if (global.autoStatusRead) await conn.readMessages([m.key]).catch(() => {})
-        return
-      }
-
-      // --- ANTI-DELETE (Type 5 is protocol for deletion) ---
-      if (global.antiDelete && m.message.protocolMessage?.type === 5 && store) {
-        const key = m.message.protocolMessage.key
-        try {
-          const deletedMsg = await store.loadMessage(key.remoteJid, key.id)
-          if (!deletedMsg?.message) return
-          const participant = deletedMsg.key?.participant || deletedMsg.participant || key.remoteJid
-          const caption = `🗑️ *Deleted Message*\nFrom: @${participant.split('@')[0]}`
-          
-          if (deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage) {
-            const text = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
-            await conn.sendMessage(myJid, { text: `${caption}\n\n${text}`, mentions: [participant] })
-          } else {
-            const type = Object.keys(deletedMsg.message)[0]
-            const buffer = await downloadMedia({ msg: deletedMsg.message[type], mtype: type.replace('Message', '') }).catch(() => null)
-            if (buffer) await conn.sendMessage(myJid, { [type.replace('Message', '')]: buffer, caption, mentions: [participant] })
-          }
-        } catch (err) { console.error('Anti-delete error:', err.message) }
-        return
-      }
-
-      // Retry/Loop prevention
-      if (msgRetryMap.has(m.key.id)) return
-      msgRetryMap.set(m.key.id, true)
-      setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
-
-      // --- ANTI-VIEWONCE ---
-      if (global.antiViewOnce && !m.key.fromMe) {
-        const unwrapped = unwrapViewOnce(m.message)
-        const media = unwrapped?.imageMessage || unwrapped?.videoMessage
-        if (media) {
-          const type = unwrapped.imageMessage ? 'image' : 'video'
-          const buffer = await downloadMedia({ msg: media, mtype: type + 'Message' }).catch(() => null)
-          if (buffer) await conn.sendMessage(myJid, { [type]: buffer, caption: '🕵️ ViewOnce Captured' })
-        }
-      }
-
-      // --- COMMAND PROCESSING ---
-      m.message = m.message.ephemeralMessage?.message || m.message
       const msg = smsg(conn, m)
       if (!msg.body) return
 
-      const prefix = global.prefa?.find(p => msg.body.startsWith(p)) || ''
-      const isCmd = !!prefix && msg.body.startsWith(prefix)
+      // --- LOG EVERY MESSAGE FOR DEBUGGING ---
+      console.log(`📩 [MSG] From: ${msg.sender} | Body: ${msg.body}`)
+
+      // Prefix Logic
+      const prefix = global.prefa.find(p => msg.body.startsWith(p)) || ''
+      const isCmd = !!prefix
       const command = isCmd ? msg.body.slice(prefix.length).trim().split(' ')[0].toLowerCase() : ''
       const args = msg.body.trim().split(/ +/).slice(1)
+      const text = args.join(' ')
 
-      if (isCmd && plugins.has(command)) {
-        try {
-          await plugins.get(command).run(conn, msg, args, args.join(' '))
-        } catch (err) {
-          console.error(`Plugin error (${command}):`, err.message)
-          await msg.reply('❌ Error executing command.')
+      if (isCmd) {
+        console.log(`🔍 [CMD] Attempting: ${command}`)
+        if (plugins.has(command)) {
+          try {
+            await plugins.get(command).run(conn, msg, args, text)
+            console.log(`✅ [SUCCESS] Executed: ${command}`)
+          } catch (e) {
+            console.error(`❌ [ERROR] Plugin ${command}:`, e.message)
+          }
+        } else {
+          console.log(`❓ [UNKNOWN] Command not found: ${command}`)
         }
       }
     })
   } catch (err) {
-    console.error('Fatal startup error:', err.message)
-    setTimeout(startMantra, 15000)
+    console.error('Critical Error:', err)
+    setTimeout(startMantra, 5000)
   }
 }
-
-process.on('uncaughtException', err => console.error('Uncaught Exception:', err))
-process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason))
 
 startMantra()
