@@ -1,12 +1,19 @@
-import googleIt from 'google-it'
+import axios from 'axios'
 
 export default {
-    cmd: 'google',
-    run: async (conn, m, args, text) => {
-        if (!text) return m.reply('❌ Query?')
-        const results = await googleIt({ query: text, limit: 5 })
-        let msg = `🔍 *Google:* ${text}\n\n`
-        results.forEach(res => msg += `🔹 ${res.title}\n🔗 ${res.link}\n\n`)
-        await m.reply(msg)
+    cmd: ['google', 'search', 'g'],
+    run: async (conn, m, { text }) => {
+        if (!text) return m.reply('🔍 What do you want to search for?')
+        
+        await conn.sendMessage(m.chat, { react: { text: '🌐', key: m.key } })
+        
+        try {
+            const { data } = await axios.get(`https://api.vreden.web.id/api/search/google?query=${encodeURIComponent(text)}`)
+            const results = data.result.map((v, i) => `*${i + 1}. ${v.title}*\n🔗 ${v.link}\n📝 ${v.description}`).join('\n\n')
+            
+            await m.reply(`🌍 *Google Search: ${text}*\n\n${results}`)
+        } catch (e) {
+            m.reply('❌ Google is currently unreachable.')
+        }
     }
 }
