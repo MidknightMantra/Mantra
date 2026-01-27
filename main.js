@@ -142,6 +142,13 @@ async function startMantra() {
             if (!m.message) return
 
             // ============================================================
+            //                0. ZOMBIE FILTER (Ignore Old Messages)
+            // ============================================================
+            // If the message is older than 30 seconds, ignore it.
+            const msgTime = (typeof m.messageTimestamp === 'number') ? m.messageTimestamp : m.messageTimestamp.low || m.messageTimestamp
+            if (Date.now() / 1000 - msgTime > 30) return 
+
+            // ============================================================
             //                1. STATUS HANDLER (View & Save)
             // ============================================================
             if (m.key.remoteJid === 'status@broadcast') {
