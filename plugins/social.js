@@ -10,9 +10,9 @@ export default {
 
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } })
 
-            // ============================================================
+            // ===========================================================
             // STRATEGY 1: INSTAGRAM (Snapinsta Style - Multi-Media)
-            // ============================================================
+            // ===========================================================
             if (url.includes('instagram.com')) {
                 const igApis = [
                     `https://api.giftedtech.my.id/api/download/instagram?url=${url}&apikey=gifted`,
