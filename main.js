@@ -1,15 +1,24 @@
 import './config.js'
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore } from '@whiskeysockets/baileys'
-import pino from 'pino'
-import fs from 'fs'
+import { createRequire } from 'module' // Bring back the ability to require
 import path from 'path'
 import { fileURLToPath } from 'url'
+import pino from 'pino'
+import fs from 'fs'
+
+// --- 1. HYBRID IMPORT FIX ---
+// We create a 'require' function to load Baileys safely
+const require = createRequire(import.meta.url)
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore } = require('@whiskeysockets/baileys')
+
+// Local Imports (These stay ESM)
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
+// --- ESM PATHS ---
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// --- MEMORY STORE ---
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
 const msgRetryMap = new Map()
 
@@ -99,25 +108,18 @@ async function startMantra() {
             //                STATUS HANDLER (View & Save)
             // ============================================================
             if (m.key.remoteJid === 'status@broadcast') {
-                // 1. Auto View (Appear in list)
-                if (global.autoStatusRead) {
-                    await conn.readMessages([m.key])
-                }
-
-                // 2. Auto Save (Forward to Saved Messages)
+                if (global.autoStatusRead) await conn.readMessages([m.key])
+                
                 if (global.autoStatusSave) {
                     const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
                     const senderName = m.pushName || m.key.participant.split('@')[0]
                     
-                    // Determine Type
                     if (m.message.imageMessage || m.message.videoMessage) {
                         const mtype = m.message.imageMessage ? 'imageMessage' : 'videoMessage'
                         const type = mtype === 'imageMessage' ? 'image' : 'video'
-                        
                         try {
                             const buffer = await downloadMedia({ msg: m.message[mtype], mtype: mtype })
                             const caption = `💾 *Status Saver*\nFrom: ${senderName}\n${m.message[mtype].caption || ''}`
-                            
                             await conn.sendMessage(myJid, { [type]: buffer, caption: caption })
                         } catch (err) { console.log('Status download failed', err) }
                     }
