@@ -6,6 +6,11 @@ const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
 
+// --- DEDUPLICATION CACHE ---
+// Prevents the bot from processing the same message twice (Fixes Double Reply)
+const msgRetryMap = new Map()
+// ---------------------------
+
 async function startMantra() {
     
     // --- SESSION INJECTION ---
@@ -81,59 +86,61 @@ async function startMantra() {
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
-            // 1. Ignore "History Sync" (Appending old messages)
             if (chatUpdate.type === 'append') return
-
             let m = chatUpdate.messages[0]
             if (!m.message) return
+            
+            // --- DEDUPLICATION CHECK ---
+            if (msgRetryMap.has(m.key.id)) return
+            msgRetryMap.set(m.key.id, true)
+            // Clear memory after 5 seconds
+            setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
+            // ---------------------------
+
             m.message = m.message.ephemeralMessage?.message || m.message
             if (m.key?.remoteJid === 'status@broadcast') return
-            
-            // --- 2. STALENESS CHECK (The Fix) ---
-            // If message is older than 30 seconds, ignore it.
-            // messageTimestamp is in seconds (Unix). Date.now() is ms.
-            if (m.messageTimestamp) {
-                const msgTime = (typeof m.messageTimestamp === 'number') 
-                    ? m.messageTimestamp 
-                    : m.messageTimestamp.low || m.messageTimestamp
-                
-                const now = Math.floor(Date.now() / 1000)
-                
-                if (now - msgTime > 30) {
-                    console.log(`⏩ Ignoring old message (${now - msgTime}s old)`)
-                    return 
-                }
-            }
-            // ------------------------------------
 
+            // Staleness Check
+            if (m.messageTimestamp) {
+                const msgTime = (typeof m.messageTimestamp === 'number') ? m.messageTimestamp : m.messageTimestamp.low || m.messageTimestamp
+                const now = Math.floor(Date.now() / 1000)
+                if (now - msgTime > 30) return 
+            }
+            
             m = smsg(conn, m)
             
-            // Auto-ViewOnce Logic
-            if (global.antiViewOnce && (m.mtype === 'viewOnceMessage' || m.mtype === 'viewOnceMessageV2')) {
+            // --- ROBUST AUTO-VIEWONCE LOGIC ---
+            if (global.antiViewOnce && !m.key.fromMe) {
                 try {
-                    const msg = m.message.viewOnceMessage?.message || m.message.viewOnceMessageV2?.message || m.message
-                    const type = Object.keys(msg)[0]
-                    const media = msg[type]
+                    // Deep scan for ViewOnce structure
+                    let viewOnceMsg = m.message.viewOnceMessage || m.message.viewOnceMessageV2 || m.message.viewOnceMessageV2Extension
                     
-                    const buffer = await downloadMedia({ msg: media, mtype: type })
-                    
-                    const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
-                    const caption = `🕵️ *Auto-Recovered ViewOnce*\nFrom: @${m.sender.split('@')[0]}\nGroup: ${m.isGroup ? m.chat : 'DM'}`
-                    
-                    if (type === 'imageMessage') {
-                        await conn.sendMessage(myJid, { image: buffer, caption: caption, mentions: [m.sender] })
-                    } else if (type === 'videoMessage') {
-                        await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
+                    if (viewOnceMsg) {
+                        const content = viewOnceMsg.message.imageMessage || viewOnceMsg.message.videoMessage
+                        if (content) {
+                            const mtype = content.mimetype.split('/')[0] === 'image' ? 'imageMessage' : 'videoMessage'
+                            
+                            const buffer = await downloadMedia({ msg: content, mtype: mtype })
+                            
+                            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+                            const caption = `🕵️ *Auto-Recovered*\nFrom: @${m.sender.split('@')[0]}`
+                            
+                            if (mtype === 'imageMessage') {
+                                await conn.sendMessage(myJid, { image: buffer, caption: caption, mentions: [m.sender] })
+                            } else {
+                                await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
+                            }
+                            console.log(`✅ Auto-Saved ViewOnce from ${m.sender}`)
+                        }
                     }
-                    console.log(`✅ Stole ViewOnce from ${m.sender}`)
                 } catch (err) {
-                    console.error('Anti-ViewOnce Failed:', err)
+                    console.error('Anti-ViewOnce Error:', err)
                 }
             }
+            // -------------------------------------
 
             if (!m.body) return
 
-            // Command Matching
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             const isCmd = m.body.startsWith(prefix)
             const command = isCmd 
