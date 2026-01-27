@@ -17,7 +17,8 @@ WORKDIR /usr/src/app
 # 3. Copy Dependency Files
 COPY package*.json ./
 
-# 4. Install Node Modules
+# 4. Copy Prisma Schema & Install Node Modules
+COPY prisma ./prisma
 RUN npm install
 
 # 5. Copy the rest of the bot code
