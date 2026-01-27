@@ -17,8 +17,7 @@ module.exports = {
                 hour: '2-digit', minute: '2-digit'
             })
 
-            // 3. The Big Boy Design
-            // We use standard Unicode box drawing characters for that clean look.
+            // 3. The Dashboard Layout
             let menu = `
 ┏━━⟪ 𝐌𝐀𝐍𝐓𝐑𝐀 𝐁𝐎𝐓 ⟫━━⦿
 ┃
@@ -42,16 +41,15 @@ module.exports = {
 
 _Simple. Lightweight. Dangerous._
 `
-            // 4. Send with a "Link Preview" (Ad-block style) to make it look prominent
-            // We attach a 'fake' link to generate a large thumbnail if you ever add one.
+            // 4. Send with Rich Link Preview
             await conn.sendMessage(m.chat, { 
                 text: menu.trim(),
                 contextInfo: {
                     externalAdReply: {
                         title: "MANTRA SYSTEM",
-                        body: "Active & Online",
-                        thumbnailUrl: "https://i.imgur.com/M8k2kLd.png", // Generic Tech Image
-                        sourceUrl: "https://github.com/",
+                        body: "Tap to view Source Code",
+                        thumbnailUrl: "https://i.imgur.com/M8k2kLd.png", // Replace this with your own logo later
+                        sourceUrl: "https://github.com/MidknightMantra/Mantra",
                         mediaType: 1,
                         renderLargerThumbnail: true
                     }
@@ -65,7 +63,7 @@ _Simple. Lightweight. Dangerous._
     }
 }
 
-// --- Helper: Format Seconds to H:M:S ---
+// --- Helper: Format Uptime ---
 function formatUptime(seconds) {
     seconds = Number(seconds)
     var d = Math.floor(seconds / (3600 * 24))
