@@ -1,22 +1,32 @@
-require('./config')
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore } = require('@whiskeysockets/baileys')
-const { smsg } = require('./lib/simple')
-const { downloadMedia } = require('./lib/media')
-const pino = require('pino')
-const fs = require('fs')
-const path = require('path')
+import './config.js' 
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore } from '@whiskeysockets/baileys'
+import pino from 'pino'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { smsg } from './lib/simple.js'
+import { downloadMedia } from './lib/media.js'
 
+// --- ESM Fix for __dirname ---
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// --- 1. MEMORY STORE (The Brain) ---
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
+
+// Deduplication Cache
 const msgRetryMap = new Map()
 
 async function startMantra() {
     
-    // Session Injection
+    // --- SESSION INJECTION ---
     if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
+    
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
         const sessionData = sessionParts[1]
+        
         if (sessionData) {
             fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(sessionData, 'base64').toString('utf-8'))
         }
@@ -40,6 +50,7 @@ async function startMantra() {
         browser: ["Mantra", "Chrome", "1.0.0"]
     })
 
+    // --- 2. BIND STORE ---
     store.bind(conn.ev)
 
     conn.ev.on('connection.update', async (update) => {
@@ -64,23 +75,31 @@ async function startMantra() {
 
     conn.ev.on('creds.update', saveCreds)
 
+    // Plugin Loader (Adapted for ESM)
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
-    const loadPlugins = () => {
+    
+    const loadPlugins = async () => {
         plugins.clear()
         if (fs.existsSync(pluginFolder)) {
-            fs.readdirSync(pluginFolder).forEach(file => {
+            const files = fs.readdirSync(pluginFolder)
+            for (const file of files) {
                 if (file.endsWith('.js')) {
                     const pluginPath = path.join(pluginFolder, file)
-                    delete require.cache[require.resolve(pluginPath)]
-                    const plugin = require(pluginPath)
-                    if (plugin.cmd) plugins.set(plugin.cmd, plugin)
+                    // In ESM, we use dynamic import
+                    // We add a timestamp query to force cache invalidation if needed
+                    const plugin = await import(`file://${pluginPath}?update=${Date.now()}`)
+                    if (plugin.default && plugin.default.cmd) {
+                        plugins.set(plugin.default.cmd, plugin.default)
+                    } else if (plugin.cmd) {
+                        plugins.set(plugin.cmd, plugin)
+                    }
                 }
-            })
+            }
         }
         console.log(`🔌 Loaded ${plugins.size} Plugins`)
     }
-    loadPlugins()
+    await loadPlugins()
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
@@ -88,18 +107,14 @@ async function startMantra() {
             let m = chatUpdate.messages[0]
             if (!m.message) return
 
-            // ============================================================
-            //                AUTO STATUS VIEW (The New Feature)
-            // ============================================================
+            // Auto-Status View
             if (m.key.remoteJid === 'status@broadcast') {
                 if (global.autoStatusRead) {
-                    // This sends the "Read Receipt" so you appear in their list
                     await conn.readMessages([m.key])
                     console.log(`👀 Auto-Viewed Status from ${m.pushName || m.key.participant.split('@')[0]}`)
                 }
-                return // Stop here so we don't try to execute commands from statuses
+                return
             }
-            // ============================================================
 
             // Anti-Delete Logic
             if (m.message.protocolMessage && m.message.protocolMessage.type === 0) {
@@ -137,7 +152,6 @@ async function startMantra() {
 
             m.message = m.message.ephemeralMessage?.message || m.message
             
-            // Staleness Check
             if (m.messageTimestamp) {
                 const msgTime = (typeof m.messageTimestamp === 'number') ? m.messageTimestamp : m.messageTimestamp.low || m.messageTimestamp
                 const now = Math.floor(Date.now() / 1000)
@@ -146,7 +160,7 @@ async function startMantra() {
             
             m = smsg(conn, m)
             
-            // Anti-ViewOnce Logic
+            // Anti-ViewOnce
             if (global.antiViewOnce && !m.key.fromMe) {
                  try {
                     let viewOnceMsg = m.message.viewOnceMessage || m.message.viewOnceMessageV2 || m.message.viewOnceMessageV2Extension
