@@ -13,8 +13,11 @@ import { Boom } from '@hapi/boom'
 import { AuthService } from './AuthService.js'
 import { PluginManager } from './PluginManager.js'
 import { config } from '../config/env.js'
-import { logger } from '../utils/logger.js'
+import { logger, baileysLogger } from '../utils/logger.js'
 import { getBody } from '../utils/messages.js'
+
+import path from 'path'
+import fs from 'fs/promises'
 
 export class SocketService {
     public sock: WASocket | undefined
@@ -34,11 +37,11 @@ export class SocketService {
 
         this.sock = makeWASocket({
             version,
-            logger: logger as any,
+            logger: baileysLogger as any,
             printQRInTerminal: true,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, logger as any),
+                keys: makeCacheableSignalKeyStore(state.keys, baileysLogger as any),
             },
             browser: ['Mantra Refactored', 'Chrome', '1.0.0'],
             generateHighQualityLinkPreview: true,
@@ -46,7 +49,7 @@ export class SocketService {
 
         this.sock?.ev.on('creds.update', saveCreds)
 
-        this.sock?.ev.on('connection.update', (update: Partial<ConnectionState>) => {
+        this.sock?.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
             const { connection, lastDisconnect } = update
 
             if (connection === 'close') {
@@ -68,6 +71,16 @@ export class SocketService {
                 }
             } else if (connection === 'open') {
                 logger.info('✅ Connected to WhatsApp!')
+
+                // Read and Print SESSION_ID
+                try {
+                    const sessionPath = path.resolve('session', 'creds.json')
+                    const creds = await fs.readFile(sessionPath, 'utf-8')
+                    const sessionID = Buffer.from(creds).toString('base64')
+                    logger.info(`\n\n📢 YOUR SESSION ID:\nMantra~${sessionID}\n\n`)
+                } catch (err) {
+                    logger.warn('Could not read session file to generate ID')
+                }
             }
         })
 

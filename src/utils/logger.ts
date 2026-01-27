@@ -12,3 +12,5 @@ export const logger = pino({
         }
     }
 })
+
+export const baileysLogger = logger.child({ level: 'fatal' })
