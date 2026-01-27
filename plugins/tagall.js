@@ -5,41 +5,28 @@ module.exports = {
             // 1. Check Group
             if (!m.isGroup) return m.reply('❌ Groups only!')
 
-            // 2. Fetch Metadata
-            // We need this to get the list of victims (participants)
-            const groupMetadata = await conn.groupMetadata(m.chat).catch(e => {
-                console.error('Failed to fetch metadata:', e)
-                return null
-            })
+            // 2. Fetch Metadata (Silently)
+            const groupMetadata = await conn.groupMetadata(m.chat).catch(e => {})
+            if (!groupMetadata) return m.reply('❌ Failed to fetch participants.')
 
-            if (!groupMetadata) return m.reply('❌ Failed to fetch members.')
-
-            const participants = groupMetadata.participants || []
+            const participants = groupMetadata.participants
             
-            // --- ADMIN CHECK REMOVED ---
-            // The code that stopped you is gone.
-            // ---------------------------
+            // 3. Extract IDs (The Hidden Payload)
+            // We map the participants to just their IDs.
+            const mentions = participants.map(p => p.id)
 
-            // 3. Build Message
-            let message = `*📢 ATTENTION EVERYONE*\n`
-            if (text) message += `*Message:* ${text}\n`
-            message += `\n`
-
-            for (let mem of participants) {
-                message += `➥ @${mem.id.split('@')[0]}\n`
-            }
-
-            message += `\n*Total:* ${participants.length}`
-
-            // 4. Send with Mentions
+            // 4. Send the Ghost Message
+            // We send the user's text (or a default dot) and attach the mentions array.
+            // Since the names are not in the 'text' string, they remain invisible.
             await conn.sendMessage(m.chat, { 
-                text: message, 
-                mentions: participants.map(a => a.id) 
+                text: text || '.', // Default to a dot if no text provided
+                mentions: mentions 
             }, { quoted: m })
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Failed to tag all.')
+            // Fail silently or react to keep it clean
+            conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } })
         }
     }
 }
