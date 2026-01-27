@@ -7,38 +7,20 @@ import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
 // ESM imports for Baileys v7-rc
+// FIXED: Added makeInMemoryStore directly to imports
 import makeWASocket, { 
   useMultiFileAuthState, 
   DisconnectReason, 
-  fetchLatestBaileysVersion 
+  fetchLatestBaileysVersion,
+  makeInMemoryStore 
 } from '@whiskeysockets/baileys'
-
-// Store fallback - improved multi-attempt loading
-let makeInMemoryStore = null
-try {
-  // Attempt 1: Direct from main export (common in recent versions)
-  makeInMemoryStore = require('@whiskeysockets/baileys').makeInMemoryStore
-} catch {}
-if (!makeInMemoryStore) {
-  try {
-    // Attempt 2: From lib/Utils/store (older structure)
-    makeInMemoryStore = require('@whiskeysockets/baileys/lib/Utils/store').makeInMemoryStore
-  } catch {}
-}
-if (!makeInMemoryStore) {
-  try {
-    // Attempt 3: Explicit file path (most reliable for source structure)
-    makeInMemoryStore = require('@whiskeysockets/baileys/lib/Store/make-in-memory-store').makeInMemoryStore
-  } catch (e) {
-    console.warn('⚠️ All attempts to load makeInMemoryStore failed. Anti-delete limited. Consider manual store implementation or Baileys fork.')
-  }
-}
 
 // ESM paths
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Store & globals
+// FIXED: Removed the try-catch blocks that used 'require'
 const store = makeInMemoryStore
   ? makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) })
   : null
@@ -205,7 +187,7 @@ async function startMantra() {
           try {
             const buffer = await downloadMedia({ msg: m.message[mtype], mtype })
             const senderName = m.pushName || m.key.participant?.split('@')[0] || 'Unknown'
-            const caption = `💾 *Status Saver*\nFrom: \( {senderName}\n \){m.message[mtype].caption || ''}`
+            const caption = `💾 *Status Saver*\nFrom: ${senderName}\n${m.message[mtype].caption || ''}`
             await conn.sendMessage(myJid, { [type]: buffer, caption })
           } catch (err) {
             console.error('Status save failed:', err.message)
@@ -225,7 +207,7 @@ async function startMantra() {
           const caption = `🗑️ *Deleted Message*\nFrom: @${participant.split('@')[0]}`
           if (deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage?.text) {
             const text = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
-            await conn.sendMessage(myJid, { text: `\( {caption}\n\n \){text}`, mentions: [participant] })
+            await conn.sendMessage(myJid, { text: `${caption}\n\n${text}`, mentions: [participant] })
           } else {
             const msgType = Object.keys(deletedMsg.message)[0]
             const media = deletedMsg.message[msgType]
