@@ -7,24 +7,12 @@ const path = require('path')
 
 async function startMantra() {
     
-    // --- SESSION INJECTION START ---
-    if (!fs.existsSync(global.sessionName)) {
-        fs.mkdirSync(global.sessionName)
-    }
-
+    // --- SESSION INJECTION ---
+    if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
-        console.log('🔒 Injecting Session ID...')
-        const sessionParts = global.sessionId.split('Mantra~')
-        const sessionData = sessionParts[1]
-        
-        if (sessionData) {
-            const buffer = Buffer.from(sessionData, 'base64')
-            const creds = buffer.toString('utf-8')
-            fs.writeFileSync(path.join(global.sessionName, 'creds.json'), creds)
-            console.log('✅ Session Injected Successfully')
-        }
+        const parts = global.sessionId.split('Mantra~')
+        if (parts[1]) fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(parts[1], 'base64').toString('utf-8'))
     }
-    // --- SESSION INJECTION END ---
 
     const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
     const { version } = await fetchLatestBaileysVersion()
@@ -38,75 +26,61 @@ async function startMantra() {
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
         if (connection === 'close') {
-            let reason = lastDisconnect.error?.output?.statusCode
-            if (reason !== DisconnectReason.loggedOut) startMantra()
-            else console.log('Logged out. Delete session and scan again.')
+            if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) startMantra()
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
+            // --- DIAGNOSTIC START ---
+            console.log('--------------------------------')
+            console.log(`🔌 Loaded Plugins: [${Array.from(plugins.keys()).join(', ')}]`)
+            console.log(`⚡ Active Prefixes: "${global.prefa.join('" "')}"`)
+            console.log('--------------------------------')
+            // --- DIAGNOSTIC END ---
         }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
-    // Dynamic Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
     const loadPlugins = () => {
-        try {
-            plugins.clear()
-            if (fs.existsSync(pluginFolder)) {
-                fs.readdirSync(pluginFolder).forEach(file => {
-                    if (file.endsWith('.js')) {
-                        const pluginPath = path.join(pluginFolder, file)
-                        delete require.cache[require.resolve(pluginPath)]
-                        const plugin = require(pluginPath)
-                        if (plugin.cmd) plugins.set(plugin.cmd, plugin)
-                    }
-                })
-            }
-            console.log(`Loaded ${plugins.size} plugins`)
-        } catch (err) {
-            console.error('Error loading plugins:', err)
+        plugins.clear()
+        if (fs.existsSync(pluginFolder)) {
+            fs.readdirSync(pluginFolder).forEach(file => {
+                if (file.endsWith('.js')) {
+                    const plugin = require(path.join(pluginFolder, file))
+                    if (plugin.cmd) plugins.set(plugin.cmd, plugin)
+                }
+            })
         }
     }
-    
     loadPlugins()
-
-    fs.watch(pluginFolder, (eventType, filename) => {
-        if (filename && filename.endsWith('.js')) {
-            console.log(`Plugin updated: ${filename}`)
-            loadPlugins()
-        }
-    })
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
             let m = chatUpdate.messages[0]
             if (!m.message) return
-            m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message
-            if (m.key && m.key.remoteJid === 'status@broadcast') return
+            m.message = m.message.ephemeralMessage?.message || m.message
+            if (m.key?.remoteJid === 'status@broadcast') return
             
-            // Serialize
             m = smsg(conn, m)
-            
-            // --- DEBUG LOGGING ---
-            if (m.body) {
-                console.log(`💬 Received: "${m.body}"`)
-            }
+            if (!m.body) return
 
-            // --- SAFTEY CHECK FOR BODY ---
-            if (!m.body) return 
-
-            // Handle Prefixes
+            // --- DEBUG MATCHING ---
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             const isCmd = m.body.startsWith(prefix)
             const command = isCmd ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
+            if (m.body.length < 10) { // Only log short messages to keep logs clean
+                console.log(`💬 Received: "${m.body}"`)
+                console.log(`🔍 Detected Prefix: "${prefix}"`)
+                console.log(`⚙️ Detected Command: "${command}"`)
+                console.log(`❓ Is Command Plugin? ${plugins.has(command)}`)
+            }
+
             if (isCmd && plugins.has(command)) {
-                console.log(`⚙️ Executing Command: ${command}`)
                 await plugins.get(command).run(conn, m, args, text)
             }
         } catch (err) {
