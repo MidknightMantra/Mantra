@@ -7,11 +7,9 @@ import { fileURLToPath } from 'url'
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// --- ESM PATHS ---
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// --- MEMORY STORE ---
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
 const msgRetryMap = new Map()
 
@@ -23,9 +21,7 @@ async function startMantra() {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
         const sessionData = sessionParts[1]
-        if (sessionData) {
-            fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(sessionData, 'base64').toString('utf-8'))
-        }
+        if (sessionData) fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(sessionData, 'base64').toString('utf-8'))
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
@@ -60,7 +56,8 @@ async function startMantra() {
             }
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
-            console.log(`👀 Auto-Status: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
+            console.log(`👀 Auto-Status View: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
+            console.log(`💾 Auto-Status Save: ${global.autoStatusSave ? 'ON' : 'OFF'}`)
             
             if (global.alwaysOnline) {
                 setInterval(() => conn.sendPresenceUpdate('available'), 10_000)
@@ -70,10 +67,9 @@ async function startMantra() {
 
     conn.ev.on('creds.update', saveCreds)
 
-    // --- PLUGIN LOADER (ESM) ---
+    // Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
-    
     const loadPlugins = async () => {
         plugins.clear()
         if (fs.existsSync(pluginFolder)) {
@@ -84,12 +80,8 @@ async function startMantra() {
                     const pluginUrl = `file://${pluginPath}?update=${Date.now()}`
                     try {
                         const plugin = await import(pluginUrl)
-                        if (plugin.default && plugin.default.cmd) {
-                            plugins.set(plugin.default.cmd, plugin.default)
-                        }
-                    } catch (e) {
-                        console.error(`Failed to load ${file}:`, e)
-                    }
+                        if (plugin.default && plugin.default.cmd) plugins.set(plugin.default.cmd, plugin.default)
+                    } catch (e) { console.error(`Failed to load ${file}:`, e) }
                 }
             }
         }
@@ -103,14 +95,39 @@ async function startMantra() {
             let m = chatUpdate.messages[0]
             if (!m.message) return
 
-            // Auto Status Read
+            // ============================================================
+            //                STATUS HANDLER (View & Save)
+            // ============================================================
             if (m.key.remoteJid === 'status@broadcast') {
-                if (global.autoStatusRead) await conn.readMessages([m.key])
+                // 1. Auto View (Appear in list)
+                if (global.autoStatusRead) {
+                    await conn.readMessages([m.key])
+                }
+
+                // 2. Auto Save (Forward to Saved Messages)
+                if (global.autoStatusSave) {
+                    const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+                    const senderName = m.pushName || m.key.participant.split('@')[0]
+                    
+                    // Determine Type
+                    if (m.message.imageMessage || m.message.videoMessage) {
+                        const mtype = m.message.imageMessage ? 'imageMessage' : 'videoMessage'
+                        const type = mtype === 'imageMessage' ? 'image' : 'video'
+                        
+                        try {
+                            const buffer = await downloadMedia({ msg: m.message[mtype], mtype: mtype })
+                            const caption = `💾 *Status Saver*\nFrom: ${senderName}\n${m.message[mtype].caption || ''}`
+                            
+                            await conn.sendMessage(myJid, { [type]: buffer, caption: caption })
+                        } catch (err) { console.log('Status download failed', err) }
+                    }
+                }
                 return
             }
+            // ============================================================
 
             // Anti-Delete
-            if (m.message.protocolMessage && m.message.protocolMessage.type === 0) {
+            if (global.antiDelete && m.message.protocolMessage && m.message.protocolMessage.type === 0) {
                 const key = m.message.protocolMessage.key
                 const msg = await store.loadMessage(key.remoteJid, key.id)
                 if (msg) {
@@ -167,9 +184,7 @@ async function startMantra() {
             if (isCmd && plugins.has(command)) {
                 await plugins.get(command).run(conn, m, args, text)
             }
-        } catch (err) {
-            console.error(err)
-        }
+        } catch (err) { console.error(err) }
     })
     
     process.on('uncaughtException', console.error)
