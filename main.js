@@ -1,6 +1,7 @@
 require('./config')
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
 const { smsg } = require('./lib/simple')
+const { downloadMedia } = require('./lib/media') // Import the downloader
 const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
@@ -10,7 +11,6 @@ async function startMantra() {
     // --- SESSION INJECTION ---
     if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
     
-    // Inject Session only if missing
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
@@ -45,7 +45,6 @@ async function startMantra() {
             let reason = lastDisconnect.error?.output?.statusCode
             console.log(`⚠️ Connection closed. Reason: ${reason}`)
             
-            // Reconnect unless logged out
             if (reason !== DisconnectReason.loggedOut) {
                 console.log('🔄 Reconnecting...')
                 startMantra()
@@ -55,6 +54,7 @@ async function startMantra() {
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
             console.log(`⚡ Active Prefixes: "${global.prefa.join('" "')}"`)
+            console.log(`🕵️ Anti-ViewOnce: ${global.antiViewOnce ? 'ACTIVE' : 'OFF'}`)
         }
     })
 
@@ -88,27 +88,46 @@ async function startMantra() {
             if (m.key?.remoteJid === 'status@broadcast') return
             
             m = smsg(conn, m)
+            
+            // --- AUTOMATIC ANTI-VIEWONCE LOGIC ---
+            if (global.antiViewOnce && (m.mtype === 'viewOnceMessage' || m.mtype === 'viewOnceMessageV2')) {
+                try {
+                    // 1. Identify Content
+                    const msg = m.message.viewOnceMessage?.message || m.message.viewOnceMessageV2?.message || m.message
+                    const type = Object.keys(msg)[0]
+                    const media = msg[type]
+                    
+                    // 2. Download
+                    const buffer = await downloadMedia({ msg: media, mtype: type })
+                    
+                    // 3. Send to Self (Saved Messages)
+                    const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+                    const caption = `🕵️ *Auto-Recovered ViewOnce*\nFrom: @${m.sender.split('@')[0]}\nGroup: ${m.isGroup ? m.chat : 'DM'}`
+                    
+                    if (type === 'imageMessage') {
+                        await conn.sendMessage(myJid, { image: buffer, caption: caption, mentions: [m.sender] })
+                    } else if (type === 'videoMessage') {
+                        await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
+                    }
+                    console.log(`✅ Stole ViewOnce from ${m.sender}`)
+                    
+                } catch (err) {
+                    console.error('Anti-ViewOnce Failed:', err)
+                }
+            }
+            // -------------------------------------
+
             if (!m.body) return
 
-            // --- STRICT MATCHING LOGIC ---
-            // 1. Find the prefix used (Strictly comma now)
+            // Command Matching
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
-            
-            // 2. Check if it is a command
             const isCmd = m.body.startsWith(prefix)
-            
-            // 3. Extract Command
             const command = isCmd 
                 ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() 
                 : ''
                 
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
-
-            // Debug Print for You (Optional, remove later)
-            if (isCmd && command) {
-                 console.log(`💬 Cmd: ${command} | Prefix: "${prefix}" | Plugin Exists: ${plugins.has(command)}`)
-            }
 
             if (isCmd && plugins.has(command)) {
                 await plugins.get(command).run(conn, m, args, text)
