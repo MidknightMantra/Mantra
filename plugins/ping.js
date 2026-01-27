@@ -11,7 +11,7 @@ module.exports = {
             const latency = end - start
 
             // 2. Reply with the speed
-            await m.reply(`*MANTRA SPEED* ⚡\n\n📶 Latency: *${latency}ms*`)
+            await m.reply(`*MANTRA* ⚡\n📶 Latency: *${latency}ms*`)
             
         } catch (e) {
             console.error(e)
