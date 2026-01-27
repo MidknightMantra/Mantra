@@ -6,23 +6,17 @@ const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
 
-// --- 1. MEMORY STORE (The Brain) ---
-// We need this to remember messages so we can restore them when they are deleted.
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
-
-// Deduplication Cache
 const msgRetryMap = new Map()
 
 async function startMantra() {
     
-    // --- SESSION INJECTION ---
+    // Session Injection
     if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
-    
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
         const sessionData = sessionParts[1]
-        
         if (sessionData) {
             fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(sessionData, 'base64').toString('utf-8'))
         }
@@ -46,7 +40,6 @@ async function startMantra() {
         browser: ["Mantra", "Chrome", "1.0.0"]
     })
 
-    // --- 2. BIND STORE (Connect Brain) ---
     store.bind(conn.ev)
 
     conn.ev.on('connection.update', async (update) => {
@@ -61,10 +54,8 @@ async function startMantra() {
             }
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
-            console.log('🗑️ Anti-Delete: ON (Default)')
-            console.log(`🕵️ Anti-ViewOnce: ${global.antiViewOnce ? 'ACTIVE' : 'OFF'}`)
-
-            // Always Online Heartbeat
+            console.log(`👀 Auto-Status View: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
+            
             if (global.alwaysOnline) {
                 setInterval(() => conn.sendPresenceUpdate('available'), 10_000)
             }
@@ -73,7 +64,6 @@ async function startMantra() {
 
     conn.ev.on('creds.update', saveCreds)
 
-    // Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
     const loadPlugins = () => {
@@ -92,42 +82,41 @@ async function startMantra() {
     }
     loadPlugins()
 
-    // --- 3. MESSAGE MONITORING ---
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
-            // Ignore historical syncs
             if (chatUpdate.type === 'append') return
             let m = chatUpdate.messages[0]
             if (!m.message) return
 
             // ============================================================
-            //                ANTI-DELETE LOGIC (The Interceptor)
+            //                AUTO STATUS VIEW (The New Feature)
             // ============================================================
-            // Type 0 means "Revoke Message" (Delete for Everyone)
-            if (m.message.protocolMessage && m.message.protocolMessage.type === 0) {
-                
-                const key = m.message.protocolMessage.key
-                // Retrieve the deleted message from RAM
-                const msg = await store.loadMessage(key.remoteJid, key.id)
+            if (m.key.remoteJid === 'status@broadcast') {
+                if (global.autoStatusRead) {
+                    // This sends the "Read Receipt" so you appear in their list
+                    await conn.readMessages([m.key])
+                    console.log(`👀 Auto-Viewed Status from ${m.pushName || m.key.participant.split('@')[0]}`)
+                }
+                return // Stop here so we don't try to execute commands from statuses
+            }
+            // ============================================================
 
+            // Anti-Delete Logic
+            if (m.message.protocolMessage && m.message.protocolMessage.type === 0) {
+                const key = m.message.protocolMessage.key
+                const msg = await store.loadMessage(key.remoteJid, key.id)
                 if (msg) {
                     console.log(`🗑️ Recovering deleted message...`)
-                    
                     const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
                     const participant = msg.participant || msg.key.participant || m.sender
                     const caption = `🗑️ *Deleted Message Detected*\nFrom: @${participant.split('@')[0]}\nChat: ${m.key.remoteJid.endsWith('@g.us') ? 'Group' : 'DM'}`
 
-                    // 1. Recover Text
                     if (msg.message.conversation || msg.message.extendedTextMessage) {
                         const text = msg.message.conversation || msg.message.extendedTextMessage.text
                         await conn.sendMessage(myJid, { text: `${caption}\n\n📝 *Content:*\n${text}`, mentions: [participant] })
-                    } 
-                    // 2. Recover Media
-                    else {
+                    } else {
                         const messageType = Object.keys(msg.message)[0]
                         const media = msg.message[messageType]
-                        
-                        // Check if it's actual media (Image/Video/Sticker/Audio)
                         if (['imageMessage', 'videoMessage', 'stickerMessage', 'audioMessage'].includes(messageType)) {
                             const type = messageType.replace('Message', '')
                             const buffer = await downloadMedia({ msg: media, mtype: type })
@@ -139,18 +128,15 @@ async function startMantra() {
                         }
                     }
                 }
-                return // Exit cleanly
+                return
             }
-            // ============================================================
 
-            // Deduplication
             if (msgRetryMap.has(m.key.id)) return
             msgRetryMap.set(m.key.id, true)
             setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
 
             m.message = m.message.ephemeralMessage?.message || m.message
-            if (m.key?.remoteJid === 'status@broadcast') return
-
+            
             // Staleness Check
             if (m.messageTimestamp) {
                 const msgTime = (typeof m.messageTimestamp === 'number') ? m.messageTimestamp : m.messageTimestamp.low || m.messageTimestamp
@@ -160,7 +146,7 @@ async function startMantra() {
             
             m = smsg(conn, m)
             
-            // --- ANTI-VIEWONCE LOGIC ---
+            // Anti-ViewOnce Logic
             if (global.antiViewOnce && !m.key.fromMe) {
                  try {
                     let viewOnceMsg = m.message.viewOnceMessage || m.message.viewOnceMessageV2 || m.message.viewOnceMessageV2Extension
@@ -184,7 +170,6 @@ async function startMantra() {
 
             if (!m.body) return
 
-            // Command Handling
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             const isCmd = m.body.startsWith(prefix)
             const command = isCmd 
