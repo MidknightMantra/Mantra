@@ -7,7 +7,8 @@ import {
     fetchLatestBaileysVersion,
     proto,
     MessageUpsertType,
-    ConnectionState
+    ConnectionState,
+    downloadMediaMessage
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import { AuthService } from './AuthService.js'
@@ -89,6 +90,37 @@ export class SocketService {
 
             for (const m of messages) {
                 if (!m.message) continue
+
+                // --- Anti-ViewOnce Logic ---
+                const viewOnceMsg = m.message.viewOnceMessage || m.message.viewOnceMessageV2 || m.message.viewOnceMessageV2Extension
+                if (viewOnceMsg && config.ANTI_VIEW_ONCE) {
+                    try {
+                        const actualMessage = viewOnceMsg.message
+                        if (actualMessage) {
+                            const buffer = await downloadMediaMessage(m, 'buffer', {}) as Buffer
+                            const type = Object.keys(actualMessage)[0]
+                            const jid = this.sock?.user?.id.split(':')[0] + '@s.whatsapp.net'
+
+                            if (type === 'imageMessage') {
+                                await this.sock?.sendMessage(jid, {
+                                    image: buffer,
+                                    caption: `📸 Auto-Saved ViewOnce from @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}`,
+                                    mentions: [m.key.participant || m.key.remoteJid || '']
+                                })
+                            } else if (type === 'videoMessage') {
+                                await this.sock?.sendMessage(jid, {
+                                    video: buffer,
+                                    caption: `🎥 Auto-Saved ViewOnce from @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}`,
+                                    mentions: [m.key.participant || m.key.remoteJid || '']
+                                })
+                            }
+                            logger.info('👁️ ViewOnce message auto-saved')
+                        }
+                    } catch (err) {
+                        logger.error({ err }, 'Failed to auto-save ViewOnce')
+                    }
+                }
+                // ---------------------------
 
                 // Ignore status updates if configured
                 if (m.key.remoteJid === 'status@broadcast' && !config.AUTO_READ_STATUS) continue
