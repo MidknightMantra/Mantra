@@ -7,15 +7,12 @@ global.packname = 'Mantra'
 global.author = 'MidknightMantra'
 global.sessionName = 'Mantra_Session' 
 
-// --- PREFIX FIX ---
-// This logic prevents empty strings "" from becoming prefixes
-const envPrefix = process.env.PREFIX
-global.prefa = (envPrefix && envPrefix.trim().length > 0) 
-    ? envPrefix.split(',').map(p => p.trim()) 
-    : ['.', '!', '/']
-// ------------------
+// --- HARDCODED PREFIX ---
+// No Env Variables. Just comma.
+global.prefa = [','] 
+// ------------------------
 
-// Session ID
+// Session ID (Keep this as Env or it won't login)
 global.sessionId = process.env.SESSION_ID
 
 // Watch for file changes
