@@ -1,16 +1,22 @@
 import './config.js'
-import { createRequire } from 'module' // Bring back the ability to require
+import { createRequire } from 'module'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import pino from 'pino'
 import fs from 'fs'
 
-// --- 1. HYBRID IMPORT FIX ---
-// We create a 'require' function to load Baileys safely
+// --- 1. ROBUST IMPORT FIX ---
 const require = createRequire(import.meta.url)
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore } = require('@whiskeysockets/baileys')
+const BaileysLib = require('@whiskeysockets/baileys')
 
-// Local Imports (These stay ESM)
+// Manually extract functions (Handles both CJS and ESM structures)
+const makeWASocket = BaileysLib.default.default || BaileysLib.default || BaileysLib
+const useMultiFileAuthState = BaileysLib.useMultiFileAuthState || BaileysLib.default.useMultiFileAuthState
+const DisconnectReason = BaileysLib.DisconnectReason || BaileysLib.default.DisconnectReason
+const fetchLatestBaileysVersion = BaileysLib.fetchLatestBaileysVersion || BaileysLib.default.fetchLatestBaileysVersion
+const makeInMemoryStore = BaileysLib.makeInMemoryStore || BaileysLib.default.makeInMemoryStore
+
+// Local Imports
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
@@ -19,7 +25,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // --- MEMORY STORE ---
-const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
+// We check if store exists before using it to prevent crashes
+const store = makeInMemoryStore ? makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) }) : undefined
+if (!store) console.log('⚠️ Warning: makeInMemoryStore failed to load. Anti-Delete will be disabled.')
+
 const msgRetryMap = new Map()
 
 async function startMantra() {
@@ -51,7 +60,7 @@ async function startMantra() {
         browser: ["Mantra", "Chrome", "1.0.0"]
     })
 
-    store.bind(conn.ev)
+    if (store) store.bind(conn.ev)
 
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
@@ -66,7 +75,6 @@ async function startMantra() {
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
             console.log(`👀 Auto-Status View: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
-            console.log(`💾 Auto-Status Save: ${global.autoStatusSave ? 'ON' : 'OFF'}`)
             
             if (global.alwaysOnline) {
                 setInterval(() => conn.sendPresenceUpdate('available'), 10_000)
@@ -105,7 +113,7 @@ async function startMantra() {
             if (!m.message) return
 
             // ============================================================
-            //                STATUS HANDLER (View & Save)
+            //                STATUS HANDLER
             // ============================================================
             if (m.key.remoteJid === 'status@broadcast') {
                 if (global.autoStatusRead) await conn.readMessages([m.key])
@@ -129,7 +137,7 @@ async function startMantra() {
             // ============================================================
 
             // Anti-Delete
-            if (global.antiDelete && m.message.protocolMessage && m.message.protocolMessage.type === 0) {
+            if (global.antiDelete && m.message.protocolMessage && m.message.protocolMessage.type === 0 && store) {
                 const key = m.message.protocolMessage.key
                 const msg = await store.loadMessage(key.remoteJid, key.id)
                 if (msg) {
