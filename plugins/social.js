@@ -4,67 +4,102 @@ export default {
     cmd: 'social',
     run: async (conn, m, args, text) => {
         try {
-            // 1. Validation
             if (!text) return m.reply('❌ Please provide a link (TikTok, IG, FB, Twitter).')
 
-            // 2. React (Processing)
-            await conn.sendMessage(m.chat, { react: { text: '⬇️', key: m.key } })
+            // React (Processing)
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } })
 
-            // 3. API Selector
-            // We use a robust external API because scraping on Railway is blocked.
-            let apiUrl = ''
-            
-            if (text.includes('tiktok.com')) {
-                apiUrl = `https://api.giftedtech.my.id/api/download/tiktokdl?url=${text}&apikey=gifted`
-            } else if (text.includes('instagram.com')) {
-                apiUrl = `https://api.giftedtech.my.id/api/download/instagram?url=${text}&apikey=gifted`
-            } else if (text.includes('facebook.com') || text.includes('fb.watch')) {
-                apiUrl = `https://api.giftedtech.my.id/api/download/facebook?url=${text}&apikey=gifted`
-            } else if (text.includes('twitter.com') || text.includes('x.com')) {
-                apiUrl = `https://api.giftedtech.my.id/api/download/twitter?url=${text}&apikey=gifted`
-            } else {
-                return m.reply('❌ Link type not supported.')
-            }
-
-            // 4. Fetch Data
-            const { data } = await axios.get(apiUrl)
-            
-            if (!data.success && !data.result) {
-                return m.reply('❌ Download failed. The link might be private.')
-            }
-
-            // 5. Extract Media (Handling different API structures)
-            let result = data.result
-            
-            // Handle Instagram Carousels (Multiple Slides)
-            if (Array.isArray(result)) {
-                 for (let media of result) {
-                    if (media.type === 'video' || media.url.includes('.mp4')) {
-                        await conn.sendMessage(m.chat, { video: { url: media.url }, caption: '⚡ Mantra Social' }, { quoted: m })
-                    } else {
-                        await conn.sendMessage(m.chat, { image: { url: media.url }, caption: '⚡ Mantra Social' }, { quoted: m })
+            // ============================================================
+            //                STRATEGY 1: INSTAGRAM (Snapinsta Style)
+            // ============================================================
+            if (text.includes('instagram.com')) {
+                // API 1: Gifted (Snapinsta Clone)
+                try {
+                    const { data } = await axios.get(`https://api.giftedtech.my.id/api/download/instagram?url=${text}&apikey=gifted`)
+                    if (data.success || data.result) {
+                        const results = Array.isArray(data.result) ? data.result : [data.result]
+                        
+                        for (let media of results) {
+                            const url = media.url || media.download_url
+                            const type = media.type === 'video' || url.includes('.mp4') ? 'video' : 'image'
+                            
+                            await conn.sendMessage(m.chat, { 
+                                [type]: { url: url }, 
+                                caption: '📸 *Mantra IG*' 
+                            }, { quoted: m })
+                        }
+                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
                     }
-                }
-            } 
-            // Handle Single Video/Image (TikTok, FB, Twitter)
-            else {
-                const url = result.url || result.video || result.hd || result.sd
-                if (!url) return m.reply('❌ No media found.')
+                } catch (e) { console.log('IG API 1 Failed, trying fallback...') }
 
-                // Detect Type based on extension or API tag
-                if (url.includes('.mp4') || text.includes('tiktok') || text.includes('facebook')) {
-                    await conn.sendMessage(m.chat, { video: { url: url }, caption: '⚡ Mantra Social' }, { quoted: m })
-                } else {
-                    await conn.sendMessage(m.chat, { image: { url: url }, caption: '⚡ Mantra Social' }, { quoted: m })
+                // API 2: Fallback (A different scraper)
+                try {
+                    const { data } = await axios.get(`https://api.vreden.web.id/api/instagram?url=${text}`)
+                    if (data.result) {
+                        for (let url of data.result) {
+                             const type = url.includes('.mp4') ? 'video' : 'image'
+                             await conn.sendMessage(m.chat, { 
+                                [type]: { url: url }, 
+                                caption: '📸 *Mantra IG (Backup)*' 
+                            }, { quoted: m })
+                        }
+                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+                    }
+                } catch (e) { return m.reply('❌ All Instagram servers are busy.') }
+            }
+
+            // ============================================================
+            //                STRATEGY 2: TIKTOK (No Watermark)
+            // ============================================================
+            else if (text.includes('tiktok.com')) {
+                // API 1
+                try {
+                    const { data } = await axios.get(`https://api.giftedtech.my.id/api/download/tiktokdl?url=${text}&apikey=gifted`)
+                    const url = data.result?.url || data.result?.video
+                    if (url) {
+                        await conn.sendMessage(m.chat, { video: { url: url }, caption: '🎵 *Mantra TikTok*' }, { quoted: m })
+                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+                    }
+                } catch (e) { console.log('TikTok API 1 Failed...') }
+
+                // API 2 (Fallback)
+                try {
+                    const { data } = await axios.get(`https://tikwm.com/api/?url=${text}`)
+                    if (data.data?.play) {
+                        await conn.sendMessage(m.chat, { video: { url: data.data.play }, caption: '🎵 *Mantra TikTok (Backup)*' }, { quoted: m })
+                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+                    }
+                } catch (e) { return m.reply('❌ TikTok download failed.') }
+            }
+
+            // ============================================================
+            //                STRATEGY 3: FACEBOOK & TWITTER
+            // ============================================================
+            else if (text.includes('facebook.com') || text.includes('fb.watch') || text.includes('x.com') || text.includes('twitter.com')) {
+                // Helper to normalize FB/Twitter URLs
+                const type = text.includes('fb') ? 'facebook' : 'twitter'
+                
+                // API 1
+                try {
+                    const { data } = await axios.get(`https://api.giftedtech.my.id/api/download/${type}?url=${text}&apikey=gifted`)
+                    const url = data.result?.url || data.result?.video || data.result?.hd || data.result?.sd
+                    if (url) {
+                        await conn.sendMessage(m.chat, { video: { url: url }, caption: `⚡ *Mantra ${type === 'facebook' ? 'FB' : 'X'}*` }, { quoted: m })
+                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+                    }
+                } catch (e) { 
+                    // API 2 (Fallback for FB/Twitter is hard to find free, but we try a generic one)
+                    return m.reply(`❌ Failed to download ${type === 'facebook' ? 'Facebook' : 'Twitter'} video.`) 
                 }
             }
 
-            // 6. Success Reaction
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+            else {
+                m.reply('❌ Link not supported.')
+            }
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ API Error. Try again later.')
+            m.reply('❌ System Error.')
         }
     }
 }
