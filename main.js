@@ -1,38 +1,44 @@
 import './config.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createRequire } from 'module' // Bridge for CommonJS modules
+import { createRequire } from 'module'
 import pino from 'pino'
 import fs from 'fs/promises'
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// Define 'require' to load Baileys correctly in an ESM environment
+// 1. Setup require for ESM
 const require = createRequire(import.meta.url)
+
+// 2. Load Baileys and extract exports safely
+const baileys = require('@whiskeysockets/baileys')
+const makeWASocket = baileys.default || baileys
 const { 
-  default: makeWASocket, 
   useMultiFileAuthState, 
   DisconnectReason, 
-  fetchLatestBaileysVersion, 
-  makeInMemoryStore 
-} = require('@whiskeysockets/baileys')
+  fetchLatestBaileysVersion 
+} = baileys
+
+// Fix for TypeError: check both top-level and default exports
+const makeInMemoryStore = baileys.makeInMemoryStore || (baileys.default && baileys.default.makeInMemoryStore)
 
 // ESM paths
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Initialize Store
-const store = makeInMemoryStore({ 
-  logger: pino({ level: 'silent' }).child({ name: 'store' }) 
-})
+// 3. Initialize Store with type check
+const store = typeof makeInMemoryStore === 'function' 
+  ? makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) }) 
+  : null
+
+if (store) {
+  console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
+} else {
+  console.log('⚠️ Warning: Message Store failed to initialize. Anti-delete will be limited.')
+}
 
 const msgRetryMap = new Map()
 let pluginsLoaded = false 
-
-// Verification log
-if (store) {
-  console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
-}
 
 // ViewOnce unwrap helper
 function unwrapViewOnce(msg) {
@@ -55,7 +61,6 @@ async function startMantra() {
     const credsPath = path.join(sessionDir, 'creds.json')
     const credsExists = await fs.stat(credsPath).catch(() => false)
 
-    // Session Injection
     if (!credsExists && global.sessionId) {
       console.log('🔒 Injecting session from env...')
       const parts = global.sessionId.split('Mantra~')
@@ -67,7 +72,6 @@ async function startMantra() {
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
     
-    // Version Fetching
     let version = [2, 3000, 1015901307]
     try {
       const v = await fetchLatestBaileysVersion()
@@ -96,8 +100,7 @@ async function startMantra() {
       },
     })
 
-    // Bind store to connection
-    store.bind(conn.ev)
+    if (store) store.bind(conn.ev)
 
     let myJid = null
     conn.ev.on('connection.update', async (update) => {
@@ -121,15 +124,12 @@ async function startMantra() {
           const delay = status === 408 ? 10000 : 5000
           console.log(`🔄 Reconnecting in ${delay/1000} seconds...`)
           setTimeout(startMantra, delay)
-        } else {
-          console.log('❌ Logged out. Manual intervention required.')
         }
       }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
-    // Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
@@ -160,7 +160,6 @@ async function startMantra() {
 
     await loadPlugins()
 
-    // Message Upsert Logic
     conn.ev.on('messages.upsert', async (chatUpdate) => {
       if (chatUpdate.type === 'append') return
       const m = chatUpdate.messages[0]
@@ -170,7 +169,6 @@ async function startMantra() {
       if (Date.now() / 1000 - msgTime > 30) return
       if (!myJid) return
 
-      // Status Auto-Read & Save
       if (m.key.remoteJid === 'status@broadcast') {
         if (global.autoStatusRead) await conn.readMessages([m.key]).catch(() => {})
         if (global.autoStatusSave && (m.message.imageMessage || m.message.videoMessage)) {
@@ -187,14 +185,13 @@ async function startMantra() {
         return
       }
 
-      // Anti-Delete Logic
-      if (global.antiDelete && m.message.protocolMessage?.type === 5) {
+      if (global.antiDelete && m.message.protocolMessage?.type === 5 && store) {
         const key = m.message.protocolMessage.key
         try {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id)
           if (!deletedMsg?.message) return
           const participant = deletedMsg.key?.participant || deletedMsg.participant || key.remoteJid
-          const caption = `🗑️ *Deleted Message Detected*\nFrom: @${participant.split('@')[0]}`
+          const caption = `🗑️ *Deleted Message*\nFrom: @${participant.split('@')[0]}`
           
           if (deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage) {
             const text = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
@@ -208,12 +205,10 @@ async function startMantra() {
         return
       }
 
-      // Prevent Command Loops
       if (msgRetryMap.has(m.key.id)) return
       msgRetryMap.set(m.key.id, true)
       setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
 
-      // Anti-ViewOnce
       if (global.antiViewOnce && !m.key.fromMe) {
         const unwrapped = unwrapViewOnce(m.message)
         const media = unwrapped?.imageMessage || unwrapped?.videoMessage
@@ -224,7 +219,6 @@ async function startMantra() {
         }
       }
 
-      // Command Execution
       m.message = m.message.ephemeralMessage?.message || m.message
       const msg = smsg(conn, m)
       if (!msg.body) return
@@ -249,7 +243,6 @@ async function startMantra() {
   }
 }
 
-// Global Error Catching
 process.on('uncaughtException', err => console.error('Uncaught Exception:', err))
 process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason))
 
