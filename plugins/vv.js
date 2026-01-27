@@ -56,7 +56,6 @@ export default {
 
       // 6. Success reaction
       await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
-      await m.reply('✅ Media saved to your Private Chat!')
 
     } catch (e) {
       console.error('VV Command Error:', e)
