@@ -7,23 +7,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 function start() {
     console.log('🚀 Starting Mantra...')
     
-    // Spawn main.js as a child process
     let args = [path.join(__dirname, 'main.js'), ...process.argv.slice(2)]
     let p = spawn(process.argv[0], args, {
         stdio: ['inherit', 'inherit', 'inherit', 'ipc']
     })
 
-    // Listen for messages from main.js (optional)
     p.on('message', data => {
         if (data === 'reset') {
             console.log('🔄 Restarting Bot...')
             p.kill()
             start()
-            delete p
+            // Removed 'delete p' because it is illegal in strict mode
         }
     })
 
-    // If main.js dies, restart it
     p.on('exit', code => {
         console.error('⚠️ Mantra Exited with code:', code)
         if (code !== 0) {
