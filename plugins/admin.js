@@ -1,57 +1,67 @@
 export default {
-    cmd: 'admin', // logic to handle multiple commands
-    run: async (conn, m, args, text) => {
+    // These triggers are automatically registered by your main.js loader
+    cmd: ['kick', 'add', 'promote', 'demote', 'hidetag', 'tagall'],
+    run: async (conn, m, { args, command }) => {
         try {
-            // 1. Check Group & Permissions
-            if (!m.isGroup) return m.reply('❌ Groups only.')
+            // 1. Group & Permission Guard
+            if (!m.isGroup) return m.reply('❌ This command can only be used in groups.')
+            
+            const groupMetadata = await conn.groupMetadata(m.chat)
+            const participants = groupMetadata.participants
+            const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net'
             
             // Check if Bot is Admin
-            const groupMetadata = await conn.groupMetadata(m.chat)
-            const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net'
-            const botIsAdmin = groupMetadata.participants.find(p => p.id === botId)?.admin
-            if (!botIsAdmin) return m.reply('❌ Make me Admin first!')
+            const botIsAdmin = participants.find(p => p.id === botId)?.admin
+            if (!botIsAdmin) return m.reply('❌ I need to be an *Admin* to perform this action.')
 
-            // Check if User is Admin (or Owner)
-            const senderId = m.sender
-            const userIsAdmin = groupMetadata.participants.find(p => p.id === senderId)?.admin
-            const isOwner = global.owner.includes(senderId.split('@')[0])
-            
-            if (!userIsAdmin && !isOwner) return m.reply('❌ You are not Admin.')
+            // Check if Sender is Admin or Owner
+            const isOwner = global.owner?.includes(m.sender.split('@')[0])
+            const isAdmin = participants.find(p => p.id === m.sender)?.admin
+            if (!isAdmin && !isOwner) return m.reply('❌ Only group admins can use this command.')
 
-            // 2. Parse Command
-            // We check which command triggered this plugin
-            const command = m.body.split(' ')[0].toLowerCase().slice(1) // remove prefix
-            
-            // 3. Get Target User
+            // 2. Identify Target User (Tag, Reply, or Number)
             let users = m.mentions && m.mentions.length > 0 ? m.mentions : [m.quoted ? m.quoted.sender : null]
-            if (!users[0]) return m.reply('❌ Tag or Reply to someone.')
+            
+            // Handle specialized commands that don't need a target user
+            if (command === 'hidetag' || command === 'tagall') {
+                const message = args.join(' ') || '📢 Attention Everyone!'
+                const jids = participants.map(v => v.id)
+                return await conn.sendMessage(m.chat, { text: message, mentions: jids })
+            }
 
-            // 4. Execute Action
+            // Target Validation for kick/add/promote/demote
+            if (!users[0]) return m.reply('❌ Please tag a user or reply to their message.')
+            const target = users[0]
+
+            // 3. Execution Logic
             switch (command) {
                 case 'kick':
-                    await conn.groupParticipantsUpdate(m.chat, users, 'remove')
-                    m.reply(`👋 Begone!`)
+                    if (target === botId) return m.reply('🛡️ I cannot kick myself.')
+                    await conn.groupParticipantsUpdate(m.chat, [target], 'remove')
                     break
                 
                 case 'add':
-                    // Note: 'add' is restricted by WhatsApp privacy settings often
-                    await conn.groupParticipantsUpdate(m.chat, users, 'add')
+                    // Note: 'add' often fails if the user has private invite settings
+                    await conn.groupParticipantsUpdate(m.chat, [target], 'add')
+                    m.reply('✅ User added.')
                     break
                 
                 case 'promote':
-                    await conn.groupParticipantsUpdate(m.chat, users, 'promote')
-                    m.reply(`👑 Promoted to Admin.`)
+                    await conn.groupParticipantsUpdate(m.chat, [target], 'promote')
+                    m.reply('👑 User is now an Admin.')
                     break
                 
                 case 'demote':
-                    await conn.groupParticipantsUpdate(m.chat, users, 'demote')
-                    m.reply(`📉 Demoted.`)
+                    await conn.groupParticipantsUpdate(m.chat, [target], 'demote')
+                    m.reply('📉 User has been demoted.')
                     break
             }
 
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+
         } catch (e) {
-            console.error(e)
-            m.reply('❌ Action failed.')
+            console.error('Admin Plugin Error:', e)
+            m.reply('⚠️ Action failed. Ensure the user is still in the group.')
         }
     }
 }
