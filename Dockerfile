@@ -1,13 +1,14 @@
 FROM node:20-bullseye-slim
 
 # 1. Install System Dependencies
-# FIXED: Changed 'libwebp' to 'libwebp-dev' and added 'webp'
+# Added 'git' because some npm packages require it to fetch code
 RUN apt-get update && \
     apt-get install -y \
     ffmpeg \
     libwebp-dev \
     webp \
     imagemagick \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Set Working Directory
