@@ -1,61 +1,39 @@
 const { downloadMedia } = require('../lib/media')
-const fs = require('fs')
-const path = require('path')
-const { exec } = require('child_process')
 
 module.exports = {
     cmd: 'sticker',
     run: async (conn, m, args) => {
         try {
-            // Check if message is an image or video
-            const isMedia = (m.mtype === 'imageMessage' || m.mtype === 'videoMessage')
-            const isQuoted = m.msg?.contextInfo?.quotedMessage
-            
-            if (!isMedia && !isQuoted) return m.reply('❌ Send/Reply to an image or video!')
+            // 1. Identify Media (Direct or Quoted)
+            // We check if the message itself is an image/video, or if it quotes one.
+            const content = m.msg?.contextInfo?.quotedMessage 
+                ? (m.msg.contextInfo.quotedMessage.imageMessage || m.msg.contextInfo.quotedMessage.videoMessage)
+                : (m.message.imageMessage || m.message.videoMessage)
 
-            await m.reply('⏳ Processing...')
+            if (!content) return m.reply('❌ Send/Reply to an image or video with ,sticker')
 
-            // Handle Quoted Media or Direct Media
-            let msgToDownload = isQuoted ? {
-                msg: m.msg.contextInfo.quotedMessage.imageMessage || m.msg.contextInfo.quotedMessage.videoMessage,
-                mtype: m.msg.contextInfo.quotedMessage.imageMessage ? 'imageMessage' : 'videoMessage',
-                conn: conn // Pass connection
-            } : m
+            // 2. Limit Video Duration
+            // Animated stickers can't be too long or WhatsApp rejects them.
+            if (content.seconds > 10) return m.reply('❌ Video too long! Max 10 seconds.')
 
-            // Download as Buffer
-            let buffer = await downloadMedia(msgToDownload)
-            
-            // Temporary File Paths
-            let ran = Date.now()
-            let inputFile = path.join(__dirname, `../temp/${ran}.${isQuoted ? 'mp4' : 'jpg'}`)
-            let outputFile = path.join(__dirname, `../temp/${ran}.webp`)
+            // React (Processing)
+            await conn.sendMessage(m.chat, { react: { text: '📦', key: m.key } })
 
-            // Create temp folder if not exists
-            if (!fs.existsSync('./temp')) fs.mkdirSync('./temp')
-            
-            fs.writeFileSync(inputFile, buffer)
+            // 3. Download Media
+            const type = content.mimetype.split('/')[0]
+            const buffer = await downloadMedia({ msg: content, mtype: type === 'image' ? 'imageMessage' : 'videoMessage' })
 
-            // Convert using FFmpeg (The Dangerous Efficiency)
-            // We scale it to 512x512 to fit WhatsApp Sticker specs
-            exec(`ffmpeg -i ${inputFile} -vcodec libwebp -filter:v fps=fps=20 -lossless 1 -loop 0 -preset default -an -vsync 0 -s 512:512 ${outputFile}`, async (err) => {
-                if (err) {
-                    console.error(err)
-                    return m.reply('❌ Conversion Failed')
-                }
-
-                // Send the Sticker
-                await conn.sendMessage(m.chat, { 
-                    sticker: { url: outputFile } 
-                }, { quoted: m })
-
-                // Clean up temp files
-                fs.unlinkSync(inputFile)
-                fs.unlinkSync(outputFile)
-            })
+            // 4. Send as Sticker
+            // Baileys automatically handles the conversion to WebP using the FFmpeg we installed.
+            await conn.sendMessage(m.chat, { 
+                sticker: buffer,
+                packname: global.packname || 'Mantra', // From config.js
+                author: global.author || 'Bot'         // From config.js
+            }, { quoted: m })
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Error creating sticker.')
+            m.reply('❌ Error making sticker.')
         }
     }
 }
