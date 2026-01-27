@@ -1,4 +1,5 @@
-import makeWASocket, {
+import {
+    makeWASocket,
     DisconnectReason,
     useMultiFileAuthState,
     WASocket,
@@ -43,9 +44,9 @@ export class SocketService {
             generateHighQualityLinkPreview: true,
         })
 
-        this.sock.ev.on('creds.update', saveCreds)
+        this.sock?.ev.on('creds.update', saveCreds)
 
-        this.sock.ev.on('connection.update', (update: Partial<ConnectionState>) => {
+        this.sock?.ev.on('connection.update', (update: Partial<ConnectionState>) => {
             const { connection, lastDisconnect } = update
 
             if (connection === 'close') {
@@ -70,7 +71,7 @@ export class SocketService {
             }
         })
 
-        this.sock.ev.on('messages.upsert', async ({ messages, type }: { messages: proto.IWebMessageInfo[]; type: MessageUpsertType }) => {
+        this.sock?.ev.on('messages.upsert', async ({ messages, type }: { messages: proto.IWebMessageInfo[]; type: MessageUpsertType }) => {
             if (type !== 'notify') return
 
             for (const m of messages) {

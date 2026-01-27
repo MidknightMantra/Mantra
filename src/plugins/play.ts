@@ -35,7 +35,7 @@ const play: Plugin = {
 
 *Sending your ${command === 'video' ? 'video' : 'audio'}...*`.trim()
 
-            await conn.sendMessage(msg.key.remoteJid!, { image: { url: video.thumbnail }, caption: infoText }, { quoted: msg })
+            await conn.sendMessage(msg.key.remoteJid!, { image: { url: video.thumbnail || '' }, caption: infoText }, { quoted: msg })
 
             // 2. Download via Public API (Using the same logic as legacy)
             // Note: Public APIs are unstable. Consider using a library like ytdl-core in production if available,

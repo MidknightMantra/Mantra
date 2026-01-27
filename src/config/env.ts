@@ -13,13 +13,13 @@ const envSchema = z.object({
     AUTHOR_NAME: z.string().default('MidknightMantra').describe("Sticker author name"),
 
     // Command Prefixes (stored as comma-separated string in env, parsed to array)
-    PREFIX: z.string().default(',!').transform((val) => val.split('').filter(c => c.length > 0)),
+    PREFIX: z.string().default(',!').transform((val: string) => val.split('').filter((c: string) => c.length > 0)),
 
     // Feature Toggles (env vars are strings, convert to boolean)
-    ALWAYS_ONLINE: z.string().default('true').transform((v) => v === 'true'),
-    ANTI_DELETE: z.string().default('true').transform((v) => v === 'true'),
-    ANTI_VIEW_ONCE: z.string().default('true').transform((v) => v === 'true'),
-    AUTO_READ_STATUS: z.string().default('true').transform((v) => v === 'true'),
+    ALWAYS_ONLINE: z.string().default('true').transform((v: string) => v === 'true'),
+    ANTI_DELETE: z.string().default('true').transform((v: string) => v === 'true'),
+    ANTI_VIEW_ONCE: z.string().default('true').transform((v: string) => v === 'true'),
+    AUTO_READ_STATUS: z.string().default('true').transform((v: string) => v === 'true'),
 
     // Database
     DATABASE_URL: z.string().default("file:./mantra.db"),

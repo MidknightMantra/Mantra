@@ -43,13 +43,13 @@ const sticker: Plugin = {
                 buffer = await downloadMediaMessage(
                     fakeM as any,
                     'buffer',
-                    { logger: logger as any }
+                    {}
                 ) as Buffer
             } else {
                 buffer = await downloadMediaMessage(
                     msg,
                     'buffer',
-                    { logger: logger as any }
+                    {}
                 ) as Buffer
             }
 
@@ -57,7 +57,7 @@ const sticker: Plugin = {
                 pack: 'Mantra Bot',
                 author: '@Mantra',
                 type: StickerTypes.FULL,
-                categories: ['🤩', '🎉'],
+                categories: ['🤩', '🎉'] as any, // Cast as any because formatter types might be strict literals
                 quality: 50
             })
 

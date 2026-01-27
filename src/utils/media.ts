@@ -25,7 +25,7 @@ export async function downloadMedia(m: WAMessage): Promise<Buffer | null> {
         const buffer = await downloadMediaMessage(
             m,
             'buffer',
-            { logger: logger as any, reuploadRequest: (u) => new Promise(resolve => resolve(u)) }
+            {}
         )
         return buffer as Buffer
     } catch (err) {
