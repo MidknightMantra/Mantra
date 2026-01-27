@@ -7,12 +7,14 @@ global.packname = 'Mantra'
 global.author = 'MidknightMantra'
 global.sessionName = 'Mantra_Session' 
 
-// --- HARDCODED PREFIX ---
-// No Env Variables. Just comma.
-global.prefa = [','] 
+// --- PRIVACY SETTINGS ---
+global.antiViewOnce = true // Set to false to disable auto-saving
 // ------------------------
 
-// Session ID (Keep this as Env or it won't login)
+// --- HARDCODED PREFIX ---
+global.prefa = [','] 
+
+// Session ID
 global.sessionId = process.env.SESSION_ID
 
 // Watch for file changes
