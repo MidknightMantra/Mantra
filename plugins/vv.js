@@ -4,48 +4,64 @@ export default {
     cmd: 'vv',
     run: async (conn, m, args) => {
         try {
-            // 1. Check for Quoted Message
-            const quoted = m.msg?.contextInfo?.quotedMessage
-            if (!quoted) return m.reply('❌ Reply to a ViewOnce message!')
+            // 1. Get Raw Quoted Message
+            // We use the raw contextInfo to ensure we get the ViewOnce structure
+            let quoted = m.msg?.contextInfo?.quotedMessage
+            if (!quoted) return m.reply('❌ Please reply to a ViewOnce message.')
 
-            // 2. Identify ViewOnce Message
-            let viewOnceMsg = quoted.viewOnceMessage || quoted.viewOnceMessageV2 || quoted.viewOnceMessageV2Extension
+            // 2. Unwrap the ViewOnce Message safely
+            // Iterate through possible ViewOnce keys to find the content
+            let viewOnceNode = quoted.viewOnceMessageV2 || quoted.viewOnceMessage || quoted.viewOnceMessageV2Extension
             
-            // Check manual unwrap
-            if (!viewOnceMsg) {
+            // If it's not wrapped in a standard ViewOnce container, check if the inner message is marked viewOnce
+            if (!viewOnceNode) {
                 if (quoted.imageMessage?.viewOnce || quoted.videoMessage?.viewOnce) {
-                    viewOnceMsg = { message: quoted }
+                    viewOnceNode = { message: quoted }
                 }
             }
 
-            if (!viewOnceMsg) return m.reply('❌ This is not a ViewOnce message.')
+            if (!viewOnceNode || !viewOnceNode.message) {
+                return m.reply('❌ This is not a valid ViewOnce message.')
+            }
 
-            // 3. Extract Media Content
-            const content = viewOnceMsg.message.imageMessage || viewOnceMsg.message.videoMessage
-            if (!content) return m.reply('❌ No media found.')
+            // 3. Extract the actual Media Content (Image/Video)
+            // We look inside the .message property
+            const innerMsg = viewOnceNode.message
+            const content = innerMsg.imageMessage || innerMsg.videoMessage
+            
+            if (!content) return m.reply('❌ No media found inside this ViewOnce.')
 
-            // React (Processing)
-            await conn.sendMessage(m.chat, { react: { text: '🕵️', key: m.key } })
+            // React to show processing
+            await conn.sendMessage(m.chat, { react: { text: '🔓', key: m.key } })
 
-            // 4. Download
-            const mtype = content.mimetype.split('/')[0] === 'image' ? 'imageMessage' : 'videoMessage'
+            // 4. Download Media
+            // Determine type explicitly
+            const isImage = !!innerMsg.imageMessage
+            const mtype = isImage ? 'imageMessage' : 'videoMessage'
+
+            // Download using your library
             const buffer = await downloadMedia({ msg: content, mtype: mtype })
+            
+            if (!buffer) throw new Error('Download failed: Buffer is empty')
 
-            // 5. Send to SAVED MESSAGES (Private)
-            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
-            const caption = `🔓 *ViewOnce Revealed*\nFrom: @${m.sender.split('@')[0]}\nChat: ${m.isGroup ? 'Group' : 'DM'}`
+            // 5. Send to Saved Messages (Bot's DM)
+            // Safer way to get Bot's JID
+            const botId = conn.user.id || conn.user.jid
+            const myJid = botId.split(':')[0] + '@s.whatsapp.net'
+            
+            const caption = `🔓 *ViewOnce Revealed*\n\n👤 *From:* @${m.sender.split('@')[0]}\n📍 *Chat:* ${m.isGroup ? 'Group' : 'DM'}`
 
-            if (mtype === 'imageMessage') {
+            if (isImage) {
                 await conn.sendMessage(myJid, { image: buffer, caption: caption, mentions: [m.sender] })
             } else {
                 await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
             }
 
-            // 6. Confirm in Chat (Reaction Only)
+            // 6. Confirm in Chat
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
 
         } catch (e) {
-            console.error(e)
+            console.error('VV Error:', e)
             m.reply('❌ Failed to reveal.')
         }
     }
