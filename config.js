@@ -7,12 +7,15 @@ global.packname = 'Mantra'
 global.author = 'MidknightMantra'
 global.sessionName = 'Mantra_Session' 
 
-// Prefix Logic (Environment Variable > Default)
-// In Railway, set PREFIX to: .,#,!
-global.prefa = process.env.PREFIX ? process.env.PREFIX.split(',') : ['.', '!', '/']
+// --- PREFIX FIX ---
+// This logic prevents empty strings "" from becoming prefixes
+const envPrefix = process.env.PREFIX
+global.prefa = (envPrefix && envPrefix.trim().length > 0) 
+    ? envPrefix.split(',').map(p => p.trim()) 
+    : ['.', '!', '/']
+// ------------------
 
-// Session ID Logic (Strictly Environment Variable)
-// You MUST set SESSION_ID in Railway/Heroku Variables
+// Session ID
 global.sessionId = process.env.SESSION_ID
 
 // Watch for file changes
