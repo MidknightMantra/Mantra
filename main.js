@@ -73,7 +73,6 @@ async function startMantra() {
     
     loadPlugins()
 
-    // Watch for plugin changes
     fs.watch(pluginFolder, (eventType, filename) => {
         if (filename && filename.endsWith('.js')) {
             console.log(`Plugin updated: ${filename}`)
@@ -92,12 +91,12 @@ async function startMantra() {
             m = smsg(conn, m)
             
             // --- DEBUG LOGGING ---
-            // This will show us exactly what the bot sees
             if (m.body) {
-                console.log('--------------------------------')
                 console.log(`💬 Received: "${m.body}"`)
-                console.log(`👤 From: ${m.sender}`)
             }
+
+            // --- SAFTEY CHECK FOR BODY ---
+            if (!m.body) return 
 
             // Handle Prefixes
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
@@ -106,13 +105,8 @@ async function startMantra() {
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
-            // --- DEBUG COMMAND MATCHING ---
-            if (isCmd) {
-                console.log(`⚙️  Command Detected: "${command}"`)
-                console.log(`🔌 Plugin Found: ${plugins.has(command)}`)
-            }
-
             if (isCmd && plugins.has(command)) {
+                console.log(`⚙️ Executing Command: ${command}`)
                 await plugins.get(command).run(conn, m, args, text)
             }
         } catch (err) {
