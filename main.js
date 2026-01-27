@@ -10,7 +10,7 @@ async function startMantra() {
     // --- SESSION INJECTION ---
     if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
     
-    // Only inject if creds.json is missing (Prevents overwriting valid sessions)
+    // Inject Session only if missing
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
         console.log('🔒 Injecting Session ID...')
         const sessionParts = global.sessionId.split('Mantra~')
@@ -29,7 +29,6 @@ async function startMantra() {
         logger: pino({ level: 'silent' }),
         auth: state,
         version,
-        // Increase timeout to prevent 428 errors on slow networks
         connectTimeoutMs: 60000, 
         defaultQueryTimeoutMs: 0,
         keepAliveIntervalMs: 10000,
@@ -91,14 +90,14 @@ async function startMantra() {
             m = smsg(conn, m)
             if (!m.body) return
 
-            // --- FIXED MATCHING LOGIC ---
-            // 1. Find the prefix used (if any)
+            // --- STRICT MATCHING LOGIC ---
+            // 1. Find the prefix used (Strictly comma now)
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
             
             // 2. Check if it is a command
             const isCmd = m.body.startsWith(prefix)
             
-            // 3. Extract Command (Remove prefix, trim, split spaces, lowercase)
+            // 3. Extract Command
             const command = isCmd 
                 ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() 
                 : ''
@@ -106,7 +105,7 @@ async function startMantra() {
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
-            // Debug Print for You
+            // Debug Print for You (Optional, remove later)
             if (isCmd && command) {
                  console.log(`💬 Cmd: ${command} | Prefix: "${prefix}" | Plugin Exists: ${plugins.has(command)}`)
             }
@@ -119,7 +118,6 @@ async function startMantra() {
         }
     })
     
-    // Handle Uncaught Errors (Prevent Crash on 428)
     process.on('uncaughtException', function (err) {
         console.log('Caught exception: ', err)
     })
