@@ -1,29 +1,19 @@
+// plugins/ai.js
 import axios from 'axios'
 
 export default {
-    cmd: 'ai',
-    run: async (conn, m, args, text) => {
+    cmd: ['ai', 'ask', 'gpt', 'gemini'],
+    run: async (conn, m, { text }) => {
+        if (!text) return m.reply('🤖 How can I help you today?')
+        
+        await conn.sendMessage(m.chat, { react: { text: '🧠', key: m.key } })
+        
         try {
-            if (!text) return m.reply('❌ Ask me something.\nExample: *,ai What is the meaning of life?*')
-
-            // React to show it's thinking
-            await conn.sendMessage(m.chat, { react: { text: '🧠', key: m.key } })
-
-            // Use a free API (Hercai or Gifted)
-            const apiUrl = `https://hercai.onrender.com/v3/hercai?question=${encodeURIComponent(text)}`
-            
-            const { data } = await axios.get(apiUrl)
-            
-            if (data && data.reply) {
-                await m.reply(data.reply)
-                await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
-            } else {
-                m.reply('❌ My brain is offline. Try again later.')
-            }
-
+            // Using a public free-tier AI bridge
+            const { data } = await axios.get(`https://api.vreden.web.id/api/ai/gemini?text=${encodeURIComponent(text)}`)
+            await m.reply(data.result)
         } catch (e) {
-            console.error(e)
-            m.reply('❌ Error connecting to AI.')
+            m.reply('❌ The AI is currently resting. Try again later.')
         }
     }
 }
