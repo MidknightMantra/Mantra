@@ -7,7 +7,7 @@ import fs from 'fs/promises'
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// 1. Setup require for ESM
+// 1. Setup require for ESM bridge
 const require = createRequire(import.meta.url)
 
 // 2. Load Baileys and extract exports safely
@@ -19,18 +19,33 @@ const {
   fetchLatestBaileysVersion 
 } = baileys
 
-// Fix for TypeError: check both top-level and default exports
-const makeInMemoryStore = baileys.makeInMemoryStore || (baileys.default && baileys.default.makeInMemoryStore)
+// 3. Robust Store Extraction for v7-rc.9
+let makeInMemoryStore = baileys.makeInMemoryStore
+if (typeof makeInMemoryStore !== 'function') {
+    try {
+        // v7 release candidates often require reaching into the lib folder
+        const { makeInMemoryStore: storeFunc } = require('@whiskeysockets/baileys/lib/Store/make-in-memory-store')
+        makeInMemoryStore = storeFunc
+    } catch {
+        try {
+            const { makeInMemoryStore: altStoreFunc } = require('@whiskeysockets/baileys/lib/Utils')
+            makeInMemoryStore = altStoreFunc
+        } catch (e) {
+            makeInMemoryStore = null
+        }
+    }
+}
 
 // ESM paths
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// 3. Initialize Store with type check
+// 4. Initialize Store
 const store = typeof makeInMemoryStore === 'function' 
   ? makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) }) 
   : null
 
+// Verification logging
 if (store) {
   console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
 } else {
@@ -72,6 +87,7 @@ async function startMantra() {
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
     
+    // Handshake settings
     let version = [2, 3000, 1015901307]
     try {
       const v = await fetchLatestBaileysVersion()
@@ -100,6 +116,7 @@ async function startMantra() {
       },
     })
 
+    // Bind store to connection for message tracking
     if (store) store.bind(conn.ev)
 
     let myJid = null
@@ -169,22 +186,13 @@ async function startMantra() {
       if (Date.now() / 1000 - msgTime > 30) return
       if (!myJid) return
 
+      // --- STATUS AUTO-READ ---
       if (m.key.remoteJid === 'status@broadcast') {
         if (global.autoStatusRead) await conn.readMessages([m.key]).catch(() => {})
-        if (global.autoStatusSave && (m.message.imageMessage || m.message.videoMessage)) {
-          try {
-            const mtype = m.message.imageMessage ? 'imageMessage' : 'videoMessage'
-            const buffer = await downloadMedia({ msg: m.message[mtype], mtype })
-            const sender = m.pushName || 'Unknown'
-            await conn.sendMessage(myJid, { 
-              [mtype.replace('Message', '')]: buffer, 
-              caption: `💾 *Status Saver*\nFrom: ${sender}` 
-            })
-          } catch (err) { console.error('Status save failed:', err.message) }
-        }
         return
       }
 
+      // --- ANTI-DELETE LOGIC ---
       if (global.antiDelete && m.message.protocolMessage?.type === 5 && store) {
         const key = m.message.protocolMessage.key
         try {
@@ -209,6 +217,7 @@ async function startMantra() {
       msgRetryMap.set(m.key.id, true)
       setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
 
+      // --- ANTI-VIEWONCE ---
       if (global.antiViewOnce && !m.key.fromMe) {
         const unwrapped = unwrapViewOnce(m.message)
         const media = unwrapped?.imageMessage || unwrapped?.videoMessage
@@ -219,6 +228,7 @@ async function startMantra() {
         }
       }
 
+      // --- COMMAND HANDLER ---
       m.message = m.message.ephemeralMessage?.message || m.message
       const msg = smsg(conn, m)
       if (!msg.body) return
