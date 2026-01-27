@@ -2,35 +2,26 @@ module.exports = {
     cmd: 'all',
     run: async (conn, m, args, text) => {
         try {
-            console.log('📢 Triggering Tag-All...')
-
             // 1. Check Group
             if (!m.isGroup) return m.reply('❌ Groups only!')
 
-            // 2. Fetch Metadata (Protected)
-            // This is the network call that usually fails
+            // 2. Fetch Metadata
+            // We need this to get the list of victims (participants)
             const groupMetadata = await conn.groupMetadata(m.chat).catch(e => {
                 console.error('Failed to fetch metadata:', e)
                 return null
             })
 
-            if (!groupMetadata) return m.reply('❌ Failed to fetch members. Try again in 5 seconds.')
+            if (!groupMetadata) return m.reply('❌ Failed to fetch members.')
 
             const participants = groupMetadata.participants || []
             
-            // 3. Robust Admin Check
-            // We compare the bare number (split at @) and check admin status
-            const senderNumber = m.sender.split('@')[0].split(':')[0]
-            
-            const isAdmin = participants.find(p => 
-                p.id.split('@')[0].split(':')[0] === senderNumber && 
-                (p.admin === 'admin' || p.admin === 'superadmin')
-            )
-            
-            if (!isAdmin && !m.key.fromMe) return m.reply('❌ Admin privilege required.')
+            // --- ADMIN CHECK REMOVED ---
+            // The code that stopped you is gone.
+            // ---------------------------
 
-            // 4. Build Message
-            let message = `*📢 EVERYONE WAKE UP*\n`
+            // 3. Build Message
+            let message = `*📢 ATTENTION EVERYONE*\n`
             if (text) message += `*Message:* ${text}\n`
             message += `\n`
 
@@ -40,17 +31,15 @@ module.exports = {
 
             message += `\n*Total:* ${participants.length}`
 
-            // 5. Send
+            // 4. Send with Mentions
             await conn.sendMessage(m.chat, { 
                 text: message, 
                 mentions: participants.map(a => a.id) 
             }, { quoted: m })
 
-            console.log('✅ Tag-All Sent')
-
         } catch (e) {
-            console.error('TagAll Error:', e)
-            m.reply('❌ Error executing command.')
+            console.error(e)
+            m.reply('❌ Failed to tag all.')
         }
     }
 }
