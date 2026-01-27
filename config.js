@@ -1,32 +1,24 @@
-const fs = require('fs')
-const chalk = require('chalk')
+import { watchFile, unwatchFile } from 'fs'
+import { fileURLToPath } from 'url'
 
-// Owner Settings
-global.owner = ['254700000000'] 
+// --- GLOBAL SETTINGS ---
+global.owner = ['254700000000'] // Your Number
 global.packname = 'Mantra'
-global.author = 'MidknightMantra'
-global.sessionName = 'Mantra_Session' 
+global.author = 'Bot'
+global.sessionName = 'session'
+global.prefa = [',', '!'] // Prefixes
+global.sessionId = process.env.SESSION_ID || "" // For Railway
 
-// --- PRIVACY SETTINGS ---
-global.antiViewOnce = true // Set to false to disable auto-saving
-global.alwaysOnline = true // true = Green Dot 24/7
+// --- PRIVACY & FEATURES ---
+global.antiViewOnce = true
 global.antiDelete = true
-global.autoStatusRead = true //true = You appear in their view list)
-// -----------------------
+global.alwaysOnline = true
+global.autoStatusRead = true 
 
-// ------------------------
-
-// --- HARDCODED PREFIX ---
-global.prefa = [','] 
-
-// Session ID
-global.sessionId = process.env.SESSION_ID
-
-// Watch for file changes
-let file = require.resolve(__filename)
-fs.watchFile(file, () => {
-    fs.unwatchFile(file)
-    console.log(chalk.redBright(`Update'${__filename}'`))
-    delete require.cache[file]
-    require(file)
+// --- RELOAD LOGIC ---
+let file = fileURLToPath(import.meta.url)
+watchFile(file, () => {
+    unwatchFile(file)
+    console.log('Update config.js')
+    import(`${file}?update=${Date.now()}`)
 })
