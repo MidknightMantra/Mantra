@@ -30,4 +30,9 @@ const envSchema = z.object({
 
 export const config = envSchema.parse(process.env)
 
+// Backport default to process.env for Prisma (which reads env directly)
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = config.DATABASE_URL
+}
+
 export const isTrue = (value: boolean) => value === true
