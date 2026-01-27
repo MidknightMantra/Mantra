@@ -9,9 +9,17 @@ async function startMantra() {
     
     // --- SESSION INJECTION ---
     if (!fs.existsSync(global.sessionName)) fs.mkdirSync(global.sessionName)
+    
+    // Only inject if creds.json is missing (Prevents overwriting valid sessions)
     if (!fs.existsSync(path.join(global.sessionName, 'creds.json')) && global.sessionId) {
-        const parts = global.sessionId.split('Mantra~')
-        if (parts[1]) fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(parts[1], 'base64').toString('utf-8'))
+        console.log('🔒 Injecting Session ID...')
+        const sessionParts = global.sessionId.split('Mantra~')
+        const sessionData = sessionParts[1]
+        
+        if (sessionData) {
+            fs.writeFileSync(path.join(global.sessionName, 'creds.json'), Buffer.from(sessionData, 'base64').toString('utf-8'))
+            console.log('✅ Session Injected Successfully')
+        }
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(global.sessionName)
@@ -20,26 +28,40 @@ async function startMantra() {
     const conn = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
-        version
+        version,
+        // Increase timeout to prevent 428 errors on slow networks
+        connectTimeoutMs: 60000, 
+        defaultQueryTimeoutMs: 0,
+        keepAliveIntervalMs: 10000,
+        emitOwnEvents: true,
+        fireInitQueries: true,
+        generateHighQualityLinkPreview: true,
+        syncFullHistory: true,
+        markOnlineOnConnect: true
     })
 
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
         if (connection === 'close') {
-            if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) startMantra()
+            let reason = lastDisconnect.error?.output?.statusCode
+            console.log(`⚠️ Connection closed. Reason: ${reason}`)
+            
+            // Reconnect unless logged out
+            if (reason !== DisconnectReason.loggedOut) {
+                console.log('🔄 Reconnecting...')
+                startMantra()
+            } else {
+                console.log('❌ Logged out. Delete session and scan again.')
+            }
         } else if (connection === 'open') {
             console.log('Mantra Connected ✅')
-            // --- DIAGNOSTIC START ---
-            console.log('--------------------------------')
-            console.log(`🔌 Loaded Plugins: [${Array.from(plugins.keys()).join(', ')}]`)
             console.log(`⚡ Active Prefixes: "${global.prefa.join('" "')}"`)
-            console.log('--------------------------------')
-            // --- DIAGNOSTIC END ---
         }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
+    // Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
@@ -48,11 +70,14 @@ async function startMantra() {
         if (fs.existsSync(pluginFolder)) {
             fs.readdirSync(pluginFolder).forEach(file => {
                 if (file.endsWith('.js')) {
-                    const plugin = require(path.join(pluginFolder, file))
+                    const pluginPath = path.join(pluginFolder, file)
+                    delete require.cache[require.resolve(pluginPath)]
+                    const plugin = require(pluginPath)
                     if (plugin.cmd) plugins.set(plugin.cmd, plugin)
                 }
             })
         }
+        console.log(`🔌 Loaded Plugins: [${Array.from(plugins.keys()).join(', ')}]`)
     }
     loadPlugins()
 
@@ -66,26 +91,37 @@ async function startMantra() {
             m = smsg(conn, m)
             if (!m.body) return
 
-            // --- DEBUG MATCHING ---
+            // --- FIXED MATCHING LOGIC ---
+            // 1. Find the prefix used (if any)
             const prefix = global.prefa.find(p => m.body.startsWith(p)) || ''
+            
+            // 2. Check if it is a command
             const isCmd = m.body.startsWith(prefix)
-            const command = isCmd ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
+            
+            // 3. Extract Command (Remove prefix, trim, split spaces, lowercase)
+            const command = isCmd 
+                ? m.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() 
+                : ''
+                
             const args = m.body.trim().split(/ +/).slice(1)
             const text = args.join(" ")
 
-            if (m.body.length < 10) { // Only log short messages to keep logs clean
-                console.log(`💬 Received: "${m.body}"`)
-                console.log(`🔍 Detected Prefix: "${prefix}"`)
-                console.log(`⚙️ Detected Command: "${command}"`)
-                console.log(`❓ Is Command Plugin? ${plugins.has(command)}`)
+            // Debug Print for You
+            if (isCmd && command) {
+                 console.log(`💬 Cmd: ${command} | Prefix: "${prefix}" | Plugin Exists: ${plugins.has(command)}`)
             }
 
             if (isCmd && plugins.has(command)) {
                 await plugins.get(command).run(conn, m, args, text)
             }
         } catch (err) {
-            console.error(err)
+            console.error('Message Error:', err)
         }
+    })
+    
+    // Handle Uncaught Errors (Prevent Crash on 428)
+    process.on('uncaughtException', function (err) {
+        console.log('Caught exception: ', err)
     })
 }
 
