@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const MAX_RESTARTS = 10          // Prevent infinite restart loops
+const MAX_RESTARTS = 10
 let restartCount = 0
 let childProcess = null
 let isShuttingDown = false
@@ -24,102 +24,67 @@ function start() {
       env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'production' }
     })
 
-    restartCount++
+    // FIXED: Corrected the template literal backticks and variable syntax
+    console.log(`Child process started (PID: ${childProcess.pid}) - Restart count: ${restartCount}/${MAX_RESTARTS}`)
 
-    console.log(`Child process started (PID: ${childProcess.pid}) - Restart count: \( {restartCount}/ \){MAX_RESTARTS}`)
-
-    // Handle messages from child (e.g., 'reset')
+    // Handle messages from child (e.g., 'reset' or 'reload')
     childProcess.on('message', (data) => {
       if (data === 'reset') {
         console.log('🔄 Received reset signal from child. Restarting...')
+        restartCount = 0 // Reset counter on manual restart
         restartChild()
       }
     })
 
-    // Handle unexpected errors in child spawn
     childProcess.on('error', (err) => {
       console.error('❌ Child process error:', err.message)
-      handleExit(1)
     })
 
-    // Handle child exit
     childProcess.on('exit', (code, signal) => {
       console.log(`⚠️ Mantra exited with code ${code} (signal: ${signal || 'none'})`)
 
       if (isShuttingDown) return
 
+      // If code is not 0, it crashed or was killed
       if (code !== 0 && code !== null) {
+        restartCount++
+        
         if (restartCount >= MAX_RESTARTS) {
-          console.error(`🚫 Max restarts (${MAX_RESTARTS}) reached. Giving up.`)
+          console.error(`🚫 Max restarts (${MAX_RESTARTS}) reached. Check your code for errors!`)
           process.exit(1)
         }
-        console.log('🔄 Auto-restarting in 3 seconds...')
-        setTimeout(restartChild, 3000)
+        
+        console.log(`🔄 Auto-restarting in 3 seconds... (${restartCount}/${MAX_RESTARTS})`)
+        setTimeout(start, 3000)
       } else {
-        console.log('✅ Clean exit. Not restarting.')
+        console.log('✅ Clean exit. Standby.')
       }
     })
 
   } catch (err) {
     console.error('❌ Failed to spawn child process:', err.message)
-    if (restartCount < MAX_RESTARTS) {
-      console.log('🔄 Retrying spawn in 5 seconds...')
-      setTimeout(start, 5000)
-    } else {
-      console.error('🚫 Too many spawn failures. Exiting.')
-      process.exit(1)
-    }
+    process.exit(1)
   }
 }
 
 function restartChild() {
   if (childProcess && !childProcess.killed) {
-    console.log(`Killing child PID ${childProcess.pid}...`)
     childProcess.kill('SIGTERM')
-    // Give it time to gracefully shut down
-    setTimeout(() => {
-      if (!childProcess.killed) {
-        console.warn('Child did not exit gracefully. Force killing...')
-        childProcess.kill('SIGKILL')
-      }
-      start()
-    }, 2000)
+    // Start will be triggered by the 'exit' listener above
   } else {
     start()
   }
 }
 
-// Graceful shutdown handler
+// Graceful shutdown
 function shutdown(signal) {
-  console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`)
+  console.log(`\n🛑 Received ${signal}. Shutting down...`)
   isShuttingDown = true
-
-  if (childProcess && !childProcess.killed) {
-    childProcess.send({ type: 'shutdown' }) // Optional: notify child if it supports
-    childProcess.kill('SIGTERM')
-    setTimeout(() => {
-      if (!childProcess.killed) childProcess.kill('SIGKILL')
-      process.exit(0)
-    }, 5000)
-  } else {
-    process.exit(0)
-  }
+  if (childProcess) childProcess.kill('SIGTERM')
+  process.exit(0)
 }
 
-// Listen for termination signals
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
-process.on('SIGHUP', () => shutdown('SIGHUP'))
 
-// Global error handlers to prevent full crashes
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err.stack || err)
-  // Optionally restart or shutdown
-})
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
-})
-
-// Start the bot
 start()
