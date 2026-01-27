@@ -1,3 +1,4 @@
+import './config/env.js' // Loads environment variables immediately
 import { SocketService } from './services/SocketService.js'
 import { connectDB } from './database/index.js'
 import { logger } from './utils/logger.js'
