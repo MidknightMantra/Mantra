@@ -1,12 +1,20 @@
 module.exports = {
     cmd: 'ping',
     run: async (conn, m, args) => {
-        const start = new Date().getTime()
-        const { key } = await conn.sendMessage(m.chat, { text: 'Pinging...' }, { quoted: m })
-        const end = new Date().getTime()
-        const ping = end - start
-        
-        // Edit the message with the speed
-        await conn.sendMessage(m.chat, { text: `Pong! 🏓\nSpeed: ${ping}ms`, edit: key })
+        try {
+            const start = Date.now()
+            
+            // 1. Send a reaction to measure round-trip speed
+            await conn.sendMessage(m.chat, { react: { text: '⚡', key: m.key } })
+            
+            const end = Date.now()
+            const latency = end - start
+
+            // 2. Reply with the speed
+            await m.reply(`*MANTRA SPEED* ⚡\n\n📶 Latency: *${latency}ms*`)
+            
+        } catch (e) {
+            console.error(e)
+        }
     }
 }
