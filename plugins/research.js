@@ -1,46 +1,52 @@
-const google = require('googlethis')
+const googleIt = require('google-it')
 
 module.exports = {
     cmd: 'google',
     run: async (conn, m, args, text) => {
-        if (!text) return m.reply('❌ What should I research? Example: .google best lightweight bots')
-        
-        await m.reply('🔎 Researching...')
-        
         try {
-            const options = {
-                page: 0, 
-                safe: false, // Dangerous efficiency
-                additional_params: { 
-                    hl: 'en' 
-                }
-            }
-            
-            const response = await google.search(text, options)
-            
-            if (!response.results.length) return m.reply('❌ No results found.')
+            // 1. Validation
+            if (!text) return m.reply('❌ Please provide a search query.\nExample: *,google best nodejs bot*')
 
-            let txt = `*🔎 Mantra Research: ${text}*\n\n`
-            
-            // Limit to top 5 results to keep it lightweight
-            for (let i = 0; i < 5; i++) {
-                if (response.results[i]) {
-                    txt += `*${i + 1}. ${response.results[i].title}*\n`
-                    txt += `_${response.results[i].description}_\n`
-                    txt += `🔗 ${response.results[i].url}\n\n`
-                }
-            }
-            
-            // Add a "Knowledge Graph" snippet if available (e.g. "Who is X?")
-            if (response.knowledge_panel.title) {
-                txt += `*💡 Quick Answer:*\n${response.knowledge_panel.description}\n`
+            // 2. React (Searching)
+            await conn.sendMessage(m.chat, { react: { text: '🔍', key: m.key } })
+
+            // 3. Search
+            // We fetch the top 5 results
+            const results = await googleIt({ query: text, limit: 5 })
+
+            if (!results || results.length === 0) {
+                return m.reply('❌ No results found.')
             }
 
-            await m.reply(txt)
+            // 4. Formatting
+            // We build a nice text list with Titles, Snippets, and Links
+            let msg = `🔍 *Google Search Results for:* ${text}\n\n`
+
+            results.forEach(res => {
+                msg += `🔹 *${res.title}*\n`
+                msg += `_${res.snippet}_\n`
+                msg += `🔗 ${res.link}\n\n`
+            })
+
+            // 5. Send
+            // We add a link preview to the first result to make it look premium
+            await conn.sendMessage(m.chat, { 
+                text: msg.trim(),
+                contextInfo: {
+                    externalAdReply: {
+                        title: results[0].title,
+                        body: "Top Search Result",
+                        thumbnailUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/1024px-Google_%22G%22_Logo.svg.png",
+                        sourceUrl: results[0].link,
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: m })
 
         } catch (e) {
             console.error(e)
-            m.reply('❌ Research failed. Google might be blocking the server IP.')
+            m.reply('❌ Google Search Failed.')
         }
     }
 }
