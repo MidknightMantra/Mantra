@@ -1,11 +1,12 @@
 FROM node:20-bullseye-slim
 
 # 1. Install System Dependencies
-# We need ffmpeg for stickers and libwebp for image conversion
+# FIXED: Changed 'libwebp' to 'libwebp-dev' and added 'webp'
 RUN apt-get update && \
     apt-get install -y \
     ffmpeg \
-    libwebp \
+    libwebp-dev \
+    webp \
     imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
