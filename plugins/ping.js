@@ -1,20 +1,11 @@
-module.exports = {
+import { performance } from 'perf_hooks'
+
+export default {
     cmd: 'ping',
     run: async (conn, m, args) => {
-        try {
-            const start = Date.now()
-            
-            // 1. Send a reaction to measure round-trip speed
-            await conn.sendMessage(m.chat, { react: { text: '⚡', key: m.key } })
-            
-            const end = Date.now()
-            const latency = end - start
-
-            // 2. Reply with the speed
-            await m.reply(`*MANTRA* ⚡\n📶 Latency: *${latency}ms*`)
-            
-        } catch (e) {
-            console.error(e)
-        }
+        const start = performance.now()
+        await m.reply('Pong!!!')
+        const end = performance.now()
+        await conn.sendMessage(m.chat, { text: `🚀 Latency: ${(end - start).toFixed(2)}ms` }, { quoted: m })
     }
 }
