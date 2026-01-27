@@ -36,7 +36,7 @@ export default {
 🧠 *RAM:* ${(used.rss / 1024 / 1024).toFixed(2)} MB / ${Math.round(os.totalmem() / 1024 / 1024)} MB
 🚀 *CPU:* ${cpus[0].model}
 ⏱️ *Uptime:* ${process.uptime().toFixed(2)}s
-🔋 *Speed:* ${cpu.speed} MHz
+🔋 *Latency:* ${cpu.speed} MHz
 `.trim()
 
         await m.reply(text)
