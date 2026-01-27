@@ -6,29 +6,31 @@ import fs from 'fs/promises'
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// ESM imports for Baileys (v7-rc compatible)
+// ESM imports for Baileys v7-rc
 import makeWASocket, { 
   useMultiFileAuthState, 
   DisconnectReason, 
   fetchLatestBaileysVersion 
 } from '@whiskeysockets/baileys'
 
-// Fallback for makeInMemoryStore (since it may not be exported in main in v7-rc)
-import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
+// Store fallback - improved multi-attempt loading
 let makeInMemoryStore = null
 try {
-  // Try direct from main (some forks/examples do this)
-  const baileys = require('@whiskeysockets/baileys')
-  makeInMemoryStore = baileys.makeInMemoryStore || baileys.default?.makeInMemoryStore
+  // Attempt 1: Direct from main export (common in recent versions)
+  makeInMemoryStore = require('@whiskeysockets/baileys').makeInMemoryStore
 } catch {}
 if (!makeInMemoryStore) {
   try {
-    // Correct subpath from Baileys source (lib/Store/make-in-memory-store)
-    const StoreModule = require('@whiskeysockets/baileys/lib/Store/make-in-memory-store')
-    makeInMemoryStore = StoreModule.makeInMemoryStore || StoreModule.default
+    // Attempt 2: From lib/Utils/store (older structure)
+    makeInMemoryStore = require('@whiskeysockets/baileys/lib/Utils/store').makeInMemoryStore
+  } catch {}
+}
+if (!makeInMemoryStore) {
+  try {
+    // Attempt 3: Explicit file path (most reliable for source structure)
+    makeInMemoryStore = require('@whiskeysockets/baileys/lib/Store/make-in-memory-store').makeInMemoryStore
   } catch (e) {
-    console.warn('⚠️ Failed to load makeInMemoryStore even from subpath. Anti-delete will be limited. Consider adding @naanzitos/baileys-make-in-memory-store if needed.')
+    console.warn('⚠️ All attempts to load makeInMemoryStore failed. Anti-delete limited. Consider manual store implementation or Baileys fork.')
   }
 }
 
@@ -36,12 +38,13 @@ if (!makeInMemoryStore) {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Store setup
+// Store & globals
 const store = makeInMemoryStore
   ? makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) })
   : null
 
 const msgRetryMap = new Map()
+let pluginsLoaded = false // Flag to load plugins only once
 
 if (store) {
   console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
@@ -49,7 +52,7 @@ if (store) {
   console.log('⚠️ Message Store: DISABLED (anti-delete limited)')
 }
 
-// Unwrap ViewOnce helper (recursive)
+// ViewOnce unwrap helper
 function unwrapViewOnce(msg) {
   if (!msg) return null
   let current = msg
@@ -80,9 +83,10 @@ async function startMantra() {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
-    let version = [2, 3000, 0] // fallback
+    let version = [2, 2413, 1] // Updated safe fallback closer to current WhatsApp
     try {
       ({ version } = await fetchLatestBaileysVersion())
+      console.log('Fetched latest version:', version)
     } catch (e) {
       console.warn('Version fetch failed, using fallback:', e.message)
     }
@@ -91,16 +95,19 @@ async function startMantra() {
       logger: pino({ level: 'silent' }),
       auth: state,
       version,
-      connectTimeoutMs: 60000,
+      connectTimeoutMs: 120000, // Increased to 2min to handle Railway latency/408 timeouts
       defaultQueryTimeoutMs: 0,
-      keepAliveIntervalMs: 10000,
+      keepAliveIntervalMs: 30000, // More aggressive keep-alive
       emitOwnEvents: true,
       fireInitQueries: true,
       generateHighQualityLinkPreview: true,
       syncFullHistory: true,
       markOnlineOnConnect: true,
       browser: ['Mantra', 'Chrome', '1.0.0'],
-      shouldReconnect: () => true,
+      shouldReconnect: (lastError) => {
+        const status = lastError?.output?.statusCode
+        return status !== DisconnectReason.loggedOut && status !== 408 // Avoid loop on persistent 408
+      },
     })
 
     if (store) store.bind(conn.ev)
@@ -109,37 +116,45 @@ async function startMantra() {
     conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update
       if (connection === 'open') {
-        // Use conn.user.jid directly (normalized full JID)
-        myJid = conn.user?.jid
-        console.log('✅ Mantra Connected! Bot JID:', myJid)
-        console.log(`👀 Auto-Status Read: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
-        console.log(`💾 Auto-Status Save: ${global.autoStatusSave ? 'ON' : 'OFF'}`)
-        console.log(`🗑️ Anti-Delete: ${global.antiDelete ? 'ON' : 'OFF'}`)
-        console.log(`🕵️ Anti-ViewOnce: ${global.antiViewOnce ? 'ON' : 'OFF'}`)
+        // Delay JID check to ensure conn.user is populated
+        setTimeout(async () => {
+          myJid = conn.user?.jid || conn.user?.id?.split(':')[0] + '@s.whatsapp.net'
+          console.log('✅ Mantra Connected! Bot JID:', myJid || 'Still resolving - check creds.json')
+          console.log(`👀 Auto-Status Read: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
+          console.log(`💾 Auto-Status Save: ${global.autoStatusSave ? 'ON' : 'OFF'}`)
+          console.log(`🗑️ Anti-Delete: ${global.antiDelete ? 'ON' : 'OFF'}`)
+          console.log(`🕵️ Anti-ViewOnce: ${global.antiViewOnce ? 'ON' : 'OFF'}`)
 
-        if (global.alwaysOnline) {
-          setInterval(() => conn.sendPresenceUpdate('available'), 10000)
-        }
+          if (global.alwaysOnline) {
+            setInterval(() => conn.sendPresenceUpdate('available'), 10000)
+          }
+        }, 2000) // 2s delay for user object init
       } else if (connection === 'close') {
         const status = lastDisconnect?.error?.output?.statusCode
         console.log(`Connection closed (code: ${status || 'unknown'})`)
-        if (status !== DisconnectReason.loggedOut) {
+        if (status !== DisconnectReason.loggedOut && status !== 408) {
           console.log('🔄 Reconnecting in 5 seconds...')
           setTimeout(startMantra, 5000)
+        } else if (status === 408) {
+          console.log('Timeout (408) detected. Retrying in 10 seconds...')
+          setTimeout(startMantra, 10000)
         } else {
-          console.log('❌ Logged out. Delete session and rescan.')
+          console.log('❌ Logged out or fatal. Stop and rescan.')
         }
       }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
-    // Plugin loader - REMOVED cache-bust query param to fix "Invalid URL"
-    // In production, hot-reloading isn't needed; restart container for changes
+    // Load plugins only once
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
     const loadPlugins = async () => {
+      if (pluginsLoaded) {
+        console.log('Plugins already loaded - skipping on reconnect')
+        return
+      }
       plugins.clear()
       try {
         const files = await fs.readdir(pluginFolder)
@@ -147,7 +162,6 @@ async function startMantra() {
           if (!file.endsWith('.js')) continue
           const pluginPath = path.join(pluginFolder, file)
           try {
-            // Plain file:// without ?t= - fixes Invalid URL in some envs (e.g. Railway)
             const plugin = await import(`file://${pluginPath}`)
             const cmdPlugin = plugin.default
             if (cmdPlugin?.cmd) {
@@ -159,6 +173,7 @@ async function startMantra() {
           }
         }
         console.log(`🔌 Loaded ${plugins.size} plugins`)
+        pluginsLoaded = true
       } catch (e) {
         console.error('Plugin folder error:', e.message)
       }
@@ -166,7 +181,7 @@ async function startMantra() {
 
     await loadPlugins()
 
-    // Message handler (anti-delete fixed to type 5, use myJid)
+    // Message handler
     conn.ev.on('messages.upsert', async (chatUpdate) => {
       if (chatUpdate.type === 'append') return
       const m = chatUpdate.messages[0]
@@ -175,9 +190,12 @@ async function startMantra() {
       const msgTime = m.messageTimestamp?.low ?? m.messageTimestamp ?? 0
       if (Date.now() / 1000 - msgTime > 30) return
 
-      if (!myJid) return // wait for connection
+      if (!myJid) {
+        console.warn('myJid not set yet - skipping self-send operations')
+        return
+      }
 
-      // 1. Status
+      // Status handler
       if (m.key.remoteJid === 'status@broadcast') {
         if (global.autoStatusRead) await conn.readMessages([m.key]).catch(() => {})
         if (global.autoStatusSave && (m.message.imageMessage || m.message.videoMessage)) {
@@ -196,7 +214,7 @@ async function startMantra() {
         return
       }
 
-      // 2. Anti-Delete (use type 5 for revoke/delete-for-everyone)
+      // Anti-Delete (type 5)
       if (global.antiDelete && m.message.protocolMessage?.type === 5 && store) {
         const key = m.message.protocolMessage.key
         if (!key?.remoteJid || !key?.id) return
@@ -205,7 +223,6 @@ async function startMantra() {
           if (!deletedMsg?.message) return
           const participant = deletedMsg.key?.participant || deletedMsg.participant || m.key.participant || 'unknown'
           const caption = `🗑️ *Deleted Message*\nFrom: @${participant.split('@')[0]}`
-          // Text handling...
           if (deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage?.text) {
             const text = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
             await conn.sendMessage(myJid, { text: `\( {caption}\n\n \){text}`, mentions: [participant] })
@@ -229,7 +246,7 @@ async function startMantra() {
       msgRetryMap.set(m.key.id, true)
       setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
 
-      // 3. Anti-ViewOnce
+      // Anti-ViewOnce
       if (global.antiViewOnce && !m.key.fromMe) {
         try {
           const unwrapped = unwrapViewOnce(m.message)
@@ -273,7 +290,7 @@ async function startMantra() {
     })
   } catch (err) {
     console.error('Startup error:', err.message)
-    setTimeout(startMantra, 10000)
+    setTimeout(startMantra, 15000) // Longer delay on fatal errors
   }
 }
 
