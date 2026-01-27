@@ -3,15 +3,14 @@ import { createRequire } from 'module'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import pino from 'pino'
-import fs from 'fs/promises' // Use promises for better async handling
+import fs from 'fs/promises' // Prefer async FS for stability
 import { smsg } from './lib/simple.js'
 import { downloadMedia } from './lib/media.js'
 
-// --- Robust Baileys Import ---
+// Robust Baileys imports with fallback handling
 const require = createRequire(import.meta.url)
 const BaileysLib = require('@whiskeysockets/baileys')
 
-// Helper to safely resolve exports (handles default, nested defaults, etc.)
 const getExport = (key) => {
   return (
     BaileysLib[key] ||
@@ -21,19 +20,20 @@ const getExport = (key) => {
   )
 }
 
-const makeWASocket = getExport('makeWASocket') || BaileysLib.default
+const makeWASocket = getExport('makeWASocket') || getExport('default') || BaileysLib.default
 const useMultiFileAuthState = getExport('useMultiFileAuthState')
 const DisconnectReason = getExport('DisconnectReason')
 const fetchLatestBaileysVersion = getExport('fetchLatestBaileysVersion')
 let makeInMemoryStore = getExport('makeInMemoryStore')
 
-// Fallback for makeInMemoryStore (some Baileys versions move it)
+// Improved fallback for makeInMemoryStore (latest Baileys exports it directly)
 if (!makeInMemoryStore) {
   try {
-    const StoreLib = require('@whiskeysockets/baileys/lib/Store/make-in-memory-store')
+    // Direct subpath fallback (adjust if needed based on version)
+    const StoreLib = require('@whiskeysockets/baileys/lib/Utils/store')
     makeInMemoryStore = StoreLib.makeInMemoryStore
   } catch (e) {
-    console.warn('⚠️ makeInMemoryStore not found. Anti-delete and message history features will be limited.')
+    console.warn('⚠️ makeInMemoryStore fallback failed. Anti-delete limited. Try updating Baileys.')
   }
 }
 
@@ -41,7 +41,7 @@ if (!makeInMemoryStore) {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// --- Store & Retry Map ---
+// Store & Retry setup
 const store = makeInMemoryStore
   ? makeInMemoryStore({ logger: pino({ level: 'silent' }).child({ name: 'store' }) })
   : null
@@ -51,15 +51,14 @@ const msgRetryMap = new Map()
 if (store) {
   console.log('🛡️ Anti-Delete & Message Store: ACTIVE')
 } else {
-  console.log('⚠️ Message Store: DISABLED (anti-delete limited)')
+  console.log('⚠️ Message Store: DISABLED')
 }
 
-// Helper to unwrap View Once (used in anti-viewonce & can be reused)
+// Helper: Unwrap ViewOnce layers recursively
 function unwrapViewOnce(msg) {
   if (!msg) return null
   let current = msg
 
-  // Handle known wrappers (recursive unwrap)
   while (current) {
     if (current.viewOnceMessage?.message) {
       current = current.viewOnceMessage.message
@@ -73,32 +72,36 @@ function unwrapViewOnce(msg) {
       current = current.viewOnceMessageV2Extension.message
       continue
     }
-    // Future-proof: add more if needed
     break
   }
-
   return current
 }
 
 async function startMantra() {
   try {
-    // --- Session Management ---
+    // Session dir management (async)
     const sessionDir = global.sessionName || './session'
     await fs.mkdir(sessionDir, { recursive: true })
 
-    // Railway / Env session injection
     const credsPath = path.join(sessionDir, 'creds.json')
-    if (!(await fs.stat(credsPath).catch(() => false)) && global.sessionId) {
+    const credsExists = await fs.stat(credsPath).catch(() => false)
+
+    if (!credsExists && global.sessionId) {
       console.log('🔒 Injecting session from env...')
-      const sessionParts = global.sessionId.split('Mantra~')
-      if (sessionParts[1]) {
-        const decoded = Buffer.from(sessionParts[1], 'base64').toString('utf-8')
+      const parts = global.sessionId.split('Mantra~')
+      if (parts[1]) {
+        const decoded = Buffer.from(parts[1], 'base64').toString('utf-8')
         await fs.writeFile(credsPath, decoded)
       }
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir)
-    const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 0] })) // Fallback version
+    let version = [2, 3000, 0] // Safe fallback
+    try {
+      ({ version } = await fetchLatestBaileysVersion())
+    } catch (e) {
+      console.warn('Failed to fetch latest version, using fallback:', e.message)
+    }
 
     const conn = makeWASocket({
       logger: pino({ level: 'silent' }),
@@ -113,27 +116,18 @@ async function startMantra() {
       syncFullHistory: true,
       markOnlineOnConnect: true,
       browser: ['Mantra', 'Chrome', '1.0.0'],
-      // Add retry mechanism for transient errors
-      shouldReconnect: (lastError) => lastError?.output?.statusCode !== DisconnectReason.loggedOut,
+      shouldReconnect: () => true, // Let handler manage reconnect
     })
 
-    // Bind store
     if (store) store.bind(conn.ev)
 
-    // --- Connection Handler ---
+    // Get normalized bot JID once connected
+    let myJid = null
     conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update
-      if (connection === 'close') {
-        const statusCode = lastDisconnect?.error?.output?.statusCode
-        console.log(`Connection closed: ${statusCode || 'unknown'}`)
-        if (statusCode !== DisconnectReason.loggedOut) {
-          console.log('🔄 Reconnecting in 5s...')
-          setTimeout(startMantra, 5000) // Delay to avoid rapid loops
-        } else {
-          console.log('❌ Logged out. Delete session and scan QR again.')
-        }
-      } else if (connection === 'open') {
-        console.log('✅ Mantra Connected!')
+      if (connection === 'open') {
+        myJid = conn.user?.jid || conn.user?.id?.replace(/:\d+/, '') + '@s.whatsapp.net'
+        console.log('✅ Mantra Connected! Bot JID:', myJid)
         console.log(`👀 Auto-Status Read: ${global.autoStatusRead ? 'ON' : 'OFF'}`)
         console.log(`💾 Auto-Status Save: ${global.autoStatusSave ? 'ON' : 'OFF'}`)
         console.log(`🗑️ Anti-Delete: ${global.antiDelete ? 'ON' : 'OFF'}`)
@@ -142,12 +136,21 @@ async function startMantra() {
         if (global.alwaysOnline) {
           setInterval(() => conn.sendPresenceUpdate('available'), 10000)
         }
+      } else if (connection === 'close') {
+        const status = lastDisconnect?.error?.output?.statusCode
+        console.log(`Connection closed (code: ${status || 'unknown'})`)
+        if (status !== DisconnectReason.loggedOut) {
+          console.log('🔄 Reconnecting in 5 seconds...')
+          setTimeout(startMantra, 5000)
+        } else {
+          console.log('❌ Logged out. Delete session and rescan QR.')
+        }
       }
     })
 
     conn.ev.on('creds.update', saveCreds)
 
-    // --- Plugin Loader with Hot-Reload Support (optional watcher) ---
+    // Async plugin loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
@@ -158,41 +161,34 @@ async function startMantra() {
         for (const file of files) {
           if (!file.endsWith('.js')) continue
           const pluginPath = path.join(pluginFolder, file)
-          const cacheBust = `?t=${Date.now()}`
+          const url = `file://\( {pluginPath}?t= \){Date.now()}`
           try {
-            const plugin = await import(`file://\( {pluginPath} \){cacheBust}`)
-            const cmdPlugin = plugin.default
+            const mod = await import(url)
+            const cmdPlugin = mod.default
             if (cmdPlugin?.cmd) {
               plugins.set(cmdPlugin.cmd.toLowerCase(), cmdPlugin)
-              console.log(`Loaded plugin: ${cmdPlugin.cmd}`)
             }
           } catch (e) {
-            console.error(`Failed to load ${file}:`, e.message)
+            console.error(`Failed loading plugin ${file}:`, e.message)
           }
         }
-        console.log(`🔌 ${plugins.size} plugins loaded`)
+        console.log(`🔌 Loaded ${plugins.size} plugins`)
       } catch (e) {
-        console.error('Plugin folder error:', e)
+        console.error('Plugin load error:', e.message)
       }
     }
 
     await loadPlugins()
 
-    // Optional: Watch for plugin changes (dev only, comment in production)
-    // fs.watch(pluginFolder, { recursive: true }, () => loadPlugins())
-
-    // --- Message Handler ---
+    // Message handler
     conn.ev.on('messages.upsert', async (chatUpdate) => {
-      if (chatUpdate.type === 'append') return // Ignore history sync appends
+      if (chatUpdate.type === 'append') return
       const m = chatUpdate.messages[0]
-      if (!m.message) return
+      if (!m?.message) return
 
-      // 0. Ignore old messages (>30s) to prevent spam on reconnect
+      // Ignore old messages (>30s)
       const msgTime = m.messageTimestamp?.low ?? m.messageTimestamp ?? 0
       if (Date.now() / 1000 - msgTime > 30) return
-
-      // Get bot's own JID (normalized)
-      const myJid = conn.user?.id?.split(':')[0] + '@s.whatsapp.net' || conn.user?.jid
 
       // 1. Status Handler
       if (m.key.remoteJid === 'status@broadcast') {
@@ -218,8 +214,8 @@ async function startMantra() {
         return
       }
 
-      // 2. Anti-Delete (fixed to type 5 - REVOKE)
-      if (global.antiDelete && m.message.protocolMessage && m.message.protocolMessage.type === 5 && store) {
+      // 2. Anti-Delete (type 5 = revoke/delete-for-everyone)
+      if (global.antiDelete && m.message.protocolMessage?.type === 5 && store) {
         const key = m.message.protocolMessage.key
         if (!key?.remoteJid || !key?.id) return
 
@@ -227,25 +223,29 @@ async function startMantra() {
           const deletedMsg = await store.loadMessage(key.remoteJid, key.id)
           if (!deletedMsg?.message) return
 
-          const participant = deletedMsg.key?.participant || deletedMsg.participant || m.key.participant
-          const caption = `🗑️ *Deleted Message*\nFrom: @${participant?.split('@')[0] || 'unknown'}`
+          const participant = deletedMsg.key?.participant || deletedMsg.participant || m.key.participant || 'unknown'
+          const caption = `🗑️ *Deleted Message*\nFrom: @${participant.split('@')[0]}`
 
           if (deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage?.text) {
-            const textContent = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
+            const text = deletedMsg.message.conversation || deletedMsg.message.extendedTextMessage.text
             await conn.sendMessage(myJid, {
-              text: `\( {caption}\n\n \){textContent}`,
+              text: `\( {caption}\n\n \){text}`,
               mentions: [participant],
             })
           } else {
             const msgType = Object.keys(deletedMsg.message)[0]
             const media = deletedMsg.message[msgType]
-            const mediaTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage']
+            const supported = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage']
 
-            if (mediaTypes.includes(msgType)) {
+            if (supported.includes(msgType)) {
               const type = msgType.replace('Message', '')
               const buffer = await downloadMedia({ msg: media, mtype: type }).catch(() => null)
               if (buffer) {
-                await conn.sendMessage(myJid, { [type]: buffer, caption, mimetype: media.mimetype })
+                await conn.sendMessage(myJid, {
+                  [type]: buffer,
+                  caption,
+                  mimetype: media.mimetype,
+                })
               }
             }
           }
@@ -255,12 +255,12 @@ async function startMantra() {
         return
       }
 
-      // Prevent duplicate processing
+      // Duplicate prevention
       if (msgRetryMap.has(m.key.id)) return
       msgRetryMap.set(m.key.id, true)
       setTimeout(() => msgRetryMap.delete(m.key.id), 5000)
 
-      // 3. Anti-ViewOnce (improved unwrap)
+      // 3. Anti-ViewOnce
       if (global.antiViewOnce && !m.key.fromMe) {
         try {
           const unwrapped = unwrapViewOnce(m.message)
@@ -273,27 +273,26 @@ async function startMantra() {
               if (buffer) {
                 await conn.sendMessage(myJid, {
                   [isImage ? 'image' : 'video']: buffer,
-                  caption: '🕵️‍♂️ ViewOnce Captured',
+                  caption: '🕵️ ViewOnce Captured',
                 })
               }
             }
           }
         } catch (err) {
-          console.error('Anti-viewonce failed:', err.message)
+          console.error('Anti-ViewOnce failed:', err.message)
         }
       }
 
-      // Unwrap ephemeral if present
+      // Unwrap ephemeral
       m.message = m.message.ephemeralMessage?.message || m.message
 
-      // Convert to simple message
       const msg = smsg(conn, m)
       if (!msg.body) return
 
-      // 4. Command Handler
+      // 4. Command handler
       const prefix = global.prefa?.find((p) => msg.body.startsWith(p)) || ''
-      const isCmd = prefix && msg.body.startsWith(prefix)
-      const command = isCmd ? msg.body.slice(prefix.length).trim().split(' ').shift().toLowerCase() : ''
+      const isCmd = !!prefix && msg.body.startsWith(prefix)
+      const command = isCmd ? msg.body.slice(prefix.length).trim().split(' ')[0].toLowerCase() : ''
       const args = msg.body.trim().split(/ +/).slice(1)
       const text = args.join(' ')
 
@@ -302,23 +301,19 @@ async function startMantra() {
           await plugins.get(command).run(conn, msg, args, text)
         } catch (err) {
           console.error(`Command ${command} error:`, err.message)
-          await msg.reply('❌ Command failed. Check logs.').catch(() => {})
+          await msg.reply('❌ Error executing command.').catch(() => {})
         }
       }
     })
   } catch (err) {
-    console.error('Fatal startup error:', err)
-    setTimeout(startMantra, 10000) // Retry startup
+    console.error('Startup error:', err.message)
+    console.log('Retrying in 10 seconds...')
+    setTimeout(startMantra, 10000)
   }
 }
 
-// Global error handlers
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err.stack || err)
-})
-
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason)
-})
+// Global handlers
+process.on('uncaughtException', (err) => console.error('Uncaught:', err.stack || err))
+process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason))
 
 startMantra()
