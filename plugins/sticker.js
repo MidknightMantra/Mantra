@@ -1,35 +1,37 @@
 const { downloadMedia } = require('../lib/media')
+const { writeExif } = require('../lib/exif')
+const fs = require('fs')
 
 module.exports = {
     cmd: 'sticker',
     run: async (conn, m, args) => {
         try {
-            // 1. Identify Media (Direct or Quoted)
-            // We check if the message itself is an image/video, or if it quotes one.
+            // 1. Identify Media
             const content = m.msg?.contextInfo?.quotedMessage 
                 ? (m.msg.contextInfo.quotedMessage.imageMessage || m.msg.contextInfo.quotedMessage.videoMessage)
                 : (m.message.imageMessage || m.message.videoMessage)
 
-            if (!content) return m.reply('❌ Send/Reply to an image or video with ,sticker')
+            if (!content) return m.reply('❌ Send/Reply to an image or video!')
 
-            // 2. Limit Video Duration
-            // Animated stickers can't be too long or WhatsApp rejects them.
-            if (content.seconds > 10) return m.reply('❌ Video too long! Max 10 seconds.')
-
-            // React (Processing)
-            await conn.sendMessage(m.chat, { react: { text: '📦', key: m.key } })
-
-            // 3. Download Media
+            // 2. Download
             const type = content.mimetype.split('/')[0]
             const buffer = await downloadMedia({ msg: content, mtype: type === 'image' ? 'imageMessage' : 'videoMessage' })
 
-            // 4. Send as Sticker
-            // Baileys automatically handles the conversion to WebP using the FFmpeg we installed.
-            await conn.sendMessage(m.chat, { 
-                sticker: buffer,
-                packname: global.packname || 'Mantra', // From config.js
-                author: global.author || 'Bot'         // From config.js
-            }, { quoted: m })
+            // React
+            await conn.sendMessage(m.chat, { react: { text: '📦', key: m.key } })
+
+            // 3. Create Sticker with Metadata (The Fix)
+            // We pass the raw buffer and the config names
+            const stickerPath = await writeExif(
+                { mimetype: content.mimetype, data: buffer }, 
+                { packname: global.packname, author: global.author }
+            )
+
+            // 4. Send
+            await conn.sendMessage(m.chat, { sticker: { url: stickerPath } }, { quoted: m })
+
+            // Clean up file
+            fs.unlinkSync(stickerPath)
 
         } catch (e) {
             console.error(e)
