@@ -1,7 +1,7 @@
 require('./config')
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
 const { smsg } = require('./lib/simple')
-const { downloadMedia } = require('./lib/media') // Import the downloader
+const { downloadMedia } = require('./lib/media')
 const pino = require('pino')
 const fs = require('fs')
 const path = require('path')
@@ -60,7 +60,6 @@ async function startMantra() {
 
     conn.ev.on('creds.update', saveCreds)
 
-    // Plugin Loader
     const pluginFolder = path.join(__dirname, 'plugins')
     const plugins = new Map()
 
@@ -82,25 +81,42 @@ async function startMantra() {
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
+            // 1. Ignore "History Sync" (Appending old messages)
+            if (chatUpdate.type === 'append') return
+
             let m = chatUpdate.messages[0]
             if (!m.message) return
             m.message = m.message.ephemeralMessage?.message || m.message
             if (m.key?.remoteJid === 'status@broadcast') return
             
+            // --- 2. STALENESS CHECK (The Fix) ---
+            // If message is older than 30 seconds, ignore it.
+            // messageTimestamp is in seconds (Unix). Date.now() is ms.
+            if (m.messageTimestamp) {
+                const msgTime = (typeof m.messageTimestamp === 'number') 
+                    ? m.messageTimestamp 
+                    : m.messageTimestamp.low || m.messageTimestamp
+                
+                const now = Math.floor(Date.now() / 1000)
+                
+                if (now - msgTime > 30) {
+                    console.log(`⏩ Ignoring old message (${now - msgTime}s old)`)
+                    return 
+                }
+            }
+            // ------------------------------------
+
             m = smsg(conn, m)
             
-            // --- AUTOMATIC ANTI-VIEWONCE LOGIC ---
+            // Auto-ViewOnce Logic
             if (global.antiViewOnce && (m.mtype === 'viewOnceMessage' || m.mtype === 'viewOnceMessageV2')) {
                 try {
-                    // 1. Identify Content
                     const msg = m.message.viewOnceMessage?.message || m.message.viewOnceMessageV2?.message || m.message
                     const type = Object.keys(msg)[0]
                     const media = msg[type]
                     
-                    // 2. Download
                     const buffer = await downloadMedia({ msg: media, mtype: type })
                     
-                    // 3. Send to Self (Saved Messages)
                     const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
                     const caption = `🕵️ *Auto-Recovered ViewOnce*\nFrom: @${m.sender.split('@')[0]}\nGroup: ${m.isGroup ? m.chat : 'DM'}`
                     
@@ -110,12 +126,10 @@ async function startMantra() {
                         await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
                     }
                     console.log(`✅ Stole ViewOnce from ${m.sender}`)
-                    
                 } catch (err) {
                     console.error('Anti-ViewOnce Failed:', err)
                 }
             }
-            // -------------------------------------
 
             if (!m.body) return
 
