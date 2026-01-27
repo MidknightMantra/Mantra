@@ -1,30 +1,25 @@
-# Use Bullseye (Debian 11) - Stable and supported
-FROM node:20-bullseye
+FROM node:20-bullseye-slim
 
-# Install System Dependencies (FFmpeg, ImageMagick, WebP)
-# --no-install-recommends keeps the build lightweight
+# 1. Install System Dependencies
+# We need ffmpeg for stickers and libwebp for image conversion
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y \
     ffmpeg \
+    libwebp \
     imagemagick \
-    webp && \
-    apt-get upgrade -y && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Set Working Directory
+# 2. Set Working Directory
 WORKDIR /usr/src/app
 
-# Copy Package Files
-COPY package.json ./
+# 3. Copy Dependency Files
+COPY package*.json ./
 
-# Install Node Dependencies
+# 4. Install Node Modules
 RUN npm install
 
-# Copy App Source
+# 5. Copy the rest of the bot code
 COPY . .
 
-# Expose Port
-EXPOSE 3000
-
-# Start Bot
+# 6. Start the Bot
 CMD ["npm", "start"]
