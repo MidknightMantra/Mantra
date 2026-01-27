@@ -1,53 +1,52 @@
-const { downloadMedia } = require('../lib/media')
+import { downloadMedia } from '../lib/media.js'
 
-module.exports = {
+export default {
     cmd: 'vv',
     run: async (conn, m, args) => {
         try {
+            // 1. Check for Quoted Message
             const quoted = m.msg?.contextInfo?.quotedMessage
-            if (!quoted) return m.reply('❌ Reply to a ViewOnce!')
+            if (!quoted) return m.reply('❌ Reply to a ViewOnce message!')
 
-            // 1. Hunt for the ViewOnce Message
-            // It might be 'viewOnceMessageV2', 'viewOnceMessage', or nested inside 'message'
-            let viewOnce = quoted.viewOnceMessageV2 || quoted.viewOnceMessage || quoted
-
-            // 2. Extract the actual Image/Video content
-            // Sometimes it's viewOnce.message.imageMessage, sometimes just viewOnce.imageMessage
-            let content = viewOnce.message?.imageMessage || viewOnce.message?.videoMessage || viewOnce.imageMessage || viewOnce.videoMessage
-
-            // If we still can't find it, check specifically for the 'viewOnce: true' flag
-            if (!content && (quoted.imageMessage?.viewOnce || quoted.videoMessage?.viewOnce)) {
-                content = quoted.imageMessage || quoted.videoMessage
-            }
-
-            if (!content) return m.reply('❌ Could not find ViewOnce media.')
-
-            // 3. Determine Type
-            const isImage = content.mimetype?.includes('image')
-            const mtype = isImage ? 'image' : 'video'
-
-            // React (Stealth processing)
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } })
-
-            // 4. Download
-            // We pass the raw content content to the downloader
-            const buffer = await downloadMedia({ msg: content, mtype: mtype })
-
-            // 5. Send to Saved Messages (Silent)
-            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+            // 2. Identify ViewOnce Message
+            let viewOnceMsg = quoted.viewOnceMessage || quoted.viewOnceMessageV2 || quoted.viewOnceMessageV2Extension
             
-            if (isImage) {
-                await conn.sendMessage(myJid, { image: buffer, caption: 'Manual Recovery 🔓' })
-            } else {
-                await conn.sendMessage(myJid, { video: buffer, caption: 'Manual Recovery 🔓' })
+            // Check manual unwrap
+            if (!viewOnceMsg) {
+                if (quoted.imageMessage?.viewOnce || quoted.videoMessage?.viewOnce) {
+                    viewOnceMsg = { message: quoted }
+                }
             }
 
-            // Success Reaction
+            if (!viewOnceMsg) return m.reply('❌ This is not a ViewOnce message.')
+
+            // 3. Extract Media Content
+            const content = viewOnceMsg.message.imageMessage || viewOnceMsg.message.videoMessage
+            if (!content) return m.reply('❌ No media found.')
+
+            // React (Processing)
             await conn.sendMessage(m.chat, { react: { text: '🕵️', key: m.key } })
 
+            // 4. Download
+            const mtype = content.mimetype.split('/')[0] === 'image' ? 'imageMessage' : 'videoMessage'
+            const buffer = await downloadMedia({ msg: content, mtype: mtype })
+
+            // 5. Send to SAVED MESSAGES (Private)
+            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net'
+            const caption = `🔓 *ViewOnce Revealed*\nFrom: @${m.sender.split('@')[0]}\nChat: ${m.isGroup ? 'Group' : 'DM'}`
+
+            if (mtype === 'imageMessage') {
+                await conn.sendMessage(myJid, { image: buffer, caption: caption, mentions: [m.sender] })
+            } else {
+                await conn.sendMessage(myJid, { video: buffer, caption: caption, mentions: [m.sender] })
+            }
+
+            // 6. Confirm in Chat (Reaction Only)
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+
         } catch (e) {
-            console.error('VV Error:', e)
-            m.reply('❌ Failed.')
+            console.error(e)
+            m.reply('❌ Failed to reveal.')
         }
     }
 }
