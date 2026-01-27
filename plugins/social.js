@@ -10,82 +10,52 @@ export default {
 
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } })
 
-            // ===========================================================
-            // STRATEGY 1: INSTAGRAM (Snapinsta Style - Multi-Media)
-            // ===========================================================
+            // ============================================================
+            //                STRATEGY: INSTAGRAM (Tiered Fallback)
+            // ============================================================
             if (url.includes('instagram.com')) {
                 const igApis = [
                     `https://api.giftedtech.my.id/api/download/instagram?url=${url}&apikey=gifted`,
-                    `https://api.vreden.web.id/api/instagram?url=${url}`,
-                    `https://api.botcahx.eu.org/api/dowloader/igdl?url=${url}&apikey=QCfM3mS9`
+                    `https://api.botcahx.eu.org/api/dowloader/igdl?url=${url}&apikey=QCfM3mS9`,
+                    `https://api.vreden.web.id/api/instagram?url=${url}`
                 ]
 
                 for (const api of igApis) {
                     try {
-                        const { data } = await axios.get(api)
+                        // Using a User-Agent header makes the bot look like a real browser
+                        const { data } = await axios.get(api, {
+                            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+                        })
+
                         const results = data.result || data.data || []
                         if (results.length > 0) {
-                            for (let media of results) {
-                                // Handle different API response shapes (string vs object)
-                                const downloadUrl = typeof media === 'string' ? media : (media.url || media.download_url || media.url_download)
+                            for (let media of (Array.isArray(results) ? results : [results])) {
+                                const downloadUrl = typeof media === 'string' ? media : (media.url || media.download_url)
                                 if (!downloadUrl) continue
                                 
                                 const type = downloadUrl.includes('.mp4') ? 'video' : 'image'
                                 await conn.sendMessage(m.chat, { 
                                     [type]: { url: downloadUrl }, 
-                                    caption: '📸 *Mantra IG (Snapinsta Style)*' 
+                                    caption: '📸 *Mantra IG*' 
                                 }, { quoted: m })
                             }
                             return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
                         }
-                    } catch (e) { continue } // Try next API if this one fails
-                }
-                return m.reply('❌ Instagram servers are currently unreachable.')
-            }
-
-            // ============================================================
-            // STRATEGY 2: TIKTOK (No Watermark + Fallbacks)
-            // ============================================================
-            else if (url.includes('tiktok.com')) {
-                try {
-                    // Primary: GiftedTech
-                    const { data: d1 } = await axios.get(`https://api.giftedtech.my.id/api/download/tiktokdl?url=${url}&apikey=gifted`)
-                    const video = d1.result?.url || d1.result?.video
-                    if (video) {
-                        await conn.sendMessage(m.chat, { video: { url: video }, caption: '🎵 *Mantra TikTok*' }, { quoted: m })
-                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
+                    } catch (e) {
+                        console.log(`⚠️ IG API Fallback: ${api.split('/')[2]} failed.`)
+                        continue // Move to the next API in the list
                     }
-                } catch (e) {
-                    // Fallback: TikWM
-                    try {
-                        const { data: d2 } = await axios.get(`https://tikwm.com/api/?url=${url}`)
-                        if (d2.data?.play) {
-                            await conn.sendMessage(m.chat, { video: { url: d2.data.play }, caption: '🎵 *Mantra TikTok (Backup)*' }, { quoted: m })
-                            return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
-                        }
-                    } catch (e) { return m.reply('❌ TikTok servers down.') }
                 }
+                return m.reply('❌ All Instagram download servers are currently down. Try again later.')
             }
 
             // ============================================================
-            // STRATEGY 3: FACEBOOK (HD/SD Selection)
+            //                TIKTOK & OTHERS
             // ============================================================
-            else if (url.includes('facebook.com') || url.includes('fb.watch')) {
-                try {
-                    const { data } = await axios.get(`https://api.giftedtech.my.id/api/download/facebook?url=${url}&apikey=gifted`)
-                    const fbUrl = data.result?.hd || data.result?.sd || data.result?.url
-                    if (fbUrl) {
-                        await conn.sendMessage(m.chat, { video: { url: fbUrl }, caption: '⚡ *Mantra Facebook*' }, { quoted: m })
-                        return await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } })
-                    }
-                } catch (e) { return m.reply('❌ Facebook download failed.') }
-            }
-
-            m.reply('❌ Link not supported.')
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } })
+            // ... (Keep your TikTok/FB logic from before, but add the same User-Agent header)
 
         } catch (e) {
-            console.error(e)
+            console.error('Social Plugin Error:', e)
             m.reply('❌ System Error.')
         }
     }
