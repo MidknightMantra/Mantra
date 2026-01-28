@@ -39,3 +39,16 @@ addCommand({
         } catch (e) { m.reply(global.emojis.error); }
     }
 });
+
+addCommand({
+    pattern: 'gpt4o-mini',
+    alias: ['mini'],
+    handler: async (m, { conn, text }) => {
+        if (!text) return m.reply(`*Enter query*`);
+        try {
+            await m.reply(global.emojis.waiting);
+            const { data } = await axios.get(`https://api.giftedtech.co.ke/api/ai/gpt4o-mini?apikey=gifted&q=${encodeURIComponent(text)}`);
+            await m.reply(`🔮 *GPT-4o Mini:* ${data.result || data.msg}`);
+        } catch (e) { m.reply(global.emojis.error); }
+    }
+});
