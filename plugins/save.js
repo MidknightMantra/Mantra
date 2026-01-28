@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
-import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import pkg from '@whiskeysockets/baileys';
+const { downloadContentFromMessage } = pkg;
 import chalk from 'chalk';
 
 addCommand({
