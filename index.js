@@ -18,6 +18,8 @@ import './plugins/_menu.js';
 import './plugins/media.js';
 import './plugins/group.js';
 import './plugins/download.js';
+import './plugins/save.js';
+import './plugins/vv.js';
 import { commands } from './lib/plugins.js';
 
 // 3. Initialize Global Components
