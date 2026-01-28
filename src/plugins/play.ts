@@ -1,6 +1,7 @@
 import yts from 'yt-search'
 import axios from 'axios'
 import { Plugin } from '../types/index.js'
+import { logger } from '../utils/logger.js'
 
 const play: Plugin = {
     name: 'play',
@@ -38,16 +39,25 @@ const play: Plugin = {
 
             await conn.sendMessage(msg.key.remoteJid!, { image: { url: video.thumbnail || '' }, caption: infoText }, { quoted: msg })
 
-            const api = `https://api.vreden.web.id/api/download/ytmp${isVideo ? '4' : '3'}?url=${video.url}`
-            const { data } = await axios.get(api)
-            const dlUrl = data.result?.download?.url || data.result?.url
+            await react('⬇️')
+
+            let api = `https://api.vreden.web.id/api/download/ytmp${isVideo ? '4' : '3'}?url=${video.url}`
+            let { data } = await axios.get(api)
+            let dlUrl = data.result?.download?.url || data.result?.url
+
+            // Fallback to GiftedTech if Vreden fails
+            if (!dlUrl) {
+                logger.warn({ url: video.url }, 'Vreden YT API failed, trying GiftedTech...')
+                const giftedApi = `https://api.giftedtech.co.ke/api/download/ytmp${isVideo ? '4' : '3'}?apikey=gifted&url=${video.url}`
+                const fallback = await axios.get(giftedApi)
+                dlUrl = fallback.data.result?.download_url || fallback.data.result?.url
+            }
 
             if (!dlUrl) {
-                await reply('❌ *Error:* Failed to fetch download link. API might be limited.')
+                await reply('❌ *Error:* Failed to fetch download link from all servers. The video might be age-restricted or too long.')
                 return
             }
 
-            await react('⬇️')
             if (isVideo) {
                 await conn.sendMessage(msg.key.remoteJid!, {
                     video: { url: dlUrl },
@@ -64,6 +74,7 @@ const play: Plugin = {
             await react('✅')
 
         } catch (e) {
+            logger.error({ err: e }, 'YT Play Error')
             await reply('❌ *API Error:* Could not fetch the media. The download service might be down.')
         }
     }
