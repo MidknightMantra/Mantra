@@ -9,7 +9,7 @@ global.pairingNumber = '254732647560'; // ⚠️ REPLACE with Bot number
 global.botName = 'Mantra-MD';
 global.author = 'MidknightMantra';
 global.packname = 'Mantra-Stickers';
-global.prefix = '.';
+global.prefix = ',';
 
 // 🔑 SESSION ID (Put your long string here if not using local session)
 // Format: "Mantra~..."
