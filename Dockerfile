@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:20-bullseye
 
 # 1. Install System Dependencies (FFMPEG & Git)
 RUN apt-get update && \
@@ -21,6 +21,8 @@ RUN npm install
 # 5. Copy Source Code
 COPY . .
 
-# 6. Start the Bot
-# We do NOT use 'EXPOSE' here. We let the app listen to the $PORT env var.
-CMD ["npm", "start"]
+# 6. Expose Port (Mostly for documentation/Railway scanner)
+EXPOSE 8080
+
+# 7. Start the Bot directly with node
+CMD ["node", "index.js"]

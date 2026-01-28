@@ -141,4 +141,14 @@ const startMantra = async () => {
     });
 };
 
+/** 
+ * ERROR HANDLING - Ensures the bot doesn't crash on Railway
+ */
+process.on('uncaughtException', (err) => {
+    console.error('🚨 UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 UNHANDLED REJECTION:', reason);
+});
+
 startMantra();
