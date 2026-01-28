@@ -76,18 +76,26 @@ const startMantra = async () => {
 
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
+
+        if (update.qr) {
+            console.log(chalk.yellow("⚠️ [MANTRA] QR Code received. Please scan or check pairing."));
+        }
+
         if (connection === 'close') {
-            let reason = lastDisconnect.error?.output?.statusCode;
+            const reason = lastDisconnect?.error?.output?.statusCode;
+            console.log(chalk.red(`📡 [CONNECTION] Closed. Reason Code: ${reason}`));
+
             if (reason === DisconnectReason.loggedOut) {
-                console.log(chalk.red("💀 Logged Out. Delete session and restart."));
-                process.exit();
+                console.log(chalk.red("💀 [MANTRA] Session logged out. Please clear session and reconnect."));
+                process.exit(1);
             } else {
+                console.log(chalk.blue("🔄 [MANTRA] Attempting to reconnect..."));
                 startMantra();
             }
         } else if (connection === 'open') {
-            console.log(chalk.green(`🔮 Connected! Mantra-MD is online.`));
+            console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is now online and connected!`));
             const ownerJid = global.owner[0] + "@s.whatsapp.net";
-            conn.sendMessage(ownerJid, { text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}` });
+            await conn.sendMessage(ownerJid, { text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️` });
         }
     });
 
