@@ -5,12 +5,13 @@
     "main": "index.js",
     "type": "module",
     "scripts": {
-        "start": "node index.js"
+        "start": "node index.js",
+        "prestart": "node -v && echo 'Checking for ESM bugs...' && node --check index.js"
     },
     "author": "Midknight Mantra",
     "license": "MIT",
     "dependencies": {
-        "@whiskeysockets/baileys": "^6.6.0",
+        "@whiskeysockets/baileys": "6.6.0",
         "axios": "^1.6.0",
         "chalk": "^5.3.0",
         "express": "^5.2.1",

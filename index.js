@@ -1,3 +1,7 @@
+console.log("-----------------------------------------");
+console.log("🔮 [MANTRA] INITIALIZING CORE SYSTEM...");
+console.log("-----------------------------------------");
+
 import pkg from '@whiskeysockets/baileys';
 const {
     makeWASocket,
