@@ -1,7 +1,0 @@
-node_modules
-session
-npm-debug.log
-.git
-.git
-# .env (Uncomment if you want to bundle env in container for dev)
-
