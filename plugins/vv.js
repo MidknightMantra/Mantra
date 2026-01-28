@@ -6,55 +6,40 @@ addCommand({
     pattern: 'vv',
     handler: async (m, { conn }) => {
         try {
-            // 1. Check if the user is replying to a message
-            if (!m.quoted) {
-                return m.reply(`${global.emojis.warning} Reply to a ViewOnce message with *${global.prefix}vv*`);
-            }
+            if (!m.quoted) return m.reply(`${global.emojis.warning} Please reply to a ViewOnce message.`);
 
-            // 2. Analyze the quoted message structure
-            // ViewOnce messages are often nested inside 'viewOnceMessageV2' or 'viewOnceMessage'
-            let msg = m.quoted.message;
+            // Drill down into the message (handling ephemeral and viewOnce wrappers)
+            let msg = m.quoted;
+            if (msg.ephemeralMessage) msg = msg.ephemeralMessage.message;
+
             let type = Object.keys(msg)[0];
-
-            // Check if it's actually a ViewOnce message
-            if (type !== 'viewOnceMessage' && type !== 'viewOnceMessageV2') {
-                return m.reply(`${global.emojis.error} That is not a ViewOnce message.`);
+            if (type === 'viewOnceMessage' || type === 'viewOnceMessageV2') {
+                msg = msg[type].message;
+                type = Object.keys(msg)[0];
+            } else if (!type.includes('ImageMessage') && !type.includes('VideoMessage')) {
+                return m.reply(`${global.emojis.error} That doesn't seem to be a ViewOnce message.`);
             }
 
-            // 3. Extract the actual media message (image/video) from inside the ViewOnce wrapper
-            let mediaMsg = msg[type].message;
-            let mediaType = Object.keys(mediaMsg)[0]; // 'imageMessage' or 'videoMessage'
+            const mediaType = type;
+            const streamType = mediaType.toLowerCase().replace('message', '');
 
-            await m.reply(`${global.emojis.waiting} *Revealing ViewOnce...*`);
+            await m.reply(`${global.emojis.waiting} ⏤ *Revelation in progress...* ⏤`);
 
-            // 4. Download the stream
-            // We pass the inner media object and the type (removing 'Message' suffix for the download function)
-            let streamType = mediaType === 'imageMessage' ? 'image' : 'video';
-            let stream = await downloadContentFromMessage(mediaMsg[mediaType], streamType);
-
+            const stream = await downloadContentFromMessage(msg[mediaType], streamType);
             let buffer = Buffer.from([]);
-            for await (const chunk of stream) {
-                buffer = Buffer.concat([buffer, chunk]);
-            }
+            for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
-            // 5. Send back as normal media
-            if (mediaType === 'imageMessage') {
-                await conn.sendMessage(m.chat, {
-                    image: buffer,
-                    caption: `🔮 *Mantra Revealed*\n\n🔓 *Opened for:* @${m.sender.split('@')[0]}`,
-                    mentions: [m.sender]
-                }, { quoted: m });
-            } else if (mediaType === 'videoMessage') {
-                await conn.sendMessage(m.chat, {
-                    video: buffer,
-                    caption: `🔮 *Mantra Revealed*\n\n🔓 *Opened for:* @${m.sender.split('@')[0]}`,
-                    mentions: [m.sender]
-                }, { quoted: m });
-            }
+            const caption = `✧ *Revelation Complete* ✧\n${global.divider}\n✦ *Source:* @${(m.quoted.participant || m.sender).split('@')[0]}\n✦ *Behold its contents.*`;
+
+            await conn.sendMessage(m.chat, {
+                [streamType]: buffer,
+                caption,
+                mentions: [(m.quoted.participant || m.sender)]
+            }, { quoted: m });
 
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Failed to reveal. The media might be expired or already downloaded.`);
+            console.error('VV Error:', e);
+            m.reply(`${global.emojis.error} ⏤ Failure during revelation. The sands of time may have already claimed this message.`);
         }
     }
 });

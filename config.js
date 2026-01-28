@@ -17,14 +17,16 @@ global.autostatus = true; // 👁️ Auto-Status (Always On)
 // Format: "Mantra~..."
 global.sessionId = process.env.SESSION_ID || "";
 
-// 🔮 UNIQUE EMOJIS (Themed)
+// 🔮 CLASSY UI TOKENS
+global.divider = '⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤';
 global.emojis = {
-    success: '🔮',
-    error: '💀',
+    prefix: '✧',
+    success: '✦',
+    error: '✘',
     waiting: '⚗️',
-    info: '📜',
-    warning: '👺',
-    menu: '🕎',
+    info: '🕯️',
+    warning: '⚠︎',
+    menu: '☥',
     music: '🎻',
     video: '📽️',
     admin: '⚖️',

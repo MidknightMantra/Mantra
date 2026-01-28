@@ -9,7 +9,7 @@ addCommand({
         try {
             await m.reply(global.emojis.waiting);
             const { data } = await axios.get(`https://api.guruapi.tech/ai/gpt4?text=${encodeURIComponent(text)}`);
-            await m.reply(`🔮 *AI:* ${data.msg || data.response}`);
+            await m.reply(`✧ *AI Consensus* ✧\n${global.divider}\n${data.msg || data.response}`);
         } catch (e) { m.reply(global.emojis.error); }
     }
 });
@@ -22,7 +22,7 @@ addCommand({
         try {
             await m.reply(global.emojis.waiting);
             const { data } = await axios.get(`https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${encodeURIComponent(text)}`);
-            await m.reply(`🔮 *Gifted AI:* ${data.result || data.msg}`);
+            await m.reply(`✧ *Gifted Insight* ✧\n${global.divider}\n${data.result || data.msg}`);
         } catch (e) { m.reply(global.emojis.error); }
     }
 });
@@ -35,7 +35,7 @@ addCommand({
         try {
             await m.reply(global.emojis.waiting);
             const { data } = await axios.get(`https://api.giftedtech.co.ke/api/ai/gpt4o?apikey=gifted&q=${encodeURIComponent(text)}`);
-            await m.reply(`🔮 *GPT-4o:* ${data.result || data.msg}`);
+            await m.reply(`✧ *GPT-4o Omniscience* ✧\n${global.divider}\n${data.result || data.msg}`);
         } catch (e) { m.reply(global.emojis.error); }
     }
 });
@@ -48,7 +48,7 @@ addCommand({
         try {
             await m.reply(global.emojis.waiting);
             const { data } = await axios.get(`https://api.giftedtech.co.ke/api/ai/gpt4o-mini?apikey=gifted&q=${encodeURIComponent(text)}`);
-            await m.reply(`🔮 *GPT-4o Mini:* ${data.result || data.msg}`);
+            await m.reply(`✧ *GPT-4o Briefing* ✧\n${global.divider}\n${data.result || data.msg}`);
         } catch (e) { m.reply(global.emojis.error); }
     }
 });

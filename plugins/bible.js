@@ -25,11 +25,10 @@ addCommand({
             const reference = data.reference;
             const translation = data.translation_name || 'WEB';
 
-            let msg = `🔮 *MANTRA BIBLE* 🔮\n\n`;
-            msg += `📖 *Ref:* ${reference} (${translation})\n`;
-            msg += `──────────────────\n`;
+            let msg = `✧ *Holy Scripture* ✧\n${global.divider}\n`;
+            msg += `✦ *Ref:* ${reference} (${translation})\n\n`;
             msg += `"${verseText}"\n`;
-            msg += `──────────────────\n`;
+            msg += `\n${global.divider}`;
 
             await conn.sendMessage(m.chat, { text: msg }, { quoted: m });
 

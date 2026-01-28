@@ -34,14 +34,12 @@ addCommand({
             else if (desc.includes('fog') || desc.includes('mist')) weatherEmoji = '🌫️';
 
             // Construct Message
-            let txt = `*${weatherEmoji} Weather Report: ${nearest.areaName[0].value}*\n`;
-            txt += `│\n`;
-            txt += `│ 🌡️ *Temp:* ${current.temp_C}°C (Feels like ${current.FeelsLikeC}°C)\n`;
-            txt += `│ 💧 *Humidity:* ${current.humidity}%\n`;
-            txt += `│ 🌬️ *Wind:* ${current.windspeedKmph} km/h\n`;
-            txt += `│ 🔭 *Condition:* ${current.weatherDesc[0].value}\n`;
-            txt += `│\n`;
-            txt += `╰───────────────────⚗️`;
+            let txt = `✧ *Weather Report: ${nearest.areaName[0].value}* ✧\n${global.divider}\n`;
+            txt += `✦ *Temp:* ${current.temp_C}°C (Feels ${current.FeelsLikeC}°C)\n`;
+            txt += `✦ *Humidity:* ${current.humidity}%\n`;
+            txt += `✦ *Wind:* ${current.windspeedKmph} km/h\n`;
+            txt += `✦ *Horizon:* ${current.weatherDesc[0].value}\n`;
+            txt += `${global.divider}`;
 
             await conn.sendMessage(m.chat, { text: txt }, { quoted: m });
 
