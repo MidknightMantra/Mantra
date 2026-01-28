@@ -10,6 +10,8 @@ global.botName = 'Mantra-MD';
 global.author = 'MidknightMantra';
 global.packname = 'Mantra-Stickers';
 global.prefix = ',';
+global.antidelete = true; // 🗑️ Anti-Delete (Always On)
+global.autostatus = true; // 👁️ Auto-Status (Always On)
 
 // 🔑 SESSION ID (Put your long string here if not using local session)
 // Format: "Mantra~..."

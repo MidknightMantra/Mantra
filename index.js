@@ -107,12 +107,6 @@ const startMantra = async () => {
             if (!m.message) return;
             m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message;
 
-            // 1. Auto Read Status
-            if (m.key && m.key.remoteJid === 'status@broadcast') {
-                await conn.readMessages([m.key]);
-                return;
-            }
-
             m = smsg(conn, m, store);
             if (!m.message) return;
 
