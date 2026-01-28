@@ -3,6 +3,7 @@ import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
+import { fileTypeFromBuffer } from 'file-type';
 
 // Helper: Upload file to Telegra.ph to get a URL
 const uploadToTelegraph = async (buffer) => {
