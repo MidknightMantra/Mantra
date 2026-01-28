@@ -17,57 +17,54 @@ const play: Plugin = {
         const query = args.join(' ')
 
         try {
-            // 1. Search YouTube
             const search = await yts(query)
             const video = search.videos[0]
             if (!video) {
-                await reply('❌ No results found.')
+                await reply('❌ *No results found.*')
                 return
             }
 
+            const isVideo = command === 'video'
             const infoText = `
-🎬 *Mantra YouTube Player*
+🎬 *MANTRA PLAYER*
 
 📌 *Title:* ${video.title}
 🕒 *Duration:* ${video.timestamp}
 👀 *Views:* ${video.views}
+👤 *Channel:* ${video.author.name}
 🔗 *Link:* ${video.url}
 
-*Sending your ${command === 'video' ? 'video' : 'audio'}...*`.trim()
+*Sending your ${isVideo ? 'video' : 'audio'}...*`.trim()
 
             await conn.sendMessage(msg.key.remoteJid!, { image: { url: video.thumbnail || '' }, caption: infoText }, { quoted: msg })
 
-            // 2. Download via Public API (Using the same logic as legacy)
-            // Note: Public APIs are unstable. Consider using a library like ytdl-core in production if available,
-            // or a reliable external service.
-            const isVideo = command === 'video'
             const api = `https://api.vreden.web.id/api/download/ytmp${isVideo ? '4' : '3'}?url=${video.url}`
-
             const { data } = await axios.get(api)
             const dlUrl = data.result?.download?.url || data.result?.url
 
             if (!dlUrl) {
-                await reply('❌ Failed to fetch download link from API.')
+                await reply('❌ *Error:* Failed to fetch download link. API might be limited.')
                 return
             }
 
-            // 3. Send the file
             await react('⬇️')
             if (isVideo) {
-                await conn.sendMessage(msg.key.remoteJid!, { video: { url: dlUrl }, caption: video.title }, { quoted: msg })
+                await conn.sendMessage(msg.key.remoteJid!, {
+                    video: { url: dlUrl },
+                    caption: `✅ *${video.title}*`
+                }, { quoted: msg })
             } else {
                 await conn.sendMessage(msg.key.remoteJid!, {
                     audio: { url: dlUrl },
                     mimetype: 'audio/mp4',
-                    // ptt: false // Voice note format
+                    fileName: `${video.title}.mp3`
                 }, { quoted: msg })
             }
 
             await react('✅')
 
         } catch (e) {
-            // console.error(e)
-            await reply('❌ Error: Could not fetch the media. The API might be down.')
+            await reply('❌ *API Error:* Could not fetch the media. The download service might be down.')
         }
     }
 }

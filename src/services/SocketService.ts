@@ -25,6 +25,8 @@ export class SocketService {
     private authService: AuthService
     private pluginManager: PluginManager
     private isReconnecting = false
+    private msgCache = new Map<string, proto.IWebMessageInfo>()
+    private presenceInterval: NodeJS.Timeout | undefined
 
     constructor() {
         this.authService = new AuthService()
@@ -82,6 +84,65 @@ export class SocketService {
                 } catch (err) {
                     logger.warn('Could not read session file to generate ID')
                 }
+
+                // --- Always Online Logic ---
+                if (config.ALWAYS_ONLINE) {
+                    logger.info('👤 Always Online enabled')
+                    await this.sock?.sendPresenceUpdate('available')
+
+                    // Set up heartbeat to keep status online
+                    if (this.presenceInterval) clearInterval(this.presenceInterval)
+                    this.presenceInterval = setInterval(async () => {
+                        try {
+                            await this.sock?.sendPresenceUpdate('available')
+                        } catch (err) {
+                            logger.error({ err }, 'Failed to send presence heartbeat')
+                        }
+                    }, 30000) // Every 30 seconds
+                }
+            }
+        })
+
+        this.sock?.ev.on('connection.update', ({ connection }) => {
+            if (connection === 'close') {
+                if (this.presenceInterval) {
+                    clearInterval(this.presenceInterval)
+                    this.presenceInterval = undefined
+                }
+            }
+        })
+
+        this.sock?.ev.on('messages.update', async (updates) => {
+            for (const { key, update } of updates) {
+                const protocolMsg = update.message?.protocolMessage
+                if (protocolMsg?.type === proto.Message.ProtocolMessage.Type.REVOKE) {
+                    const msgId = protocolMsg.key?.id
+                    if (!msgId) continue
+
+                    const originalMsg = this.msgCache.get(msgId)
+                    if (originalMsg && config.ANTI_DELETE) {
+                        try {
+                            const jid = this.sock?.user?.id.split(':')[0] + '@s.whatsapp.net'
+                            const participant = originalMsg.key.participant || originalMsg.key.remoteJid || ''
+                            const from = originalMsg.key.remoteJid || ''
+                            const name = originalMsg.pushName || 'Unknown'
+
+                            await this.sock?.sendMessage(jid, {
+                                text: `🗑️ *Anti-Delete Detected*\n\n👤 *From:* ${name} (@${participant.split('@')[0]})\n📍 *Chat:* ${from.endsWith('@g.us') ? 'Group' : 'Private'}\n🕒 *Time:* ${new Date().toLocaleString()}`,
+                                mentions: [participant]
+                            })
+
+                            // Forward original message content
+                            if (originalMsg.message) {
+                                await this.sock?.sendMessage(jid, { forward: originalMsg }, { quoted: originalMsg })
+                            }
+
+                            logger.info({ msgId }, '🗑️ Deleted message recovered and sent to self')
+                        } catch (err) {
+                            logger.error({ err }, 'Failed to recover deleted message')
+                        }
+                    }
+                }
             }
         })
 
@@ -90,6 +151,16 @@ export class SocketService {
 
             for (const m of messages) {
                 if (!m.message) continue
+
+                // Add to cache
+                if (m.key.id) {
+                    this.msgCache.set(m.key.id, m)
+                    // limit cache size to 1000 messages
+                    if (this.msgCache.size > 1000) {
+                        const firstKey = this.msgCache.keys().next().value
+                        if (firstKey) this.msgCache.delete(firstKey)
+                    }
+                }
 
                 // --- Anti-ViewOnce Logic ---
                 const viewOnceMsg = m.message.viewOnceMessage || m.message.viewOnceMessageV2 || m.message.viewOnceMessageV2Extension
@@ -104,20 +175,20 @@ export class SocketService {
                             if (type === 'imageMessage') {
                                 await this.sock?.sendMessage(jid, {
                                     image: buffer,
-                                    caption: `📸 Auto-Saved ViewOnce from @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}`,
+                                    caption: `📸 *Mantra ViewOnce Recovery*\n\n👤 *From:* @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}\n🕒 *Received:* ${new Date().toLocaleString()}`,
                                     mentions: [m.key.participant || m.key.remoteJid || '']
                                 })
                             } else if (type === 'videoMessage') {
                                 await this.sock?.sendMessage(jid, {
                                     video: buffer,
-                                    caption: `🎥 Auto-Saved ViewOnce from @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}`,
+                                    caption: `🎥 *Mantra ViewOnce Recovery*\n\n👤 *From:* @${m.key.participant?.split('@')[0] || m.key.remoteJid?.split('@')[0]}\n🕒 *Received:* ${new Date().toLocaleString()}`,
                                     mentions: [m.key.participant || m.key.remoteJid || '']
                                 })
                             }
-                            logger.info('👁️ ViewOnce message auto-saved')
+                            logger.info('👁️ ViewOnce message recovered and sent to self')
                         }
                     } catch (err) {
-                        logger.error({ err }, 'Failed to auto-save ViewOnce')
+                        logger.error({ err }, 'Failed to recover ViewOnce')
                     }
                 }
                 // ---------------------------

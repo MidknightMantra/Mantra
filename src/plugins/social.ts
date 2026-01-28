@@ -1,93 +1,131 @@
 import axios from 'axios'
 import { Plugin } from '../types/index.js'
+import { logger } from '../utils/logger.js'
 
 const social: Plugin = {
     name: 'social',
-    triggers: ['social', 'dl', 'ig', 'fb', 'tt', 'tw'],
+    triggers: ['social', 'dl', 'ig', 'fb', 'tt', 'tw', 'x', 'tiktok', 'pin', 'threads'],
     category: 'media',
-    description: 'Download media from Instagram, TikTok, Facebook, Twitter, etc.',
+    description: 'Professional media downloader for IG, TT, FB, X, PIN, etc.',
     execute: async ({ conn, msg, body, args, reply, react, command }) => {
         let url = args[0]
 
-        // If quoted message has text/link
-        if (!url && msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation) {
-            url = msg.message.extendedTextMessage.contextInfo.quotedMessage.conversation
+        // Handle quoted links
+        if (!url && msg.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+            const quoted = msg.message.extendedTextMessage.contextInfo.quotedMessage
+            url = quoted.conversation || quoted.extendedTextMessage?.text || ''
         }
 
-        if (!url) {
-            await reply(`🔗 Please provide a URL!\nExample: *.${command} https://www.instagram.com/p/xyz*`)
+        if (!url || !url.startsWith('http')) {
+            await reply(`✨ *MANTRA PRO DOWNLOADER* ✨\n\n🔗 Please provide a valid link!\nExample: *.${command} https://instagram.com/p/xyz*`)
             return
         }
 
-        await react('🔍')
+        await react('🔎')
 
         try {
             let apiEndpoint = ''
+            const lowerUrl = url.toLowerCase()
+            let useGifted = false
 
-            // 1. Detect Platform & specific endpoint
-            if (url.includes('instagram.com')) {
-                if (url.includes('/stories/')) {
-                    // Need username or handling for story link? User provided 'instastories?q=' which implies search
-                    // But for link 'instagramdl' is safer
-                    apiEndpoint = `https://apiskeith.vercel.app/download/instagramdl?url=${url}`
-                } else {
-                    apiEndpoint = `https://apiskeith.vercel.app/download/instagramdl?url=${url}`
+            // 1. Determine optimized API endpoint (Prioritize GiftedTech for requested platforms)
+            if (lowerUrl.includes('instagram.com')) {
+                apiEndpoint = `https://api.giftedtech.co.ke/api/download/instadl?apikey=gifted&url=${url}`
+                useGifted = true
+            } else if (lowerUrl.includes('tiktok.com')) {
+                apiEndpoint = `https://api.giftedtech.co.ke/api/download/tiktokdlv4?apikey=gifted&url=${url}`
+                useGifted = true
+            } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
+                apiEndpoint = `https://api.giftedtech.co.ke/api/download/twitter?apikey=gifted&url=${url}`
+                useGifted = true
+            } else if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch')) {
+                apiEndpoint = `https://api.vreden.web.id/api/download/fbdl?url=${url}`
+            } else if (lowerUrl.includes('pinterest.com') || lowerUrl.includes('pin.it')) {
+                apiEndpoint = `https://api.vreden.web.id/api/download/pinterest?url=${url}`
+            } else if (lowerUrl.includes('threads.net')) {
+                apiEndpoint = `https://api.vreden.web.id/api/download/threads?url=${url}`
+            } else {
+                apiEndpoint = `https://api.vreden.web.id/api/download/alldl?url=${url}`
+            }
+
+            let { data } = await axios.get(apiEndpoint)
+
+            // Fallback Logic if GiftedTech fails
+            if (useGifted && (!data.status || !data.result)) {
+                logger.warn({ url, endpoint: apiEndpoint }, 'GiftedTech API failed, trying fallback...')
+                if (lowerUrl.includes('instagram.com')) {
+                    apiEndpoint = `https://api.vreden.web.id/api/download/igdl?url=${url}`
+                } else if (lowerUrl.includes('tiktok.com')) {
+                    apiEndpoint = `https://api.vreden.web.id/api/download/tiktok?url=${url}`
+                } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
+                    apiEndpoint = `https://api.vreden.web.id/api/download/twitter?url=${url}`
                 }
-            } else if (url.includes('tiktok.com')) {
-                apiEndpoint = `https://apiskeith.vercel.app/download/tiktokdl?url=${url}`
-            } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
-                apiEndpoint = `https://apiskeith.vercel.app/download/fbdl?url=${url}`
-            } else if (url.includes('twitter.com') || url.includes('x.com')) {
-                apiEndpoint = `https://apiskeith.vercel.app/download/twitter?url=${url}`
+                const fallback = await axios.get(apiEndpoint)
+                data = fallback.data
+            }
+
+            const result = data.result
+
+            if (!result || (!result.url && !result.video && !result.image && !Array.isArray(result))) {
+                throw new Error('No media found')
+            }
+
+            await react('📥')
+
+            // 2. Handle Metadata
+            const caption = result.caption || result.title || ''
+            const author = result.author || result.username || result.owner || 'Uploader'
+            const stats = result.statistics ? `\n📊 *Stats:* ${result.statistics.likeCount || 0} ❤️ | ${result.statistics.commentCount || 0} 💬` : ''
+
+            const infoHeader = `
+🎬 *Mantra Pro Downloader*
+👤 *Author:* ${author}
+📝 *Caption:* ${caption.slice(0, 150)}${caption.length > 150 ? '...' : ''}
+${stats}
+`.trim()
+
+            // 3. Discharge Media (Single or Multiple)
+            const mediaList: any[] = []
+
+            if (Array.isArray(result)) {
+                // Carousel/Slideshow
+                result.forEach(item => {
+                    if (typeof item === 'string') mediaList.push({ url: item })
+                    else if (item.url) mediaList.push(item)
+                })
+            } else if (result.links && Array.isArray(result.links)) {
+                // Secondary structure for IG albums
+                result.links.forEach((l: any) => mediaList.push({ url: l.url || l }))
             } else {
-                // Fallback to all-downloader
-                apiEndpoint = `https://apiskeith.vercel.app/download/alldl?url=${url}`
+                // Single Item
+                const singleUrl = result.url || result.video || result.image || result.download?.url || (typeof result === 'string' ? result : null)
+                if (singleUrl) mediaList.push({ url: singleUrl, type: result.type })
             }
 
-            // 2. Call API
-            const { data } = await axios.get(apiEndpoint)
+            if (mediaList.length === 0) throw new Error('Could not parse media list')
 
-            // 3. Parse Result (structure varies by endpoint usually, but we try common fields)
-            // Most Vreden/Keith APIs return { status: true, result: { url: '...' } } or similar
-            let mediaUrl = data.url || data.result?.url || data.result?.download?.url || data.result
+            // 4. Send items
+            for (let i = 0; i < mediaList.length; i++) {
+                const media = mediaList[i]
+                const mUrl = media.url || media
+                const isFirst = i === 0
+                const isVideo = (mUrl.toLowerCase().includes('.mp4')) || (media.type === 'video') || (result.type === 'video')
 
-            if (!mediaUrl || typeof mediaUrl !== 'string') {
-                // Try secondary common fields
-                if (data.result?.video) mediaUrl = data.result.video
-                else if (data.result?.image) mediaUrl = data.result.image
-            }
+                const messageOptions: any = {}
+                if (isVideo) messageOptions.video = { url: mUrl }
+                else messageOptions.image = { url: mUrl }
 
-            if (!mediaUrl) {
-                // Try to find any URL in the object values if it's flat
-                const values = Object.values(data)
-                // @ts-ignore
-                const potentialUrl = values.find(v => typeof v === 'string' && v.startsWith('http'))
-                if (potentialUrl) mediaUrl = potentialUrl as string
-            }
+                if (isFirst) messageOptions.caption = infoHeader
 
-            if (!mediaUrl) {
-                await reply('❌ Could not find media in the link. The API might be unsupported.')
-                // console.log('Debug Social:', data)
-                return
-            }
-
-            await react('⬇️')
-
-            // 4. Send Media
-            const extension = mediaUrl.split('.').pop()?.split('?')[0] || ''
-            const isVideo = ['mp4', 'mov', 'avi'].includes(extension) || mediaUrl.includes('.mp4')
-
-            if (isVideo) {
-                await conn.sendMessage(msg.key.remoteJid!, { video: { url: mediaUrl }, caption: '✅ Downloaded via Mantra' }, { quoted: msg })
-            } else {
-                await conn.sendMessage(msg.key.remoteJid!, { image: { url: mediaUrl }, caption: '✅ Downloaded via Mantra' }, { quoted: msg })
+                await conn.sendMessage(msg.key.remoteJid!, messageOptions, { quoted: msg })
             }
 
             await react('✅')
 
-        } catch (e) {
-            // logger.error(e)
-            await reply('❌ API Error: ' + (e as Error).message)
+        } catch (err) {
+            logger.error({ err }, 'Social Downloader Pro Error')
+            await react('❌')
+            await reply('❌ *Pro Downloader Error:* Unable to fetch media. The link might be private, region-locked, or the API is under maintenance.')
         }
     }
 }
