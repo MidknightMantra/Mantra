@@ -25,7 +25,10 @@ import { validateSession } from './lib/session.js';
 import { initListeners } from './lib/listeners.js';
 import { keepAlive } from './lib/alive.js';
 import { commands } from './lib/plugins.js';
-import { isAntilinkOn } from './lib/database.js';
+import { isAntilinkOn, isSudoMode } from './lib/database.js';
+
+// Make sudo checker globally available
+global.isSudoMode = isSudoMode;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -125,7 +128,10 @@ const startMantra = async () => {
             }
 
             m = smsg(conn, m, store);
-            if (!m.message || m.key.fromMe) return;
+
+            // Allow owner's own messages if sudo mode is enabled, otherwise skip fromMe
+            const sudoMode = global.isSudoMode ? global.isSudoMode() : false;
+            if (!m.message || (m.key.fromMe && !sudoMode)) return;
 
             // --- Robust Body Extraction ---
             const mtype = getContentType(m.message);
