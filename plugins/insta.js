@@ -61,7 +61,7 @@ addCommand({
             // 5. Send the Instagram video/image
             await conn.sendMessage(m.chat, {
                 video: { url: winner.url },
-                caption: `🔮 *Instagram Download*\n${global.divider}\n✦ *Link:* ${text.substring(0, 50)}...`,
+                caption: `\n${global.divider}\n✦*Mantra Insta*`,
                 mimetype: 'video/mp4'
             }, { quoted: m });
 
