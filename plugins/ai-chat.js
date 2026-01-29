@@ -49,7 +49,7 @@ addCommand({
             // 4. Promise.any grabs the first one to resolve successfully
             const winner = await Promise.any(racers);
 
-            const response = `✧ *${winner.source} (Fastest)* ✧\n${global.divider}\n${winner.content}`;
+            const response = `✧ *${winner.source}* ✧\n${global.divider}\n${winner.content}`;
             await m.reply(response);
 
             // 5. Success Reaction
