@@ -42,6 +42,7 @@ async function loadPlugins() {
             console.error(chalk.red(`❌ Failed to load ${file}:`, e));
         }
     }
+    console.log(chalk.green(`✅ Registered ${Object.keys(commands).length} commands:`, Object.keys(commands).slice(0, 10).join(', ')));
 }
 
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
@@ -58,7 +59,6 @@ const startMantra = async () => {
     const { version } = await fetchLatestBaileysVersion();
 
     const conn = makeWASocket({
-        version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: true,
         browser: ['Mantra-MD', 'Chrome', '1.0.0'],
@@ -75,7 +75,6 @@ const startMantra = async () => {
     store.bind(conn.ev);
     await initListeners(conn, store);
 
-    // FIX: Connection Logic to prevent triple-sending
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
 
@@ -88,22 +87,27 @@ const startMantra = async () => {
             console.log(chalk.red(`📡 [CONNECTION] Closed. Reason: ${reason}`));
 
             if (reason === DisconnectReason.loggedOut) {
-                console.log(chalk.red("💀 [MANTRA] Session logged out. Exit."));
+                console.log(chalk.red("💀 [MANTRA] Session logged out. Please clear session and reconnect."));
                 process.exit(1);
             } else {
-                // Exponential backoff or simple delay to prevent rapid restart loops
+                console.log(chalk.blue("🔄 [MANTRA] Reconnecting..."));
                 setTimeout(() => startMantra(), 5000);
             }
         } else if (connection === 'open') {
             console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is online!`));
 
-            // Fix triple-send: Only send if this is the first "open" event for this instance
+            // Send online notification (non-blocking)
             if (!conn.onlineMessageSent) {
-                const ownerJid = global.owner[0] + "@s.whatsapp.net";
-                await conn.sendMessage(ownerJid, {
-                    text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️`
-                });
-                conn.onlineMessageSent = true;
+                try {
+                    const ownerJid = global.owner[0] + "@s.whatsapp.net";
+                    await conn.sendMessage(ownerJid, {
+                        text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️`
+                    });
+                    conn.onlineMessageSent = true;
+                } catch (e) {
+                    console.log(chalk.yellow('⚠️ Could not send online notification to owner (timeout/network issue)'));
+                    // Don't crash - bot is still online and functional
+                }
             }
         }
     });
@@ -129,13 +133,19 @@ const startMantra = async () => {
 
             // Extract body for command parsing, including ViewOnce captions
             let body = '';
-            if (mtype === 'conversation') body = content;
-            else if (mtype === 'extendedTextMessage') body = content.text;
-            else if (mtype === 'imageMessage' || mtype === 'videoMessage') body = content.caption;
-            else if (mtype === 'viewOnceMessage' || mtype === 'viewOnceMessageV2') {
-                const viewOnceInner = content.message;
-                const innerType = getContentType(viewOnceInner);
-                body = viewOnceInner[innerType].caption || '';
+            if (mtype === 'conversation') {
+                body = m.message.conversation;
+            } else if (mtype === 'imageMessage' || mtype === 'videoMessage') {
+                body = content.caption || '';
+            } else if (mtype === 'extendedTextMessage') {
+                body = content.text || '';
+            } else if (mtype === 'viewOnceMessageV2' || mtype === 'viewOnceMessage') {
+                const innerType = Object.keys(content.message)[0];
+                body = content.message[innerType]?.caption || '';
+            } else if (mtype === 'listResponseMessage') {
+                body = content.singleSelectReply?.selectedRowId || '';
+            } else if (mtype === 'buttonsResponseMessage') {
+                body = content.selectedButtonId || '';
             }
 
             const isCmd = body.startsWith(global.prefix);
@@ -145,38 +155,51 @@ const startMantra = async () => {
             const sender = m.sender;
             const isGroup = m.isGroup;
 
-            // Cache group details
             const groupMetadata = isGroup ? await conn.groupMetadata(m.chat) : '';
             const groupAdmins = isGroup ? groupMetadata.participants.filter(p => p.admin).map(p => p.id) : [];
             const isOwner = global.owner.includes(sender.split('@')[0]);
             const isUserAdmin = groupAdmins.includes(sender);
             const isBotAdmin = groupAdmins.includes(conn.user.id.split(':')[0] + '@s.whatsapp.net');
 
-            // --- Anti-Link Monitor ---
+            // 2. Anti-Link Monitor
             if (isGroup && isAntilinkOn(m.chat) && !isOwner && !isUserAdmin && isBotAdmin) {
                 const linkRegex = /chat.whatsapp.com\/(?:invite\/)?([0-9A-Za-z]{20,24})/i;
                 if (linkRegex.test(body)) {
                     await conn.sendMessage(m.chat, { delete: m.key });
                     await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
-                    return;
+                    return conn.sendMessage(m.chat, {
+                        text: `🚫 *Anti-Link:* @${sender.split('@')[0]} was removed for sending a group link.`,
+                        mentions: [sender]
+                    });
                 }
             }
 
-            // --- Command Execution ---
-            if (isCmd && commands[command]) {
-                console.log(chalk.yellow(`[CMD]`), chalk.green(command), `from`, chalk.cyan(sender));
-                await commands[command].handler(m, {
-                    conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin
-                });
+            // 3. Command Execution
+            if (isCmd) {
+                console.log(chalk.cyan(`[DEBUG] Received command:"${command}" from ${sender.split('@')[0]}. Body:"${body.substring(0, 50)}"`));
+                console.log(chalk.cyan(`[DEBUG] Commands available:`, Object.keys(commands).length));
+
+                if (commands[command]) {
+                    console.log(chalk.green(`[CMD] Executing: ${command}`));
+                    await commands[command].handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+                } else {
+                    console.log(chalk.yellow(`[WARN] Command "${command}" not found in registry`));
+                }
             }
         } catch (err) {
-            console.error("Upsert Error:", err);
+            console.error('Upsert Error:', err);
         }
     });
 };
 
-// Global Error Prevention
-process.on('uncaughtException', (err) => console.error('🚨 UNCAUGHT:', err));
-process.on('unhandledRejection', (reason) => console.error('🚨 UNHANDLED:', reason));
+/** 
+ * ERROR HANDLING - Ensures the bot doesn't crash on Railway
+ */
+process.on('uncaughtException', (err) => {
+    console.error('🚨 UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 UNHANDLED REJECTION:', reason);
+});
 
 startMantra();
