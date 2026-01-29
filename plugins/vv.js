@@ -1,6 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import pkg from '@whiskeysockets/baileys';
-const { downloadContentFromMessage } = pkg;
+const { downloadContentFromMessage, getContentType } = pkg;
 
 addCommand({
     pattern: 'vv',
@@ -10,27 +10,39 @@ addCommand({
         try {
             if (!m.quoted) return m.reply(`${global.emojis.warning} Reply to a ViewOnce message.`);
 
-            // 1. Unwrap Message Layers
-            let msg = m.quoted.ephemeralMessage?.message || m.quoted;
-            let type = Object.keys(msg)[0];
+            // 1. Robust Unwrapping Logic
+            // This handles Ephemeral -> ViewOnceV1/V2 -> Actual Message
+            let quotedMsg = m.quoted.message || m.quoted;
 
+            // Handle Ephemeral Wrapper
+            if (quotedMsg.ephemeralMessage) quotedMsg = quotedMsg.ephemeralMessage.message;
+
+            // Extract the type (viewOnceMessage or viewOnceMessageV2)
+            let type = getContentType(quotedMsg);
+            let viewOnceContent = quotedMsg[type];
+
+            // If it's a ViewOnce wrapper, drill down into the inner message
             if (type === 'viewOnceMessage' || type === 'viewOnceMessageV2') {
-                msg = msg[type].message;
-                type = Object.keys(msg)[0];
+                quotedMsg = viewOnceContent.message;
+                type = getContentType(quotedMsg);
             }
 
-            if (!type.includes('ImageMessage') && !type.includes('VideoMessage')) {
-                return m.reply(`${global.emojis.error} Not a ViewOnce media file.`);
+            // Final validation check
+            const isImage = type === 'imageMessage';
+            const isVideo = type === 'videoMessage';
+
+            if (!isImage && !isVideo) {
+                return m.reply(`${global.emojis.error} Not a ViewOnce media file. (Detected: ${type})`);
             }
 
-            // 2. Initial Reaction (Status: Processing)
+            // 2. Reaction Feedback
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            const mediaType = type;
-            const streamType = mediaType.toLowerCase().replace('message', '');
+            const streamType = type.replace('Message', '').toLowerCase();
+            const mediaMsg = quotedMsg[type];
 
             // 3. Download Buffer
-            const stream = await downloadContentFromMessage(msg[mediaType], streamType);
+            const stream = await downloadContentFromMessage(mediaMsg, streamType);
             let chunks = [];
             for await (const chunk of stream) chunks.push(chunk);
             const buffer = Buffer.concat(chunks);
@@ -45,7 +57,7 @@ addCommand({
                 mentions: [sender]
             }, { quoted: m });
 
-            // 5. ARCHIVE: Send to Saved Messages (Self)
+            // 5. ARCHIVE: Send to Saved Messages
             const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
             if (m.chat !== myJid) {
                 await conn.sendMessage(myJid, {
@@ -55,7 +67,6 @@ addCommand({
                 });
             }
 
-            // 6. Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
