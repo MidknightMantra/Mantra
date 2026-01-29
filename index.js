@@ -48,7 +48,20 @@ async function loadPlugins() {
     console.log(chalk.green(`✅ Registered ${Object.keys(commands).length} commands:`, Object.keys(commands).slice(0, 10).join(', ')));
 }
 
-const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
+const store = makeInMemoryStore({
+    logger: pino().child({ level: 'silent', stream: 'store' })
+});
+
+// Read store from file on startup (persists messages)
+if (fs.existsSync('./store.json')) {
+    store.readFromFile('./store.json');
+}
+
+// Save store to file every 30 seconds (prevents data loss)
+setInterval(() => {
+    store.writeToFile('./store.json');
+}, 30000);
+
 const sessionDir = './session';
 
 // Railway keep-alive
