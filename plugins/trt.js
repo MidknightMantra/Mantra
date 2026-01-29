@@ -4,57 +4,59 @@ import axios from 'axios';
 addCommand({
     pattern: 'trt',
     alias: ['translate', 'tr'],
-    desc: 'Translate text to any language',
+    category: 'tools',
     handler: async (m, { conn, text, args }) => {
         try {
             let msgToTranslate = '';
-            let targetLang = 'en'; // Default to English
+            let targetLang = 'en';
 
-            // Scenario 1: Reply to a message with ".trt <lang>"
+            // 1. Identify Content and Target Language
             if (m.quoted) {
-                msgToTranslate = m.quoted.text || m.quoted.caption || m.quoted.conversation || '';
-                if (args[0]) targetLang = args[0]; // e.g., .trt es
-            }
-            // Scenario 2: Direct command ".trt <lang> <text>"
-            else if (args.length >= 2) {
-                targetLang = args[0]; // First word is lang
-                msgToTranslate = args.slice(1).join(' '); // Rest is text
-            }
-            // Scenario 3: No valid input
-            else {
-                return m.reply(`${global.emojis.warning} *Usage:*\n\n1. Reply to text: *${global.prefix}trt es*\n2. Type text: *${global.prefix}trt fr Hello World*`);
+                // Reply mode: .trt <lang> (Default to 'en' if no arg provided)
+                msgToTranslate = m.quoted.text || m.quoted.caption || '';
+                if (args[0]) targetLang = args[0];
+            } else if (args.length >= 2) {
+                // Direct mode: .trt <lang> <text>
+                targetLang = args[0];
+                msgToTranslate = args.slice(1).join(' ');
+            } else if (args.length === 1 && !m.quoted) {
+                // Direct mode (default to English): .trt <text>
+                targetLang = 'en';
+                msgToTranslate = args.join(' ');
+            } else {
+                return m.reply(`${global.emojis.warning} *Usage:* \n1. Reply: .trt es\n2. Type: .trt es hello`);
             }
 
-            if (!msgToTranslate) return m.reply(`${global.emojis.error} No text found to translate.`);
+            if (!msgToTranslate.trim()) return m.reply(`${global.emojis.error} No text found.`);
 
-            await m.reply(global.emojis.waiting);
+            // 2. Status Reaction (Processing)
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // Using Google Translate free endpoint
+            // 3. API Call
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(msgToTranslate)}`;
-
             const { data } = await axios.get(url);
 
-            // Google Translate API returns a nested array. 
-            // data[0][0][0] usually contains the translated text.
-            let translatedText = '';
+            if (!data || !data[0]) throw new Error('Invalid API response');
 
-            // Loop through sentences (long text is split into segments)
-            data[0].forEach(segment => {
-                if (segment[0]) translatedText += segment[0];
-            });
+            // 4. Parse Results
+            let translatedText = data[0].map(segment => segment[0]).join('');
+            const sourceLang = data[2];
 
-            const sourceLang = data[2]; // Detected source language
-
-            const response = `🔮 *MANTRA TRANSLATE*\n\n` +
-                `🗣️ *From:* ${sourceLang}\n` +
-                `💬 *To:* ${targetLang}\n\n` +
+            // 5. Build Response
+            const response = `🔮 *Mantra Translate*\n${global.divider}\n` +
+                `🗣️ *From:* [${sourceLang.toUpperCase()}]\n` +
+                `💬 *To:* [${targetLang.toUpperCase()}]\n\n` +
                 `📝 *Result:*\n${translatedText}`;
 
             await conn.sendMessage(m.chat, { text: response }, { quoted: m });
 
+            // 6. Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Translation failed. Check the language code (e.g., en, es, fr, id).`);
+            console.error('Translation Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} Translation failed. Check your language codes.`);
         }
     }
 });

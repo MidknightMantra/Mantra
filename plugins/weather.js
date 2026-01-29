@@ -4,48 +4,63 @@ import axios from 'axios';
 addCommand({
     pattern: 'weather',
     alias: ['w', 'forecast'],
-    desc: 'Check weather for a city',
+    category: 'tools',
     handler: async (m, { conn, text }) => {
-        if (!text) {
-            return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}weather <city>\nExample: ${global.prefix}weather Nairobi`);
-        }
+        if (!text) return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}weather <city>`);
 
         try {
-            await m.reply(global.emojis.waiting);
+            // 1. Initial Reaction
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // Fetching from wttr.in (No API Key needed)
-            const response = await axios.get(`https://wttr.in/${encodeURIComponent(text)}?format=j1`);
-            const data = response.data;
+            // 2. Fetch Detailed JSON for the text report
+            const { data } = await axios.get(`https://wttr.in/${encodeURIComponent(text)}?format=j1`);
 
-            if (!data || !data.current_condition) {
+            if (!data?.current_condition) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
                 return m.reply(`${global.emojis.error} City not found.`);
             }
 
             const current = data.current_condition[0];
-            const nearest = data.nearest_area[0];
+            const area = data.nearest_area[0];
+            const desc = current.weatherDesc[0].value;
 
-            // Determine Emoji based on description
-            const desc = current.weatherDesc[0].value.toLowerCase();
-            let weatherEmoji = '🌥️';
-            if (desc.includes('sun') || desc.includes('clear')) weatherEmoji = '☀️';
-            else if (desc.includes('rain')) weatherEmoji = '🌧️';
-            else if (desc.includes('snow')) weatherEmoji = '❄️';
-            else if (desc.includes('cloud')) weatherEmoji = '☁️';
-            else if (desc.includes('fog') || desc.includes('mist')) weatherEmoji = '🌫️';
+            // 3. Emoji Mapping Logic
+            const emojiMap = {
+                sun: '☀️', clear: '🌙', rain: '🌧️', cloud: '☁️',
+                snow: '❄️', fog: '🌫️', storm: '⛈️', mist: '🌫️'
+            };
+            const weatherEmoji = Object.entries(emojiMap).find(([key]) =>
+                desc.toLowerCase().includes(key))?.[1] || '🌥️';
 
-            // Construct Message
-            let txt = `✧ *Weather Report: ${nearest.areaName[0].value}* ✧\n${global.divider}\n`;
-            txt += `✦ *Temp:* ${current.temp_C}°C (Feels ${current.FeelsLikeC}°C)\n`;
-            txt += `✦ *Humidity:* ${current.humidity}%\n`;
-            txt += `✦ *Wind:* ${current.windspeedKmph} km/h\n`;
-            txt += `✦ *Horizon:* ${current.weatherDesc[0].value}\n`;
-            txt += `${global.divider}`;
+            // 4. Construct Message
+            const report = `✧ *Weather Report: ${area.areaName[0].value}* ✧\n` +
+                `${global.divider}\n` +
+                `${weatherEmoji} *Status:* ${desc}\n` +
+                `🌡️ *Temp:* ${current.temp_C}°C (Feels ${current.FeelsLikeC}°C)\n` +
+                `💧 *Humidity:* ${current.humidity}%\n` +
+                `💨 *Wind:* ${current.windspeedKmph} km/h\n` +
+                `${global.divider}`;
 
-            await conn.sendMessage(m.chat, { text: txt }, { quoted: m });
+            // 5. Send Report with a Visual Graph (wttr.in generates PNGs too!)
+            const graphUrl = `https://wttr.in/${encodeURIComponent(text)}_3p.png?m`;
+
+            await conn.sendMessage(m.chat, {
+                image: { url: graphUrl },
+                caption: report
+            }, { quoted: m });
+
+            // 6. Save to Archived Messages (Self)
+            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+            if (m.chat !== myJid) {
+                await conn.sendMessage(myJid, { text: `📂 *Weather Archive*\n${report}` });
+            }
+
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Could not fetch weather. Make sure the city name is correct.`);
+            console.error('Weather Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} Connection failed.`);
         }
     }
 });

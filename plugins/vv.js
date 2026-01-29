@@ -4,6 +4,8 @@ const { downloadContentFromMessage } = pkg;
 
 addCommand({
     pattern: 'vv',
+    alias: ['viewonce', 'retrive'],
+    category: 'tools',
     handler: async (m, { conn }) => {
         try {
             if (!m.quoted) return m.reply(`${global.emojis.warning} Reply to a ViewOnce message.`);
@@ -21,7 +23,7 @@ addCommand({
                 return m.reply(`${global.emojis.error} Not a ViewOnce media file.`);
             }
 
-            // 2. Visual Feedback (Reaction)
+            // 2. Initial Reaction (Status: Processing)
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
             const mediaType = type;
@@ -34,7 +36,7 @@ addCommand({
             const buffer = Buffer.concat(chunks);
 
             const sender = m.quoted.participant || m.sender;
-            const caption = `✅ *ViewOnce Downloaded*\n${global.divider}\nFrom: @${sender.split('@')[0]}`;
+            const caption = `✅ *ViewOnce Revealed*\n${global.divider}\n✦ *From:* @${sender.split('@')[0]}`;
 
             // 4. Send to Current Chat
             await conn.sendMessage(m.chat, {
@@ -43,17 +45,17 @@ addCommand({
                 mentions: [sender]
             }, { quoted: m });
 
-            // 5. Send to Saved Messages (Self)
+            // 5. ARCHIVE: Send to Saved Messages (Self)
             const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
             if (m.chat !== myJid) {
                 await conn.sendMessage(myJid, {
                     [streamType]: buffer,
-                    caption: `📂 *Auto-Archived*\n${global.divider}\nFrom: @${sender.split('@')[0]}`,
+                    caption: `📂 *VV Archive*\n${global.divider}\n✦ *Sender:* @${sender.split('@')[0]}`,
                     mentions: [sender]
                 });
             }
 
-            // Success Reaction
+            // 6. Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
