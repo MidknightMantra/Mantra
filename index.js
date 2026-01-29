@@ -91,6 +91,11 @@ const startMantra = async () => {
     store.bind(conn.ev);
     await initListeners(conn, store);
 
+    // CRITICAL: Write store immediately when messages are received (for anti-delete)
+    conn.ev.on('messages.upsert', () => {
+        store.writeToFile('./store.json').catch(e => console.error('Store write error:', e));
+    });
+
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
 
