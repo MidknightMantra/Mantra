@@ -57,10 +57,10 @@ if (fs.existsSync('./store.json')) {
     store.readFromFile('./store.json');
 }
 
-// Save store to file every 30 seconds (prevents data loss)
+// Save store to file every 10 seconds (catches deleted messages faster)
 setInterval(() => {
     store.writeToFile('./store.json');
-}, 30000);
+}, 10000);
 
 const sessionDir = './session';
 
@@ -90,11 +90,6 @@ const startMantra = async () => {
 
     store.bind(conn.ev);
     await initListeners(conn, store);
-
-    // CRITICAL: Write store immediately when messages are received (for anti-delete)
-    conn.ev.on('messages.upsert', () => {
-        store.writeToFile('./store.json').catch(e => console.error('Store write error:', e));
-    });
 
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
