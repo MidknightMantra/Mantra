@@ -6,35 +6,48 @@ addCommand({
     pattern: 'vv',
     handler: async (m, { conn }) => {
         try {
-            if (!m.quoted) return m.reply(`${global.emojis.warning} Please reply to a ViewOnce message.`);
+            // 1. Initial check for quoted message
+            let quoted = m.quoted ? m.quoted : null;
+            if (!quoted) return m.reply(`${global.emojis.warning} Please reply to a ViewOnce message.`);
 
-            // Drill down into the message (handling ephemeral and viewOnce wrappers)
-            let msg = m.quoted;
-            if (msg.ephemeralMessage) msg = msg.ephemeralMessage.message;
+            // 2. Unwrapping the message layers
+            // Handles Ephemeral -> ViewOnceV1/V2 -> Actual Message Content
+            let msg = quoted.ephemeralMessage?.message || quoted;
+            const viewOnceType = Object.keys(msg)[0];
 
-            let type = Object.keys(msg)[0];
-            if (type === 'viewOnceMessage' || type === 'viewOnceMessageV2') {
-                msg = msg[type].message;
-                type = Object.keys(msg)[0];
-            } else if (!type.includes('ImageMessage') && !type.includes('VideoMessage')) {
-                return m.reply(`${global.emojis.error} That doesn't seem to be a ViewOnce message.`);
+            if (viewOnceType === 'viewOnceMessage' || viewOnceType === 'viewOnceMessageV2') {
+                msg = msg[viewOnceType].message;
             }
 
-            const mediaType = type;
-            const streamType = mediaType.toLowerCase().replace('message', '');
+            const mediaType = Object.keys(msg)[0];
+            const isImage = mediaType === 'imageMessage';
+            const isVideo = mediaType === 'videoMessage';
+
+            if (!isImage && !isVideo) {
+                return m.reply(`${global.emojis.error} This doesn't appear to be a ViewOnce image or video.`);
+            }
 
             await m.reply(`${global.emojis.waiting} ⏤ *Revelation in progress...* ⏤`);
 
+            // 3. Efficient Buffer Handling
+            const streamType = mediaType.replace('Message', '');
             const stream = await downloadContentFromMessage(msg[mediaType], streamType);
-            let buffer = Buffer.from([]);
-            for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
-            const caption = `✧ *Revelation Complete* ✧\n${global.divider}\n✦ *Source:* @${(m.quoted.participant || m.sender).split('@')[0]}\n✦ *Behold its contents.*`;
+            let chunks = [];
+            for await (const chunk of stream) {
+                chunks.push(chunk);
+            }
+            const buffer = Buffer.concat(chunks);
 
+            // 4. Constructing Metadata
+            const sender = quoted.participant || m.sender;
+            const caption = `✧ *Revelation Complete* ✧\n${global.divider}\n✦ *Source:* @${sender.split('@')[0]}\n✦ *Behold its contents.*`;
+
+            // 5. Delivery
             await conn.sendMessage(m.chat, {
                 [streamType]: buffer,
                 caption,
-                mentions: [(m.quoted.participant || m.sender)]
+                mentions: [sender]
             }, { quoted: m });
 
         } catch (e) {
