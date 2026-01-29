@@ -4,37 +4,42 @@ import axios from 'axios';
 addCommand({
     pattern: 'newsletter',
     alias: ['channel', 'searchchannel'],
-    desc: 'Search for WhatsApp Channels',
+    category: 'tools',
     handler: async (m, { conn, text }) => {
         if (!text) return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}newsletter <query>`);
 
         try {
-            await m.reply(global.emojis.waiting);
+            // 1. Initial Reaction
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // API to search channels
-            // Note: If this API goes down, you may need to find an alternative or use Baileys' internal 'newsletterSearch' if supported in your version.
+            // 2. Search Channels
             const { data } = await axios.get(`https://api.guruapi.tech/wa/channel?query=${encodeURIComponent(text)}`);
 
             if (!data.channels || data.channels.length === 0) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
                 return m.reply(`${global.emojis.error} No channels found.`);
             }
 
-            let msg = `🔮 *WhatsApp Channels Search* 🔮\n\n`;
+            // 3. Format Results
+            let msg = `🔮 *WhatsApp Channels Search* 🔮\n${global.divider}\n`;
 
-            // Display top 5 results
             data.channels.slice(0, 5).forEach((ch) => {
                 msg += `📺 *Name:* ${ch.name}\n`;
                 msg += `👥 *Followers:* ${ch.followers}\n`;
-                // Constructing link via ID usually works if ID is available, otherwise just name
                 if (ch.id) msg += `🔗 *Link:* https://whatsapp.com/channel/${ch.id}\n`;
                 msg += `──────────────────\n`;
             });
 
+            // 4. Send Results
             await conn.sendMessage(m.chat, { text: msg }, { quoted: m });
 
+            // 5. Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Search failed. The API might be busy.`);
+            console.error('Newsletter Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} ⏤ Search failed. The API might be busy.`);
         }
     }
 });

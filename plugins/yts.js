@@ -4,34 +4,45 @@ import ytSearch from 'yt-search';
 addCommand({
     pattern: 'yts',
     alias: ['ytsearch', 'find'],
-    desc: 'Search for YouTube videos',
+    category: 'tools',
     handler: async (m, { conn, text }) => {
         if (!text) return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}yts <query>`);
 
         try {
-            await m.reply(global.emojis.waiting);
+            // 1. Initial Reaction
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+            // 2. Search YouTube
             const search = await ytSearch(text);
-            const videos = search.videos.slice(0, 5); // Get top 5 results
+            const videos = search.videos.slice(0, 5);
 
-            if (videos.length === 0) return m.reply(`${global.emojis.error} No results found.`);
+            if (videos.length === 0) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+                return m.reply(`${global.emojis.error} No results found.`);
+            }
 
-            let msg = `🔮 *MANTRA YOUTUBE SEARCH*\n\n`;
+            // 3. Format Results
+            let msg = `🔮 *MANTRA YOUTUBE SEARCH*\n${global.divider}\n`;
             videos.forEach((v, i) => {
                 msg += `*${i + 1}. ${v.title}*\n`;
                 msg += `⏱️ *Duration:* ${v.timestamp}\n`;
                 msg += `🔗 *Link:* ${v.url}\n\n`;
             });
+            msg += `${global.divider}\n💡 *Tip:* Reply with *${global.prefix}song <link>* to download!`;
 
-            msg += `💡 *Tip:* Reply with *${global.prefix}song <link>* to download!`;
-
+            // 4. Send Results with Thumbnail
             await conn.sendMessage(m.chat, {
                 image: { url: videos[0].thumbnail },
                 caption: msg
             }, { quoted: m });
 
+            // 5. Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} YouTube search failed.`);
+            console.error('YTS Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} ⏤ YouTube search failed.`);
         }
     }
 });

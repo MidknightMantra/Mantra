@@ -4,23 +4,26 @@ import axios from 'axios';
 addCommand({
     pattern: 'bible',
     alias: ['verse', 'scripture'],
-    desc: 'Get a Bible verse',
+    category: 'tools',
     handler: async (m, { conn, text }) => {
         if (!text) {
             return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}bible <Book Chapter:Verse>\nExample: *${global.prefix}bible John 3:16*`);
         }
 
         try {
-            await m.reply(global.emojis.waiting);
+            // 1. Initial Reaction
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // Fetch from bible-api.com (Free, no key needed)
+            // 2. Fetch from bible-api.com (Free, no key needed)
             const response = await axios.get(`https://bible-api.com/${encodeURIComponent(text)}`);
             const data = response.data;
 
             if (!data || !data.text) {
+                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
                 return m.reply(`${global.emojis.error} Verse not found. Check the spelling.`);
             }
 
+            // 3. Format Message
             const verseText = data.text.trim();
             const reference = data.reference;
             const translation = data.translation_name || 'WEB';
@@ -30,11 +33,16 @@ addCommand({
             msg += `"${verseText}"\n`;
             msg += `\n${global.divider}`;
 
+            // 4. Send Message
             await conn.sendMessage(m.chat, { text: msg }, { quoted: m });
 
+            // 5. Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Could not find that scripture.`);
+            console.error('Bible Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} ⏤ Could not find that scripture.`);
         }
     }
 });

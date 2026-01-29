@@ -9,7 +9,7 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeInMemoryStore,
-    getContentType // Extracted from pkg to avoid ESM named export errors
+    getContentType
 } = pkg;
 
 import pino from 'pino';
@@ -30,7 +30,7 @@ import { isAntilinkOn } from './lib/database.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 2. Dynamic Plugin Loader
+// Dynamic Plugin Loader
 async function loadPlugins() {
     const pluginFolder = path.join(__dirname, 'plugins');
     const files = fs.readdirSync(pluginFolder).filter(file => file.endsWith('.js'));
@@ -47,7 +47,7 @@ async function loadPlugins() {
 const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 const sessionDir = './session';
 
-// Start the fake web server for Railway
+// Railway keep-alive
 keepAlive();
 
 const startMantra = async () => {
@@ -58,8 +58,9 @@ const startMantra = async () => {
     const { version } = await fetchLatestBaileysVersion();
 
     const conn = makeWASocket({
+        version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true, // Set to false if using pairing code
+        printQRInTerminal: true,
         browser: ['Mantra-MD', 'Chrome', '1.0.0'],
         auth: state,
         getMessage: async (key) => {
@@ -74,28 +75,36 @@ const startMantra = async () => {
     store.bind(conn.ev);
     await initListeners(conn, store);
 
+    // FIX: Connection Logic to prevent triple-sending
     conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
 
         if (update.qr) {
-            console.log(chalk.yellow("⚠️ [MANTRA] QR Code received. Please scan or check pairing."));
+            console.log(chalk.yellow("⚠️ [MANTRA] QR Code received."));
         }
 
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode;
-            console.log(chalk.red(`📡 [CONNECTION] Closed. Reason Code: ${reason}`));
+            console.log(chalk.red(`📡 [CONNECTION] Closed. Reason: ${reason}`));
 
             if (reason === DisconnectReason.loggedOut) {
-                console.log(chalk.red("💀 [MANTRA] Session logged out. Please clear session and reconnect."));
+                console.log(chalk.red("💀 [MANTRA] Session logged out. Exit."));
                 process.exit(1);
             } else {
-                console.log(chalk.blue("🔄 [MANTRA] Attempting to reconnect..."));
-                startMantra();
+                // Exponential backoff or simple delay to prevent rapid restart loops
+                setTimeout(() => startMantra(), 5000);
             }
         } else if (connection === 'open') {
-            console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is now online and connected!`));
-            const ownerJid = global.owner[0] + "@s.whatsapp.net";
-            await conn.sendMessage(ownerJid, { text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️` });
+            console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is online!`));
+
+            // Fix triple-send: Only send if this is the first "open" event for this instance
+            if (!conn.onlineMessageSent) {
+                const ownerJid = global.owner[0] + "@s.whatsapp.net";
+                await conn.sendMessage(ownerJid, {
+                    text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️`
+                });
+                conn.onlineMessageSent = true;
+            }
         }
     });
 
@@ -105,12 +114,29 @@ const startMantra = async () => {
         try {
             let m = chatUpdate.messages[0];
             if (!m.message) return;
-            m.message = (Object.keys(m.message)[0] === 'ephemeralMessage') ? m.message.ephemeralMessage.message : m.message;
+
+            // Handle Ephemeral messages before smsg
+            if (m.message.ephemeralMessage) {
+                m.message = m.message.ephemeralMessage.message;
+            }
 
             m = smsg(conn, m, store);
-            if (!m.message) return;
+            if (!m.message || m.key.fromMe) return;
 
-            const body = (m.mtype === 'conversation') ? m.message.conversation : (m.mtype == 'imageMessage') ? m.message.imageMessage.caption : (m.mtype == 'videoMessage') ? m.message.videoMessage.caption : (m.mtype == 'extendedTextMessage') ? m.message.extendedTextMessage.text : '';
+            // --- Robust Body Extraction ---
+            const mtype = getContentType(m.message);
+            const content = m.message[mtype];
+
+            // Extract body for command parsing, including ViewOnce captions
+            let body = '';
+            if (mtype === 'conversation') body = content;
+            else if (mtype === 'extendedTextMessage') body = content.text;
+            else if (mtype === 'imageMessage' || mtype === 'videoMessage') body = content.caption;
+            else if (mtype === 'viewOnceMessage' || mtype === 'viewOnceMessageV2') {
+                const viewOnceInner = content.message;
+                const innerType = getContentType(viewOnceInner);
+                body = viewOnceInner[innerType].caption || '';
+            }
 
             const isCmd = body.startsWith(global.prefix);
             const command = isCmd ? body.slice(global.prefix.length).trim().split(' ').shift().toLowerCase() : '';
@@ -119,42 +145,38 @@ const startMantra = async () => {
             const sender = m.sender;
             const isGroup = m.isGroup;
 
+            // Cache group details
             const groupMetadata = isGroup ? await conn.groupMetadata(m.chat) : '';
             const groupAdmins = isGroup ? groupMetadata.participants.filter(p => p.admin).map(p => p.id) : [];
             const isOwner = global.owner.includes(sender.split('@')[0]);
             const isUserAdmin = groupAdmins.includes(sender);
             const isBotAdmin = groupAdmins.includes(conn.user.id.split(':')[0] + '@s.whatsapp.net');
 
-            // 2. Anti-Link Monitor (Applied before command check)
+            // --- Anti-Link Monitor ---
             if (isGroup && isAntilinkOn(m.chat) && !isOwner && !isUserAdmin && isBotAdmin) {
                 const linkRegex = /chat.whatsapp.com\/(?:invite\/)?([0-9A-Za-z]{20,24})/i;
                 if (linkRegex.test(body)) {
                     await conn.sendMessage(m.chat, { delete: m.key });
                     await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
-                    return conn.sendMessage(m.chat, {
-                        text: `🚫 *Anti-Link:* @${sender.split('@')[0]} was removed for sending a group link.`,
-                        mentions: [sender]
-                    });
+                    return;
                 }
             }
 
-            // 3. Command Execution
+            // --- Command Execution ---
             if (isCmd && commands[command]) {
                 console.log(chalk.yellow(`[CMD]`), chalk.green(command), `from`, chalk.cyan(sender));
-                await commands[command].handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+                await commands[command].handler(m, {
+                    conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin
+                });
             }
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error("Upsert Error:", err);
+        }
     });
 };
 
-/** 
- * ERROR HANDLING - Ensures the bot doesn't crash on Railway
- */
-process.on('uncaughtException', (err) => {
-    console.error('🚨 UNCAUGHT EXCEPTION:', err);
-});
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('🚨 UNHANDLED REJECTION:', reason);
-});
+// Global Error Prevention
+process.on('uncaughtException', (err) => console.error('🚨 UNCAUGHT:', err));
+process.on('unhandledRejection', (reason) => console.error('🚨 UNHANDLED:', reason));
 
 startMantra();
