@@ -109,8 +109,27 @@ const startMantra = async () => {
                     conn.onlineMessageSent = true;
                 } catch (e) {
                     console.log(chalk.yellow('⚠️ Could not send online notification to owner (timeout/network issue)'));
-                    // Don't crash - bot is still online and functional
                 }
+            }
+
+            // ALWAYS ONLINE: Send presence updates every 30 seconds
+            if (conn.presenceInterval) clearInterval(conn.presenceInterval);
+
+            conn.presenceInterval = setInterval(async () => {
+                try {
+                    await conn.sendPresenceUpdate('available');
+                    console.log(chalk.hex('#6A0DAD')('📡 Presence: Online'));
+                } catch (e) {
+                    console.error('Presence update error:', e.message);
+                }
+            }, 30000); // Every 30 seconds
+
+            // Send initial presence immediately
+            try {
+                await conn.sendPresenceUpdate('available');
+                console.log(chalk.green('✅ Always-Online mode activated'));
+            } catch (e) {
+                console.error('Initial presence error:', e.message);
             }
         }
     });
