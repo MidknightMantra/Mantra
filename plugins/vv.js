@@ -6,53 +6,59 @@ addCommand({
     pattern: 'vv',
     handler: async (m, { conn }) => {
         try {
-            // 1. Initial check for quoted message
-            let quoted = m.quoted ? m.quoted : null;
-            if (!quoted) return m.reply(`${global.emojis.warning} Please reply to a ViewOnce message.`);
+            if (!m.quoted) return m.reply(`${global.emojis.warning} Reply to a ViewOnce message.`);
 
-            // 2. Unwrapping the message layers
-            // Handles Ephemeral -> ViewOnceV1/V2 -> Actual Message Content
-            let msg = quoted.ephemeralMessage?.message || quoted;
-            const viewOnceType = Object.keys(msg)[0];
+            // 1. Unwrap Message Layers
+            let msg = m.quoted.ephemeralMessage?.message || m.quoted;
+            let type = Object.keys(msg)[0];
 
-            if (viewOnceType === 'viewOnceMessage' || viewOnceType === 'viewOnceMessageV2') {
-                msg = msg[viewOnceType].message;
+            if (type === 'viewOnceMessage' || type === 'viewOnceMessageV2') {
+                msg = msg[type].message;
+                type = Object.keys(msg)[0];
             }
 
-            const mediaType = Object.keys(msg)[0];
-            const isImage = mediaType === 'imageMessage';
-            const isVideo = mediaType === 'videoMessage';
-
-            if (!isImage && !isVideo) {
-                return m.reply(`${global.emojis.error} This doesn't appear to be a ViewOnce image or video.`);
+            if (!type.includes('ImageMessage') && !type.includes('VideoMessage')) {
+                return m.reply(`${global.emojis.error} Not a ViewOnce media file.`);
             }
 
-            await m.reply(`${global.emojis.waiting} ⏤ *Revelation in progress...* ⏤`);
+            // 2. Visual Feedback (Reaction)
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // 3. Efficient Buffer Handling
-            const streamType = mediaType.replace('Message', '');
+            const mediaType = type;
+            const streamType = mediaType.toLowerCase().replace('message', '');
+
+            // 3. Download Buffer
             const stream = await downloadContentFromMessage(msg[mediaType], streamType);
-
             let chunks = [];
-            for await (const chunk of stream) {
-                chunks.push(chunk);
-            }
+            for await (const chunk of stream) chunks.push(chunk);
             const buffer = Buffer.concat(chunks);
 
-            // 4. Constructing Metadata
-            const sender = quoted.participant || m.sender;
-            const caption = `✧ *Revelation Complete* ✧\n${global.divider}\n✦ *Source:* @${sender.split('@')[0]}\n✦ *Behold its contents.*`;
+            const sender = m.quoted.participant || m.sender;
+            const caption = `✅ *ViewOnce Downloaded*\n${global.divider}\nFrom: @${sender.split('@')[0]}`;
 
-            // 5. Delivery
+            // 4. Send to Current Chat
             await conn.sendMessage(m.chat, {
                 [streamType]: buffer,
                 caption,
                 mentions: [sender]
             }, { quoted: m });
 
+            // 5. Send to Saved Messages (Self)
+            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+            if (m.chat !== myJid) {
+                await conn.sendMessage(myJid, {
+                    [streamType]: buffer,
+                    caption: `📂 *Auto-Archived*\n${global.divider}\nFrom: @${sender.split('@')[0]}`,
+                    mentions: [sender]
+                });
+            }
+
+            // Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+
         } catch (e) {
             console.error('VV Error:', e);
-            m.reply(`${global.emojis.error} ⏤ Failure during revelation. The sands of time may have already claimed this message.`);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
         }
     }
 });
