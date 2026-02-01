@@ -1,5 +1,6 @@
 import { addCommand, commands } from '../lib/plugins.js';
 import { runtime } from '../lib/utils.js';
+import { UI } from '../src/utils/design.js';
 import pkg from 'gifted-btns';
 const { sendInteractiveMessage, sendButtons } = pkg;
 
@@ -123,10 +124,39 @@ addCommand({
 
         } catch (e) {
             console.error('Menu Error:', e);
-            m.reply(`${global.emojis?.error || '❌'} Failed to generate menu.`);
+
+            // Fallback to simple text menu if interactive fails
+            try {
+                const allCommands = Object.keys(commands);
+                const uptime = runtime(process.uptime());
+
+                const userCommands = allCommands.filter(cmd => {
+                    return !cmd.includes('_') &&
+                        !cmd.startsWith('cat_') &&
+                        !cmd.startsWith('gsettings_') &&
+                        !cmd.startsWith('dl_');
+                });
+
+                let menuText = `✧ *${global.botName || 'MANTRA'} COMMAND MENU* ✧\n\n`;
+                menuText += `✦ *User:* @${m.sender.split('@')[0]}\n`;
+                menuText += `✦ *Uptime:* ${uptime}\n`;
+                menuText += `✦ *Commands:* ${userCommands.length}\n\n`;
+                menuText += `📋 *AVAILABLE COMMANDS*\n\n`;
+
+                userCommands.sort().forEach(cmd => {
+                    const desc = commands[cmd]?.desc || 'No description';
+                    menuText += `• ${global.prefix}${cmd} - ${desc}\n`;
+                });
+
+                menuText += `\n🕯️ Mantra: The path of minimalist power`;
+
+                await m.reply(menuText, { mentions: [m.sender] });
+            } catch (fallbackError) {
+                console.error('Fallback menu also failed:', fallbackError);
+                await m.reply(`${global.emojis?.error || '❌'} Menu failed. Try: ${global.prefix}ping`);
+            }
         }
-    }
-});
+    });
 
 // Handler for category selections
 addCommand({
