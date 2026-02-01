@@ -1,4 +1,5 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
 import axios from 'axios';
 import pkg from 'gifted-btns';
 const { sendButtons } = pkg;
