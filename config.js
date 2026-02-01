@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { fileURLToPath } from 'url';
 
 // --- CONFIGURATION ---
-global.owner = ['254732647560']; // ⚠️ REPLACE with your phone number
+global.owner = ['254732647560', '254731173406']; // ⚠️ REPLACE with your phone number
 global.pairingNumber = '254732647560'; // ⚠️ REPLACE with Bot number
 
 global.botName = 'Mantra-MD';
