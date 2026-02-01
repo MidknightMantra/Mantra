@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+logs
+*.log
+.env
+.env.*
+auth_info_baileys
+session
+package-lock.json
