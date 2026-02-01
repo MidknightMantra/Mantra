@@ -1,4 +1,5 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage, getContentType } = pkg;
 

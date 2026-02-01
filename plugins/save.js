@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI, Format } from '../src/utils/design.js';
+import { Messages } from '../src/utils/messages.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage, getContentType } = pkg;
 import chalk from 'chalk';
@@ -12,7 +14,7 @@ addCommand({
         try {
             // 1. Check for quoted message
             if (!m.quoted) {
-                return m.reply(`${global.emojis?.warning || '⚠️'} Reply to a Status or Media message to save it.`);
+                return m.reply(Messages.error.noMedia());
             }
 
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
