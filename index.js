@@ -127,8 +127,16 @@ const startMantra = async () => {
                 }
             }
 
-            // ALWAYS ONLINE: Send presence updates every 30 seconds
+            // ALWAYS ONLINE: Send presence updates every 15 seconds
             if (conn.presenceInterval) clearInterval(conn.presenceInterval);
+
+            // Initial presence update
+            try {
+                await conn.sendPresenceUpdate('available');
+                console.log(chalk.hex('#6A0DAD')('📡 Initial Presence: Online'));
+            } catch (e) {
+                console.error('Initial presence error:', e.message);
+            }
 
             conn.presenceInterval = setInterval(async () => {
                 try {
@@ -137,7 +145,7 @@ const startMantra = async () => {
                 } catch (e) {
                     console.error('Presence update error:', e.message);
                 }
-            }, 30000); // Every 30 seconds
+            }, 15000); // Every 15 seconds
 
             // Send initial presence immediately
             try {
@@ -166,6 +174,13 @@ const startMantra = async () => {
             // Allow owner's own messages if sudo mode is enabled, otherwise skip fromMe
             const sudoMode = global.isSudoMode ? global.isSudoMode() : false;
             if (!m.message || (m.key.fromMe && !sudoMode)) return;
+
+            // Update presence on each incoming message for instant online status
+            try {
+                await conn.sendPresenceUpdate('available', m.chat);
+            } catch (e) {
+                // Silent fail
+            }
 
             // --- Robust Body Extraction ---
             const mtype = getContentType(m.message);
