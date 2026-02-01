@@ -1,18 +1,31 @@
 import { addCommand } from '../lib/plugins.js';
 import axios from 'axios';
+import pkg from 'gifted-btns';
+const { sendButtons } = pkg;
 
 addCommand({
     pattern: 'ai',
     alias: ['gpt', 'chat', '4o', 'mini', 'gifted', 'ask'],
     category: 'ai',
     handler: async (m, { conn, text }) => {
-        if (!text) return m.reply(`${global.emojis.warning} *What is your question?*`);
+        if (!text) {
+            // Show AI options with buttons
+            await sendButtons(conn, m.chat, {
+                title: '🤖 AI Assistant',
+                text: 'Choose an AI model or ask a question directly:\n\nUsage: `.ai <your question>`',
+                footer: 'Powered by multiple AI APIs',
+                buttons: [
+                    { id: 'ai_example_hello', text: '👋 Say Hello' },
+                    { id: 'ai_example_joke', text: '😄 Tell a Joke' },
+                    { id: 'ai_example_fact', text: '🧠 Random Fact' }
+                ]
+            });
+            return;
+        }
 
         try {
-            // 1. Initial Reaction
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // 2. Define our competitive API racers
             const apis = [
                 {
                     name: 'GPT-4',
@@ -36,7 +49,6 @@ addCommand({
                 }
             ];
 
-            // 3. Create an array of active requests
             const racers = apis.map(api =>
                 axios.get(api.url, { timeout: 10000 })
                     .then(res => {
@@ -46,19 +58,72 @@ addCommand({
                     })
             );
 
-            // 4. Promise.any grabs the first one to resolve successfully
             const winner = await Promise.any(racers);
 
-            // Send as Mantra's response (no model name)
-            await m.reply(winner.content);
+            // Send AI response with follow-up buttons
+            await sendButtons(conn, m.chat, {
+                text: winner.content,
+                footer: `Powered by ${winner.source}`,
+                buttons: [
+                    { id: 'ai_continue', text: '💬 Continue' },
+                    { id: 'ai_new', text: '🔄 New Chat' }
+                ]
+            });
 
-            // 5. Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
             console.error('AI Error:', e);
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ All AI nodes are currently unreachable. Please try again later.`);
+            m.reply(`${global.emojis?.error || '❌'} ⏤ All AI nodes are currently unreachable. Please try again later.`);
         }
+    }
+});
+
+// AI Example Handlers
+addCommand({
+    pattern: 'ai_example_hello',
+    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
+        const cmd = (await import('../lib/plugins.js')).commands['ai'];
+        if (cmd) await cmd.handler(m, { conn, args, text: 'Hello! How are you today?', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+    }
+});
+
+addCommand({
+    pattern: 'ai_example_joke',
+    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
+        const cmd = (await import('../lib/plugins.js')).commands['ai'];
+        if (cmd) await cmd.handler(m, { conn, args, text: 'Tell me a funny joke', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+    }
+});
+
+addCommand({
+    pattern: 'ai_example_fact',
+    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
+        const cmd = (await import('../lib/plugins.js')).commands['ai'];
+        if (cmd) await cmd.handler(m, { conn, args, text: 'Tell me an interesting fact', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+    }
+});
+
+addCommand({
+    pattern: 'ai_continue',
+    handler: async (m, { conn }) => {
+        await m.reply('💬 Continue our conversation by using `.ai <your question>`');
+    }
+});
+
+addCommand({
+    pattern: 'ai_new',
+    handler: async (m, { conn }) => {
+        await sendButtons(conn, m.chat, {
+            title: '🔄 New AI Chat Started',
+            text: 'What would you like to talk about?',
+            footer: 'Use .ai <question> to continue',
+            buttons: [
+                { id: 'ai_example_hello', text: '👋 Greetings' },
+                { id: 'ai_example_joke', text: '😄 Jokes' },
+                { id: 'ai_example_fact', text: '🧠 Facts' }
+            ]
+        });
     }
 });
