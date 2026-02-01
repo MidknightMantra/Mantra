@@ -11,7 +11,6 @@
     "author": "Midknight Mantra",
     "license": "MIT",
     "dependencies": {
-        "@whiskeysockets/baileys": "6.6.0",
         "axios": "^1.6.0",
         "btch-downloader": "^6.0.25",
         "chalk": "^5.3.0",
@@ -19,6 +18,7 @@
         "file-type": "^21.3.0",
         "fluent-ffmpeg": "^2.1.2",
         "form-data": "^4.0.5",
+        "gifted-baileys": "^2.0.5",
         "moment-timezone": "^0.5.43",
         "pino": "^8.16.1",
         "qrcode-terminal": "^0.12.0",

@@ -1,5 +1,5 @@
 import { addCommand } from '../lib/plugins.js';
-import pkg from '@whiskeysockets/baileys';
+import pkg from 'gifted-baileys';
 const { downloadContentFromMessage } = pkg;
 import axios from 'axios';
 import FormData from 'form-data';

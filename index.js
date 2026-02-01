@@ -2,21 +2,23 @@ console.log("-----------------------------------------");
 console.log("🔮 [MANTRA] INITIALIZING CORE SYSTEM...");
 console.log("-----------------------------------------");
 
-import pkg from '@whiskeysockets/baileys';
+import pkg from 'gifted-baileys';
 const {
     makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    makeInMemoryStore,
     getContentType
 } = pkg;
+
+import { SimpleStore } from './lib/simple-store.js';
 
 import pino from 'pino';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import qrcode from 'qrcode-terminal';
 
 // 1. Config & Core Modules
 import './config.js';
@@ -40,6 +42,7 @@ async function loadPlugins() {
     console.log(chalk.hex('#6A0DAD')(`🔮 Loading ${files.length} plugins...`));
     for (const file of files) {
         try {
+            // console.log(`Loading ${file}...`);
             await import(`file://${path.join(pluginFolder, file)}`);
         } catch (e) {
             console.error(chalk.red(`❌ Failed to load ${file}:`, e));
@@ -48,9 +51,7 @@ async function loadPlugins() {
     console.log(chalk.green(`✅ Registered ${Object.keys(commands).length} commands:`, Object.keys(commands).slice(0, 10).join(', ')));
 }
 
-const store = makeInMemoryStore({
-    logger: pino().child({ level: 'silent', stream: 'store' })
-});
+const store = new SimpleStore();
 
 // Read store from file on startup (persists messages)
 if (fs.existsSync('./store.json')) {
@@ -96,6 +97,7 @@ const startMantra = async () => {
 
         if (update.qr) {
             console.log(chalk.yellow("⚠️ [MANTRA] QR Code received."));
+            qrcode.generate(update.qr, { small: true });
         }
 
         if (connection === 'close') {
