@@ -25,6 +25,7 @@ import { logger, log } from './src/utils/logger.js';
 import { initGlobalErrorHandlers, setupGracefulShutdown } from './src/utils/errorHandler.js';
 import { analytics } from './src/services/analytics.js';
 import { CONFIG } from './src/config/constants.js';
+import { debounce } from './src/utils/cache.js';
 
 // 1. Config & Core Modules
 import './config.js';
@@ -200,7 +201,7 @@ const startMantra = async () => {
             try {
                 await conn.sendPresenceUpdate('available', m.chat);
             } catch (e) {
-                // Silent fail
+                // Silent fail - don't spam logs
             }
 
             // --- Robust Body Extraction ---
