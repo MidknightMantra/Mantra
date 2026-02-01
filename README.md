@@ -9,6 +9,8 @@ A modular, high-performance WhatsApp Userbot built with Node.js and Baileys.
 
 ## Installation
 
+### Get session Id here https://mantra-pair.up.railway.app/
+
 ### 1. Requirements
 - Node.js v18+
 - FFMPEG (for stickers/media)

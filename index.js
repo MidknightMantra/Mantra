@@ -20,6 +20,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import qrcode from 'qrcode-terminal';
 
+// Production Infrastructure
+import { logger, log } from './src/utils/logger.js';
+import { initGlobalErrorHandlers, setupGracefulShutdown } from './src/utils/errorHandler.js';
+import { analytics } from './src/services/analytics.js';
+import { CONFIG } from './src/config/constants.js';
+
 // 1. Config & Core Modules
 import './config.js';
 import { smsg } from './lib/utils.js';
@@ -28,6 +34,9 @@ import { initListeners } from './lib/listeners.js';
 import { keepAlive } from './lib/alive.js';
 import { commands } from './lib/plugins.js';
 import { isAntilinkOn, isSudoMode } from './lib/database.js';
+
+// Initialize global error handlers
+initGlobalErrorHandlers();
 
 // Make sudo checker globally available
 global.isSudoMode = isSudoMode;
@@ -39,13 +48,21 @@ const __dirname = path.dirname(__filename);
 async function loadPlugins() {
     const pluginFolder = path.join(__dirname, 'plugins');
     const files = fs.readdirSync(pluginFolder).filter(file => file.endsWith('.js'));
+
+    log.action('Loading plugins', 'system', { count: files.length });
     console.log(chalk.hex('#6A0DAD')(`🔮 Loading ${files.length} plugins...`));
+
+    let loaded = 0;
+    let failed = 0;
+
     for (const file of files) {
         try {
-            // console.log(`Loading ${file}...`);
             await import(`file://${path.join(pluginFolder, file)}`);
+            loaded++;
         } catch (e) {
-            console.error(chalk.red(`❌ Failed to load ${file}:`, e));
+            failed++;
+            log.error(`Failed to load plugin: ${file}`, e);
+            console.error(chalk.red(`❌ Failed to load ${file}:`, e.message));
         }
     }
     console.log(chalk.green(`✅ Registered ${Object.keys(commands).length} commands:`, Object.keys(commands).slice(0, 10).join(', ')));
@@ -113,13 +130,14 @@ const startMantra = async () => {
             }
         } else if (connection === 'open') {
             console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is online!`));
+            log.action('Bot connected', 'system', { uptime: process.uptime() });
 
             // Send online notification (non-blocking)
             if (!conn.onlineMessageSent) {
                 try {
                     const ownerJid = global.owner[0] + "@s.whatsapp.net";
                     await conn.sendMessage(ownerJid, {
-                        text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️`
+                        text: `🔮 *MANTRA SYSTEM ONLINE*\n\nUser: ${global.author}\nStatus: Cloud Stabilized 🛡️\nCommands: ${Object.keys(commands).length}\nAnalytics: Enabled`
                     });
                     conn.onlineMessageSent = true;
                 } catch (e) {
@@ -146,6 +164,9 @@ const startMantra = async () => {
                     console.error('Presence update error:', e.message);
                 }
             }, 15000); // Every 15 seconds
+
+            // Setup graceful shutdown
+            setupGracefulShutdown(conn);
 
             // Send initial presence immediately
             try {
