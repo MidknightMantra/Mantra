@@ -173,6 +173,8 @@ const startMantra = async () => {
 
             // Extract body for command parsing, including ViewOnce captions
             let body = '';
+            let isButtonResponse = false;
+
             if (mtype === 'conversation') {
                 body = m.message.conversation;
             } else if (mtype === 'imageMessage' || mtype === 'videoMessage') {
@@ -184,12 +186,16 @@ const startMantra = async () => {
                 body = content.message[innerType]?.caption || '';
             } else if (mtype === 'listResponseMessage') {
                 body = content.singleSelectReply?.selectedRowId || '';
+                isButtonResponse = true;
             } else if (mtype === 'buttonsResponseMessage') {
                 body = content.selectedButtonId || '';
+                isButtonResponse = true;
             }
 
-            const isCmd = body.startsWith(global.prefix);
-            const command = isCmd ? body.slice(global.prefix.length).trim().split(' ').shift().toLowerCase() : '';
+            const isCmd = isButtonResponse || body.startsWith(global.prefix);
+            const command = isButtonResponse
+                ? body.trim().toLowerCase()
+                : (isCmd ? body.slice(global.prefix.length).trim().split(' ').shift().toLowerCase() : '');
             const args = body.trim().split(/ +/).slice(1);
             const text = args.join(" ");
             const sender = m.sender;
