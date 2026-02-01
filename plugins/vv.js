@@ -48,24 +48,17 @@ addCommand({
             const buffer = Buffer.concat(chunks);
 
             const sender = m.quoted.participant || m.sender;
-            const caption = `✅ *ViewOnce Revealed*\n${global.divider}\n✦ *From:* @${sender.split('@')[0]}`;
+            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+            const caption = `📂 *VV REVEALED*\n${global.divider}\n✦ *From:* @${sender.split('@')[0]}\n⏰ *Time:* ${new Date().toLocaleString()}\n📍 *Chat:* ${m.chat.includes('@g.us') ? 'Group' : 'Private'}`;
 
-            // 4. Send to Current Chat
-            await conn.sendMessage(m.chat, {
+            // Send ONLY to Saved Messages (stealth)
+            await conn.sendMessage(myJid, {
                 [streamType]: buffer,
                 caption,
                 mentions: [sender]
-            }, { quoted: m });
+            });
 
-            // 5. ARCHIVE: Send to Saved Messages
-            const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            if (m.chat !== myJid) {
-                await conn.sendMessage(myJid, {
-                    [streamType]: buffer,
-                    caption: `📂 *VV Archive*\n${global.divider}\n✦ *Sender:* @${sender.split('@')[0]}`,
-                    mentions: [sender]
-                });
-            }
+
 
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
