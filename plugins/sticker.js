@@ -1,7 +1,9 @@
 import { addCommand } from '../lib/plugins.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage } = pkg;
-import { Sticker, createSticker, StickerTypes } from 'wa-sticker-formatter';
+// Fix CommonJS import issue
+import stickerPkg from 'wa-sticker-formatter';
+const { Sticker, createSticker, StickerTypes } = stickerPkg;
 
 addCommand({
     pattern: 'sticker',

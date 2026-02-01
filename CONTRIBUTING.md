@@ -5,7 +5,7 @@ Thank you for your interest in contributing! 🎉
 ## Development Setup
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/Mantra.git`
+2. Clone your fork: `git clone https://github.com/MidknightMantra/Mantra.git`
 3. Install dependencies: `npm install`
 4. Create a branch: `git checkout -b feature/awesome-feature`
 
