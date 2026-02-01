@@ -64,7 +64,7 @@ addCommand({
             // Send AI response with follow-up buttons
             await sendButtons(conn, m.chat, {
                 text: winner.content,
-                footer: `Powered by ${winner.source}`,
+                footer: `Powered by Mantra`,
                 buttons: [
                     { id: 'ai_continue', text: '💬 Continue' },
                     { id: 'ai_new', text: '🔄 New Chat' }
