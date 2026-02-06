@@ -1,8 +1,8 @@
-# Mantra WhatsApp Bot - Production-Ready
+# Mantra
 
-A feature-rich, production-grade WhatsApp Multi-Device bot with advanced monitoring, analytics, and enterprise-level code quality.
+A feature-rich, WhatsApp Multi-Device bot
 
-## 🚀 Features
+#🚀 Features
 
 ### Core Features
 - 148+ Commands across multiple categories
@@ -11,31 +11,8 @@ A feature-rich, production-grade WhatsApp Multi-Device bot with advanced monitor
 - Anti-view-once (stealth mode)
 - Anti-delete message recovery
 - Media download hub
-- AI chat integration
-
-### Production Infrastructure ✨
-- **Rate Limiting**: 10 commands/minute, 3s cooldown
-- **Analytics**: Real-time command tracking & performance metrics
-- **Caching**: LRU cache with 5-minute TTL
-- **Logging**: Winston structured logging (JSON format)
-- **Error Handling**: Global error recovery with graceful shutdown
-- **Performance**: 66% faster response times
-- **Testing**: Jest unit tests with coverage
-- **Docker**: Ready for containerized deployment
-- **CI/CD**: GitHub Actions pipeline
-
-## 📊 Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| Avg Response Time | 85ms |
-| Memory Usage | 120MB |
-| Startup Time | 5s |
-| Commands | 148 |
-| Test Coverage | Coming soon |
-
-## 🔧 Installation
-
+- AI chat intein
+egrationatiochat
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
