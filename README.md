@@ -1,39 +1,58 @@
-# Mantra
+# Mantra 🪷
 
-A feature-rich, WhatsApp Multi-Device bot
+A high-performance, feature-rich WhatsApp Multi-Device bot built with Node.js and the Baileys library. Designed to be stealthy, fast, and easy to deploy.
+
+---
 
 # 🚀 Features
 
-### Core Features
-- 148+ Commands across multiple categories
-- Interactive button menus
-- Auto-status viewing
-- Anti-view-once (stealth mode)
-- Anti-delete message recovery
-- Media download hub
-- AI chat integration
+### 🛡️ Privacy & Stealth
+- **Anti-Delete:** Automatically recovers and forwards deleted messages to your chat.
+- **Anti-View Once:** View "View-Once" media multiple times without sending a read receipt.
+- **Auto-Status View:** Automatically views your contacts' statuses.
 
-# Installation
-  
+### ⚡ Power Tools
+- **148+ Commands:** Including Group management, Tools, and Fun categories.
+- **Media Hub:** Download videos/audio from YouTube, TikTok, Instagram, and Facebook via commands.
+- **AI Integration:** Built-in chat functionality powered by advanced AI models.
+- **Interactive Menus:** User-friendly button-based navigation for easy command access.
+
+---
+
+# ☁️ Deployment
+
+Click any button below to deploy **Mantra** instantly to your favorite cloud platform.
+
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/MidknightMantra/Mantra)
+[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/template/deploy?referrerCode=Mantra&template=https://github.com/MidknightMantra/Mantra)
+[![Deploy on Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MidknightMantra/Mantra)
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/MidknightMantra/Mantra&name=mantra-bot)
+
+> **Note:** For cloud deployment, ensure you fill in the environment variables (like `OWNER_NUMBER` and `SESSION_ID`) in the platform's dashboard after clicking deploy.
+
+---
+
+# 💻 Local Installation
+
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
-- WhatsApp account
+- **Node.js** 18.x or higher
+- **npm** or **yarn**
+- **Git**
 
 ### Quick Start
 ```bash
-# Clone repository
-git clone https://github.com/MidknightMantra/Mantra.git
+# 1. Clone the repository
+git clone [https://github.com/MidknightMantra/Mantra.git](https://github.com/MidknightMantra/Mantra.git)
 cd Mantra
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Configure environment
+# 3. Setup Environment
 cp .env.example .env
-# Edit .env with your settings
+# Open .env and add your configuration
 
-# Start bot
+# 4. Start the bot
 npm start
 ```
 
