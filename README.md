@@ -2,7 +2,7 @@
 
 A feature-rich, WhatsApp Multi-Device bot
 
-#🚀 Features
+# 🚀 Features
 
 ### Core Features
 - 148+ Commands across multiple categories
@@ -11,8 +11,10 @@ A feature-rich, WhatsApp Multi-Device bot
 - Anti-view-once (stealth mode)
 - Anti-delete message recovery
 - Media download hub
-- AI chat intein
-egrationatiochat
+- AI chat integration
+
+# Installation
+  
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
@@ -69,48 +71,6 @@ docker-compose down
 npm test              # Run all tests
 npm run test:watch    # Watch mode
 npm run test:coverage # Coverage report
-```
-
-### Code Quality
-```bash
-npm run lint          # Check code quality
-npm run lint:fix      # Auto-fix issues
-npm run format        # Format code
-```
-
-### Available Endpoints
-- `http://localhost:8080/` - Health check
-- `http://localhost:8080/status` - Status page
-- `http://localhost:8080/metrics` - Analytics & metrics
-- `http://localhost:8080/analytics/export` - Export data
-
-## 📁 Project Structure
-
-```
-Mantra/
-├── src/
-│   ├── config/          # Configuration
-│   ├── middleware/      # Rate limiting, etc.
-│   ├── services/        # Analytics, queue
-│   └── utils/           # Logging, cache, validators
-├── lib/                 # Core utilities
-├── plugins/             # Command plugins
-├── tests/
-│   ├── unit/           # Unit tests
-│   └── integration/    # Integration tests
-├── logs/               # Log files
-└── session/            # WhatsApp session
-```
-
-## 🔐 Configuration
-
-Edit `src/config/constants.js` to customize:
-
-```javascript
-CONFIG.RATE_LIMIT.MAX_COMMANDS_PER_MINUTE = 10
-CONFIG.RATE_LIMIT.COOLDOWN_MS = 3000
-CONFIG.CACHE.TTL = 300000  // 5 minutes
-CONFIG.LOGGING.LEVEL = 'info'
 ```
 
 ## 📝 License
