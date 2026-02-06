@@ -6,12 +6,9 @@ const { downloadContentFromMessage, getContentType } = pkg;
 addCommand({
     pattern: 'vv',
     alias: ['viewonce', 'retrieve'],
-    desc: 'Reveal ViewOnce media and send to Saved Messages (stealth mode). Owner only.',
+    desc: 'Reveal ViewOnce media and send to Saved Messages.',
     category: 'tools',
-    handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) {
-            return m.reply(`${global.emojis.error} This command is restricted to the bot owner.`);
-        }
+    handler: async (m, { conn }) => {
 
         if (!m.quoted) {
             return m.reply(`\( {global.emojis.warning} *Usage:* Reply to a ViewOnce message with * \){global.prefix}vv*`);
