@@ -4,11 +4,12 @@ import { getDB, updateDB } from '../lib/database.js';
 // Helper to get/set Anti-Delete status from our existing DB
 const getADStatus = (jid) => {
     const db = getDB();
-    return db.groups[jid]?.antidelete || false;
+    return db.groups?.[jid]?.antidelete || false;
 };
 
 const setADStatus = (jid, status) => {
     const db = getDB();
+    if (!db.groups) db.groups = {};
     if (!db.groups[jid]) db.groups[jid] = {};
     db.groups[jid].antidelete = status;
     updateDB(db);
@@ -17,27 +18,51 @@ const setADStatus = (jid, status) => {
 addCommand({
     pattern: 'antidelete',
     alias: ['ad', 'antidel'],
-    desc: 'Toggle Anti-Delete for this chat',
+    desc: 'Toggle Anti-Delete for this chat. Prevents deleted messages from being lost by resending them.',
     category: 'group',
-    handler: async (m, { args, isGroup, isOwner }) => {
+    handler: async (m, { conn, args, isGroup, isOwner, isAdmin }) => {
+        if (!isGroup) {
+            return m.reply(`${global.emojis.warning} This command is only for group chats.`);
+        }
+
         const chatId = m.chat;
         const option = (args[0] || '').toLowerCase();
 
-        if (option === 'on') {
-            setADStatus(chatId, true);
-            await m.reply('✅ *Anti-Delete enabled* for this chat.');
-        } else if (option === 'off') {
-            setADStatus(chatId, false);
-            await m.reply('✅ *Anti-Delete disabled* for this chat.');
-        } else {
-            const status = getADStatus(chatId) ? '✅ Enabled' : '❌ Disabled';
-            await m.reply(
-                `🔮 *Mantra Anti-Delete*\n\n` +
-                `Status: ${status}\n\n` +
-                `Usage:\n` +
-                `${global.prefix}antidelete on\n` +
-                `${global.prefix}antidelete off`
-            );
+        // Check permissions: Allow only group admins or bot owner
+        if (option === 'on' || option === 'off') {
+            if (!isAdmin && !isOwner) {
+                return m.reply(`${global.emojis.error} Only group admins or the bot owner can toggle Anti-Delete.`);
+            }
+        }
+
+        try {
+            // Initial Reaction
+            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+
+            if (option === 'on') {
+                setADStatus(chatId, true);
+                await m.reply(`${global.emojis.success} *Anti-Delete enabled* for this chat.\nDeleted messages will now be resent with a note.`);
+            } else if (option === 'off') {
+                setADStatus(chatId, false);
+                await m.reply(`${global.emojis.success} *Anti-Delete disabled* for this chat.`);
+            } else {
+                const status = getADStatus(chatId) ? '✅ Enabled' : '❌ Disabled';
+                let msg = `🔮 *Mantra Anti-Delete*\n${global.divider}\n`;
+                msg += `✦ *Status:* ${status}\n\n`;
+                msg += `✦ *Description:* When enabled, deleted messages in this group will be automatically resent by the bot with a "Deleted Message" indicator.\n\n`;
+                msg += `✦ *Usage (Admins only):*\n`;
+                msg += `- ${global.prefix}antidelete on\n`;
+                msg += `- ${global.prefix}antidelete off\n`;
+                msg += `\n${global.divider}`;
+                await m.reply(msg);
+            }
+
+            // Success Reaction
+            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+        } catch (e) {
+            console.error('Anti-Delete Error:', e);
+            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            m.reply(`${global.emojis.error} An error occurred while processing the command.`);
         }
     }
 });
