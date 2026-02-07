@@ -4,6 +4,7 @@ import { log } from '../src/utils/logger.js';
 import { validateText, schemas } from '../src/utils/validator.js';
 import { apiCall } from '../src/utils/apiHelper.js';
 import { withTimeout } from '../src/utils/timeout.js';
+import { cache } from '../lib/redis.js';
 import Joi from 'joi';
 
 // Validation schema for Surah:Ayah format
@@ -41,19 +42,35 @@ addCommand({
 
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // Fetch text and audio with timeout
-            const [textData, audioData] = await Promise.all([
-                withTimeout(
-                    apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,en.asad`, { timeout: 10000 }, 3),
-                    15000,
-                    'Quran text fetch'
-                ),
-                withTimeout(
-                    apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.alafasy`, { timeout: 10000 }, 3),
-                    15000,
-                    'Quran audio fetch'
-                )
-            ]);
+            // Check cache first (24 hour TTL - Quran text doesn't change)
+            const cacheKey = `quran:${surah}:${ayah}`;
+            let cachedData = await cache.get(cacheKey);
+
+            let textData, audioData;
+
+            if (cachedData) {
+                textData = cachedData.text;
+                audioData = cachedData.audio;
+                log.perf('quran-cache-hit', { surah, ayah });
+            } else {
+                // Fetch text and audio with timeout
+                [textData, audioData] = await Promise.all([
+                    withTimeout(
+                        apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,en.asad`, { timeout: 10000 }, 3),
+                        15000,
+                        'Quran text fetch'
+                    ),
+                    withTimeout(
+                        apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.alafasy`, { timeout: 10000 }, 3),
+                        15000,
+                        'Quran audio fetch'
+                    )
+                ]);
+
+                // Cache for 24 hours
+                await cache.set(cacheKey, { text: textData, audio: audioData }, 86400);
+                log.perf('quran-api-call', { surah, ayah });
+            }
 
             if (textData.code !== 200 || audioData.code !== 200) {
                 throw new Error('Ayah not found');

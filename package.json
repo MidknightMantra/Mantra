@@ -33,6 +33,8 @@
     "jimp": "^1.6.0",
     "joi": "^18.0.2",
     "moment-timezone": "^0.5.43",
+    "mongodb": "^7.1.0",
+    "mongoose": "^9.1.6",
     "node-cron": "^4.2.1",
     "node-webpmux": "^3.2.1",
     "pino": "^8.16.1",

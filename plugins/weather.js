@@ -4,6 +4,11 @@ import { log } from '../src/utils/logger.js';
 import { apiCall } from '../src/utils/apiHelper.js';
 import { validateText } from '../src/utils/validator.js';
 import { withTimeout } from '../src/utils/timeout.js';
+import { cache } from '../lib/redis.js';
+
+// Assuming apiKey is defined globally or imported from a config file
+// For the purpose of this edit, we'll assume it's accessible.
+const apiKey = process.env.OPENWEATHER_API_KEY || 'YOUR_OPENWEATHER_API_KEY'; // Placeholder
 
 addCommand({
     pattern: 'weather',
@@ -16,14 +21,29 @@ addCommand({
 
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // API call with retry and timeout
-            const data = await withTimeout(
-                apiCall(`https://wttr.in/${encodeURIComponent(city)}?format=j1`, { timeout: 10000 }, 3),
-                15000,
-                'Weather fetch'
-            );
+            // Check cache first (15 minute TTL)
+            const cacheKey = `weather:${city.toLowerCase()}`;
+            let weatherData = await cache.get(cacheKey);
 
-            if (!data?.current_condition) {
+            if (!weatherData) {
+                // Fetch with retry and timeout
+                weatherData = await withTimeout(
+                    apiCall(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`, { timeout: 10000 }, 3),
+                    15000,
+                    'Weather fetch'
+                );
+
+                // Cache for 15 minutes
+                await cache.set(cacheKey, weatherData, 900);
+                log.perf('weather-api-call', { city });
+            } else {
+                log.perf('weather-cache-hit', { city });
+            }
+
+            // The original code checked for `data?.current_condition`.
+            // The new API (openweathermap.org) returns `weatherData.cod` for errors or `weatherData.main` for data.
+            // Adjusting the check based on OpenWeatherMap's typical error response (e.g., 404 for city not found).
+            if (weatherData.cod && weatherData.cod !== 200) { // OpenWeatherMap returns cod: 404 for not found
                 await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
                 return m.reply(UI.error('Not Found', `City "${city}" not found`, 'Check spelling\\nTry nearby city\\nUse full city name'));
             }
