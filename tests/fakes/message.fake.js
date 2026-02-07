@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 /**
  * Fake Message Factory for Testing
  */

@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 /**
  * Fake Baileys Connection for Testing
  */
