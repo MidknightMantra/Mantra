@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage } = pkg;
 // Fix CommonJS import issue
@@ -43,9 +45,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Sticker Error:', e);
+            log.error('Sticker creation failed', e, { command: 'sticker', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to create sticker. Ensure it is under 10 seconds if it's a video.`);
+            m.reply(UI.error('Sticker Creation Failed', e.message || 'Failed to create sticker', 'Ensure video is under 10 seconds\nUse images in JPG/PNG format\nTry a smaller file size'));
         }
     }
 });

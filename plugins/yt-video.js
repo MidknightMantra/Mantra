@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { youtube } from 'btch-downloader'; // A more stable alternative to ytdl-core
 
 addCommand({
@@ -37,9 +39,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('YTV Error:', e);
+            log.error('YouTube video download failed', e, { command: 'video', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to fetch the video. The link might be restricted or the server is down.`);
+            m.reply(UI.error('Video Download Failed', e.message || 'Failed to fetch video', 'Check if video exists\nVideo may be private/restricted\nTry a different video\nAPI may be temporarily down'));
         }
     }
 });

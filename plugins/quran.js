@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -71,9 +73,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Quran Error:', e);
+            log.error('Quran fetch failed', e, { command: 'quran', reference: text, user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to fetch Quran verse.`);
+            m.reply(UI.error('Quran Fetch Failed', e.message || 'Failed to fetch verse', 'Check Surah:Ayah format (e.g., 1:1)\nVerify verse numbers are valid\nAPI may be temporarily down'));
         }
     }
 });

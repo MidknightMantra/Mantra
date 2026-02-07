@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import ytSearch from 'yt-search';
 
 addCommand({
@@ -40,9 +42,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('YTS Error:', e);
+            log.error('YouTube search failed', e, { command: 'yts', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ YouTube search failed.`);
+            m.reply(UI.error('YouTube Search Failed', e.message || 'Search failed', 'Check your search query\nVerify internet connection\nAPI may be temporarily down'));
         }
     }
 });

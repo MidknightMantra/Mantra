@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'unblock',
@@ -14,8 +16,8 @@ addCommand({
             await conn.updateBlockStatus(user, 'unblock');
             await m.reply(`${global.emojis.success} *Unblocked* @${user.split('@')[0]}`, null, { mentions: [user] });
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Failed to unblock user.`);
+            log.error('Unblock command failed', e, { command: 'unblock', targetUser: user, user: m.sender });
+            m.reply(UI.error('Unblock Failed', e.message || 'Failed to unblock user', 'Verify user exists\nCheck bot permissions'));
         }
     }
 });

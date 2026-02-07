@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'add',
@@ -37,8 +39,8 @@ addCommand({
                 m.reply(`${global.emojis.error} Failed to add user.`);
             }
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Error adding user.`);
+            log.error('Add command failed', e, { command: 'add', targetUser: users, chat: m.chat, user: m.sender });
+            m.reply(UI.error('Add User Failed', e.message || 'Error adding user', 'Verify number is correct\nEnsure bot has admin rights\nCheck group settings'));
         }
     }
 });

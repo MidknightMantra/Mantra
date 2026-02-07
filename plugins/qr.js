@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage } = pkg;
 import axios from 'axios';
@@ -50,9 +52,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('QR Error:', e);
+            log.error('QR generation failed', e, { command: 'qr', text: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Error creating QR code.`);
+            m.reply(UI.error('QR Generation Failed', e.message || 'Error creating QR code', 'Check your input text\nTry a shorter text\nVerify API availability'));
         }
     }
 });
@@ -102,9 +104,9 @@ addCommand({
             }
 
         } catch (e) {
-            console.error('QR Scan Error:', e);
+            log.error('QR scanning failed', e, { command: 'scan', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to read QR. Ensure it is clear and properly formatted.`);
+            m.reply(UI.error('QR Scan Failed', e.message || 'Failed to read QR code', 'Ensure image is clear\nVerify QR code is valid\nTry a higher quality image'));
         }
     }
 });

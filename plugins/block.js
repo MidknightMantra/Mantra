@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'block',
@@ -18,8 +20,8 @@ addCommand({
             await conn.updateBlockStatus(user, 'block');
             await m.reply(`${global.emojis.success} *Blocked* @${user.split('@')[0]}`, null, { mentions: [user] });
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Failed to block user.`);
+            log.error('Block command failed', e, { command: 'block', targetUser: user, user: m.sender });
+            m.reply(UI.error('Block Failed', e.message || 'Failed to block user', 'Verify user exists\nCheck bot permissions'));
         }
     }
 });

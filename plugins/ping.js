@@ -22,20 +22,13 @@ addCommand({
         const memUsed = Format.bytes(memUsage.heapUsed);
         const totalMem = Format.bytes(os.totalmem());
 
-        const statusMsg = UI.card('🔮 SYSTEM STATUS',
+        const statusMsg = UI.card('MANTRA',
             `${UI.stats({
-                'Speed': `${latency}ms`,
-                'Memory': `${memUsed} / ${totalMem}`,
+                'Latency': `${latency}ms`,
                 'Uptime': uptime,
-                'Platform': os.platform()
             })}
-
-${UI.DIVIDER.light}
-
-${UI.badge('Server Online', 'success')}
-${UI.badge('Connection Excellent', 'info')}
-${UI.badge('Performance Optimal', 'premium')}`,
-            'Powered by Mantra Engine'
+            
+            Powered by Mantra`
         );
 
         await m.reply(statusMsg);

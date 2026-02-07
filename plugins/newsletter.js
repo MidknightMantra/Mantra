@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -37,9 +39,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Newsletter Error:', e);
+            log.error('Newsletter search failed', e, { command: 'newsletter', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Search failed. The API might be busy.`);
+            m.reply(UI.error('Channel Search Failed', e.message || 'Search failed', 'Check your search term\nAPI may be busy\nTry again in a moment'));
         }
     }
 });

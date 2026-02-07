@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
-import chalk from 'chalk';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 // Helper to sleep/pause
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -31,7 +32,7 @@ addCommand({
                     // Sleep between 1-3 seconds
                     await sleep(Math.floor(Math.random() * 2000) + 1000);
                 } catch (e) {
-                    console.log(chalk.red(`Failed to broadcast to ${jid}`));
+                    log.perf(`Failed to broadcast to ${jid}`, 0);
                 }
             }
 
@@ -42,9 +43,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Broadcast Error:', e);
+            log.error('Broadcast failed', e, { command: 'broadcast', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Error during broadcast.`);
+            m.reply(UI.error('Broadcast Failed', e.message || 'Error during broadcast', 'Check group permissions\nTry again in a moment'));
         }
     }
 });

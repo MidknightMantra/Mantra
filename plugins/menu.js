@@ -1,6 +1,7 @@
 import { addCommand, commands } from '../lib/plugins.js';
 import { runtime } from '../lib/utils.js';
 import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import pkg from 'gifted-btns';
 const { sendInteractiveMessage, sendButtons } = pkg;
 
@@ -111,7 +112,7 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Menu Error:', e);
+            log.error('Menu command failed', e, { command: 'menu', user: m.sender });
 
             // Fallback to simple text menu
             try {
@@ -142,7 +143,7 @@ addCommand({
 
                 await m.reply(menuText, { mentions: [m.sender] });
             } catch (fallbackError) {
-                console.error('Fallback menu also failed:', fallbackError);
+                log.error('Fallback menu failed', fallbackError, { command: 'menu', user: m.sender });
                 await m.reply(`${global.emojis?.error || '❌'} Menu failed. Try: ${global.prefix}ping`);
             }
         }
@@ -182,7 +183,7 @@ addCommand({
             // 2. Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
         } catch (e) {
-            console.error('Cat Handler Error:', e);
+            log.error('Command info fetch failed', e, { command: 'cat_handler', requestedCmd: m.body, user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
             await m.reply(`${global.emojis.error} An error occurred while fetching command info.`);
         }

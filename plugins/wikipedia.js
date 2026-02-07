@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -47,12 +49,12 @@ addCommand({
                 m.reply(`${global.emojis.error} No article found for "${text}".`);
             }
         } catch (e) {
-            console.error('Wiki Error:', e);
+            log.error('Wikipedia fetch failed', e, { command: 'wiki', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            if (e.response && e.response.status === 404) {
-                return m.reply(`${global.emojis.error} Article not found.`);
+            if (e.response?.status === 404) {
+                return m.reply(UI.error('Article Not Found', `No Wikipedia article found for "${text}"`, 'Check spelling\nTry different keywords\nUse more specific terms'));
             }
-            m.reply(`${global.emojis.error} ⏤ Failed to reach Wikipedia. Please try again later.`);
+            m.reply(UI.error('Wikipedia Failed', e.message || 'Failed to reach Wikipedia', 'Check internet connection\nWikipedia may be down\nTry again in a moment'));
         }
     }
 });

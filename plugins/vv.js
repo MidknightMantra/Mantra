@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage, getContentType } = pkg;
 
@@ -11,7 +12,7 @@ addCommand({
     handler: async (m, { conn }) => {
 
         if (!m.quoted) {
-            return m.reply(`\( {global.emojis.warning} *Usage:* Reply to a ViewOnce message with * \){global.prefix}vv*`);
+            return m.reply(`${global.emojis.warning} *Usage:* Reply to a ViewOnce message with *${global.prefix}vv*`);
         }
 
         try {
@@ -76,7 +77,7 @@ addCommand({
             if (mediaMsg.caption) {
                 caption += `✦ *Original Caption:* ${mediaMsg.caption}\n`;
             }
-            caption += `\n\( {global.divider}\nRevealed by: @ \){myJid.split('@')[0]} at ${new Date().toLocaleString()}`;
+            caption += `\n${global.divider}\nRevealed by: @${myJid.split('@')[0]} at ${new Date().toLocaleString()}`;
 
             // 5. Send to Saved Messages (stealth)
             await conn.sendMessage(myJid, {
@@ -92,9 +93,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('VV Error:', e);
+            log.error('ViewOnce reveal failed', e, { command: 'vv', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} An error occurred while revealing the media: ${e.message}`);
+            m.reply(UI.error('ViewOnce Reveal Failed', e.message || 'Failed to reveal media', 'Reply to a ViewOnce message\nEnsure message hasn\'t expired\nCheck your internet connection'));
         }
     }
 });

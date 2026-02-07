@@ -1,9 +1,9 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI, Format } from '../src/utils/design.js';
 import { Messages } from '../src/utils/messages.js';
+import { log } from '../src/utils/logger.js';
 import pkg from 'gifted-baileys';
 const { downloadContentFromMessage, getContentType } = pkg;
-import chalk from 'chalk';
 
 addCommand({
     pattern: 'save',
@@ -26,7 +26,7 @@ addCommand({
             let msgContent = q.message || q;
             const msgType = getContentType(msgContent);
 
-            console.log(chalk.cyan(`[SAVE] Attempting to save ${msgType} from ${q.sender}`));
+            log.action('save', m.sender, { messageType: msgType, from: q.sender });
 
             // 3. Handle different media types
             if (msgType === 'imageMessage' || msgType === 'videoMessage' ||
@@ -81,9 +81,9 @@ addCommand({
                     // Send to Saved Messages
                     await conn.sendMessage(myJid, messageObj);
 
-                    console.log(chalk.green(`[SAVE] ✅ Successfully saved ${msgType} from ${sender.split('@')[0]}`));
+                    log.action('media saved', m.sender, { messageType: msgType, from: sender });
                 } catch (downloadErr) {
-                    console.error(chalk.red(`[SAVE] Download error:`, downloadErr.message));
+                    log.error('Media download failed', downloadErr, { messageType: msgType, user: m.sender });
                     throw downloadErr;
                 }
             } else if (msgType === 'conversation' || msgType === 'extendedTextMessage') {
@@ -101,7 +101,7 @@ addCommand({
                     mentions: [sender]
                 });
 
-                console.log(chalk.green(`[SAVE] ✅ Saved text message from ${sender.split('@')[0]}`));
+                log.action('text saved', m.sender, { from: sender });
             } else {
                 return m.reply(`${global.emojis?.error || '❌'} Unsupported message type: ${msgType}`);
             }
@@ -110,9 +110,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error(chalk.red('[SAVE] Error:'), e);
+            log.error('Save command failed', e, { command: 'save', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis?.error || '❌'} Failed to save. Media may have expired or been deleted.`);
+            m.reply(UI.error('Save Failed', e.message || 'Failed to save media', 'Media may have expired\nMessage may have been deleted\nTry again with recent media'));
         }
     }
 });

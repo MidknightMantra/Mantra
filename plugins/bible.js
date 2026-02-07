@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 const supportedTranslations = {
@@ -108,13 +110,15 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Bible Error:', e);
+            log.error('Bible fetch failed', e, { command: 'bible', reference: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            let errorMsg = `${global.emojis.error} Could not fetch that scripture.`;
-            if (e.response && e.response.status === 429) {
-                errorMsg += ` Rate limit exceeded. Try again later.`;
+            let errorMsg = 'Could not fetch scripture';
+            let suggestions = 'Check verse format (e.g., John 3:16)\nVerify translation code\nEnsure verse exists';
+            if (e.response?.status === 429) {
+                errorMsg = 'Rate limit exceeded';
+                suggestions = 'Too many requests\nWait a few minutes\nTry again later';
             }
-            m.reply(errorMsg);
+            m.reply(UI.error('Bible Fetch Failed', errorMsg, suggestions));
         }
     }
 });

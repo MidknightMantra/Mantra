@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -58,9 +60,12 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Weather Error:', e);
+            log.error('Weather command failed', e, { command: 'weather', location: text, user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} Connection failed.`);
+            const suggestion = e.code === 'ENOTFOUND'
+                ? 'Check your internet connection\nVerify the city name spelling'
+                : 'Try a different city name\nCheck your network status';
+            m.reply(UI.error('Weather Fetch Failed', e.message || 'Connection failed', suggestion));
         }
     }
 });

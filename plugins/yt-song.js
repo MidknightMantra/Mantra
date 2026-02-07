@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { youtube } from 'btch-downloader'; // Stable alternative for 2026
 
 addCommand({
@@ -38,9 +40,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Song Error:', e);
+            log.error('YouTube song download failed', e, { command: 'song', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to fetch the song. YouTube might be blocking the request.`);
+            m.reply(UI.error('Song Download Failed', e.message || 'Failed to fetch song', 'Check if video/audio exists\nContent may be restricted\nTry a different song\nYouTube may be blocking requests'));
         }
     }
 });

@@ -133,6 +133,27 @@ const startMantra = async () => {
             console.log(chalk.green(`✨ [MANTRA] SUCCESS: Bot is online!`));
             log.action('Bot connected', 'system', { uptime: process.uptime() });
 
+            // 🔑 AUTO-DETECT OWNER from connected WhatsApp account
+            if (conn.user?.id) {
+                const phoneNumber = conn.user.id.split(':')[0];
+                global.owner = [phoneNumber];
+                global.pairingNumber = phoneNumber;
+                log.action('Owner auto-detected', phoneNumber, { source: 'WhatsApp connection' });
+                console.log(chalk.magenta(`👑 [OWNER] Auto-detected: ${phoneNumber}`));
+
+                // Save to persistent config for quick reference
+                try {
+                    const ownerConfig = {
+                        owner: phoneNumber,
+                        detectedAt: new Date().toISOString(),
+                        botName: global.botName
+                    };
+                    fs.writeFileSync('./owner.json', JSON.stringify(ownerConfig, null, 2));
+                } catch (e) {
+                    console.log(chalk.yellow('⚠️ Could not save owner config'));
+                }
+            }
+
             // Send online notification (non-blocking)
             if (!conn.onlineMessageSent) {
                 try {

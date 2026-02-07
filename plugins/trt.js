@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -54,9 +56,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Translation Error:', e);
+            log.error('Translation failed', e, { command: 'trt', targetLang, text: msgToTranslate?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} Translation failed. Check your language codes.`);
+            m.reply(UI.error('Translation Failed', e.message || 'Translation failed', 'Check language code (e.g., es, fr, de)\nVerify text is not empty\nTry again in a moment'));
         }
     }
 });

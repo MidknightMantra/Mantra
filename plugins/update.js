@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { exec } from 'child_process';
 
 addCommand({
@@ -34,9 +36,9 @@ addCommand({
             });
 
         } catch (e) {
-            console.error('Update Error:', e);
+            log.error('Update command failed', e, { command: 'update', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Error executing git command.`);
+            m.reply(UI.error('Update Failed', e.message || 'Error executing git command', 'Ensure git is installed\nCheck repository status\nVerify network connection'));
         }
     }
 });

@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { getDB, updateDB } from '../lib/database.js';
 
 // Helper to get/set Anti-Delete status from our existing DB
@@ -60,9 +62,9 @@ addCommand({
             // Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
         } catch (e) {
-            console.error('Anti-Delete Error:', e);
+            log.error('Anti-delete toggle failed', e, { command: 'antidelete', chat: m.chat, user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} An error occurred while processing the command.`);
+            m.reply(UI.error('Anti-Delete Error', e.message || 'Command failed', 'Check group permissions\nEnsure bot has admin rights'));
         }
     }
 });

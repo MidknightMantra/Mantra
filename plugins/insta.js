@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -48,7 +50,7 @@ addCommand({
                 api.fetch()
                     .then(url => ({ url, source: api.name }))
                     .catch(err => {
-                        console.log(`${api.name} failed:`, err.message);
+                        log.perf(`${api.name} API failed`, 0);
                         throw err;
                     })
             );
@@ -56,7 +58,7 @@ addCommand({
             // 4. Get the first successful response
             const winner = await Promise.any(racers);
 
-            console.log(`Instagram download via ${winner.source}:`, winner.url.substring(0, 100));
+            log.perf(`Instagram download via ${winner.source}`, 0);
 
             // 5. Send the Instagram video/image
             await conn.sendMessage(m.chat, {
@@ -69,14 +71,14 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Instagram Download Error:', e.message || e);
+            log.error('Instagram download failed', e, { command: 'insta', url: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
 
             // More helpful error message
             if (e.message?.includes('AggregateError') || e.errors) {
-                m.reply(`${global.emojis.error} ⏤ All Instagram APIs failed. The post might be:\n• Private account\n• Invalid/deleted post\n• Region-blocked content`);
+                m.reply(UI.error('Instagram Download Failed', 'All download APIs failed', 'Post might be from a private account\nPost may be deleted or invalid\nContent might be region-blocked'));
             } else {
-                m.reply(`${global.emojis.error} ⏤ Download failed. Please check the URL and try again.`);
+                m.reply(UI.error('Instagram Download Failed', e.message || 'Download failed', 'Verify the URL is correct\nCheck if post is public\nTry again later'));
             }
         }
     }

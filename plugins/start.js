@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { runtime } from '../lib/utils.js';
 import pkg from 'gifted-btns';
 const { sendInteractiveMessage } = pkg;
@@ -89,7 +90,7 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Start Command Error:', e);
+            log.error('Start command failed', e, { command: 'start', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
 
             // Fallback to simple text

@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -41,9 +43,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('TikTok Error:', e);
+            log.error('TikTok download failed', e, { command: 'tiktok', url: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to download TikTok video. The link might be invalid or the video is private.`);
+            m.reply(UI.error('TikTok Download Failed', e.message || 'Failed to download video', 'Verify the URL is valid\nCheck if video is public\nTry again in a moment'));
         }
     }
 });

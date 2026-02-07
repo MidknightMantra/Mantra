@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'restart',
@@ -20,9 +22,9 @@ addCommand({
             }, 2000);
 
         } catch (e) {
-            console.error('Restart Error:', e);
+            log.error('Restart command failed', e, { command: 'restart', user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Failed to restart.`);
+            m.reply(UI.error('Restart Failed', e.message || 'Failed to restart', 'Check bot permissions\nEnsure auto-restart is configured'));
         }
     }
 });

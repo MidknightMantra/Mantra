@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 import pkg from 'gifted-btns';
 const { sendButtons } = pkg;
@@ -74,9 +75,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('AI Error:', e);
+            log.error('AI command failed', e, { command: 'ai', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis?.error || '❌'} ⏤ All AI nodes are currently unreachable. Please try again later.`);
+            m.reply(UI.error('AI Error', 'All AI nodes are currently unreachable', 'Try again in a few moments\nCheck your internet connection'));
         }
     }
 });

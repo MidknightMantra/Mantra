@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import { isWelcomeOn, isAntilinkOn } from '../lib/database.js';
 
 addCommand({
@@ -42,8 +44,8 @@ addCommand({
             }, { quoted: m });
 
         } catch (e) {
-            console.error(e);
-            m.reply(`${global.emojis.error} Failed to fetch group info.`);
+            log.error('Group info command failed', e, { command: 'groupinfo', chat: m.chat, user: m.sender });
+            m.reply(UI.error('Group Info Failed', e.message || 'Failed to fetch group info', 'Ensure bot has group access\nVerify group permissions'));
         }
     }
 });

@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 import axios from 'axios';
 
 addCommand({
@@ -34,9 +36,9 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
         } catch (e) {
-            console.error('Google Search Error:', e);
+            log.error('Google search failed', e, { command: 'google', query: text?.substring(0, 50), user: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(`${global.emojis.error} ⏤ Search failed. Try again later.`);
+            m.reply(UI.error('Search Failed', e.message || 'Search failed', 'Check your internet connection\nTry a different search term\nAPI may be temporarily down'));
         }
     }
 });
