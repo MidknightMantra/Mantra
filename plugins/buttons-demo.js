@@ -1,23 +1,24 @@
 import { addCommand } from '../lib/plugins.js';
-import pkg from 'gifted-btns';
-const { sendButtons, sendInteractiveMessage } = pkg;
 import { log } from '../src/utils/logger.js';
+import {
+    sendInteractive,
+    sendSimpleButtons,
+    createSelectButton,
+    createSection,
+    createRow,
+    createQuickReply
+} from '../src/utils/buttons.js';
 
 // Example 1: Simple Quick Reply Buttons
 addCommand({
     pattern: 'btnmenu',
     category: 'tools',
     handler: async (m, { conn }) => {
-        await sendButtons(conn, m.chat, {
-            title: '🔮 Mantra Bot Menu',
-            text: 'Choose an option below:',
-            footer: 'Powered by Mantra',
-            buttons: [
-                { id: 'help', text: 'Help Guide' },
-                { id: 'features', text: 'View Features' },
-                { id: 'about', text: 'About Bot' }
-            ]
-        });
+        await sendSimpleButtons(conn, m.chat, '🔮 Mantra Bot Menu\n\nChoose an option below:', [
+            { id: 'help', text: 'Help Guide' },
+            { id: 'features', text: 'View Features' },
+            { id: 'about', text: 'About Bot' }
+        ], { title: 'Mantra Bot', footer: 'Powered by Mantra' });
     }
 });
 
@@ -26,10 +27,10 @@ addCommand({
     pattern: 'contact',
     category: 'tools',
     handler: async (m, { conn }) => {
-        await sendInteractiveMessage(conn, m.chat, {
+        await sendInteractive(conn, m.chat, {
             text: '📞 *Contact Information*',
             footer: 'Get in touch',
-            interactiveButtons: [
+            buttons: [
                 {
                     name: 'cta_url',
                     buttonParamsJson: JSON.stringify({
@@ -62,59 +63,22 @@ addCommand({
     alias: ['menu'],
     category: 'tools',
     handler: async (m, { conn }) => {
-        await sendInteractiveMessage(conn, m.chat, {
+        const sections = [
+            createSection('Main Commands', [
+                createRow('cat_admin', 'Admin Tools', 'Group management commands', '👑'),
+                createRow('cat_media', 'Media Tools', 'Download & convert media', '🎬'),
+                createRow('cat_fun', 'Fun & Games', 'Entertainment commands', '🎮')
+            ]),
+            createSection('Utilities', [
+                createRow('cat_tools', 'Tools', 'QR, stickers, etc.', '🛠️'),
+                createRow('cat_info', 'Information', 'Wikipedia, weather, etc.', 'ℹ️')
+            ])
+        ];
+
+        await sendInteractive(conn, m.chat, {
             text: '🎯 *Command Categories*',
             footer: 'Select a category to explore',
-            interactiveButtons: [
-                {
-                    name: 'single_select',
-                    buttonParamsJson: JSON.stringify({
-                        title: 'Browse Categories',
-                        sections: [
-                            {
-                                title: 'Main Commands',
-                                rows: [
-                                    {
-                                        id: 'cat_admin',
-                                        title: 'Admin Tools',
-                                        description: 'Group management commands',
-                                        header: '👑'
-                                    },
-                                    {
-                                        id: 'cat_media',
-                                        title: 'Media Tools',
-                                        description: 'Download & convert media',
-                                        header: '🎬'
-                                    },
-                                    {
-                                        id: 'cat_fun',
-                                        title: 'Fun & Games',
-                                        description: 'Entertainment commands',
-                                        header: '🎮'
-                                    }
-                                ]
-                            },
-                            {
-                                title: 'Utilities',
-                                rows: [
-                                    {
-                                        id: 'cat_tools',
-                                        title: 'Tools',
-                                        description: 'QR, stickers, etc.',
-                                        header: '🛠️'
-                                    },
-                                    {
-                                        id: 'cat_info',
-                                        title: 'Information',
-                                        description: 'Wikipedia, weather, etc.',
-                                        header: 'ℹ️'
-                                    }
-                                ]
-                            }
-                        ]
-                    })
-                }
-            ]
+            buttons: [createSelectButton('Browse Categories', sections)]
         });
     }
 });
@@ -124,23 +88,16 @@ addCommand({
     pattern: 'welcome',
     category: 'tools',
     handler: async (m, { conn }) => {
-        await sendInteractiveMessage(conn, m.chat, {
+        await sendInteractive(conn, m.chat, {
             title: '👋 Welcome!',
             text: 'Welcome to Mantra Bot! Get started below:',
             footer: 'Choose an action',
-            interactiveButtons: [
+            buttons: [
                 {
                     name: 'quick_reply',
                     buttonParamsJson: JSON.stringify({
                         display_text: '🚀 Quick Start',
                         id: 'quickstart'
-                    })
-                },
-                {
-                    name: 'quick_reply',
-                    buttonParamsJson: JSON.stringify({
-                        display_text: '📖 Read Docs',
-                        id: 'docs'
                     })
                 },
                 {
@@ -169,6 +126,9 @@ addCommand({
             'help': '📖 *Help Guide*\n\nPrefix: .\n\nBasic Commands:\n• .menu - Show all commands\n• .ai <text> - Chat with AI\n• .play <song> - Download music\n• .sticker - Create sticker from image'
         };
 
-        await m.reply(responses[cmd] || 'Unknown command');
+        if (responses[cmd]) {
+            await m.reply(responses[cmd]);
+        }
     }
 });
+

@@ -11,6 +11,7 @@ global.botName = process.env.BOT_NAME || 'Mantra-MD';
 global.author = 'MidknightMantra';
 global.packname = 'Mantra-Stickers';
 global.prefix = ',';
+global.githubRepo = process.env.GITHUB_REPO || 'MidknightMantra/Mantra'; // Default repo for updates
 
 // --- OWNER (Auto-detected from WhatsApp) ---
 // Owner will be automatically set when bot connects

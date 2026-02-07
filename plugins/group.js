@@ -1,204 +1,362 @@
 import { addCommand } from '../lib/plugins.js';
-import pkg from 'gifted-btns';
-const { sendInteractiveMessage, sendButtons } = pkg;
 import { log } from '../src/utils/logger.js';
+import { react, withReaction } from '../src/utils/messaging.js';
+import { requireGroup, requireAdmin, requireBotAdmin, getGroupMeta } from '../src/utils/groupHelper.js';
+import { sendInteractive, createSelectButton, createSection, createRow } from '../src/utils/buttons.js';
+import { normalizeUserJid } from '../src/utils/jidHelper.js';
 
-// Enhanced group admin panel
+// Enhanced group admin panel - Refactored with utilities
 addCommand({
     pattern: 'gadmin',
     alias: ['grouppanel', 'adminpanel'],
     desc: 'Interactive group admin panel',
     handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin }) => {
-        if (!isGroup) return m.reply('⚠️ This command is for groups only.');
-        if (!isUserAdmin) return m.reply('⚠️ Admin only command.');
+        // Validation using helpers
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
 
-        await sendInteractiveMessage(conn, m.chat, {
+        // Create sections using button helpers
+        const memberSection = createSection('Member Management', [
+            createRow('gadmin_tagall', 'Tag All Members', 'Mention everyone', '📢'),
+            createRow('gadmin_promote', 'Promote Member', 'Make admin', '⬆️'),
+            createRow('gadmin_demote', 'Demote Admin', 'Remove admin', '⬇️'),
+            createRow('gadmin_kick', 'Remove Member', 'Kick from group', '🚫')
+        ]);
+
+        const settingsSection = createSection('Group Settings', [
+            createRow('gadmin_settings', 'Group Settings', 'Lock/unlock group', '🔒'),
+            createRow('gadmin_link', 'Group Link', 'Get invite link', '🔗'),
+            createRow('gadmin_revoke', 'Revoke Link', 'Reset invite link', '♻️'),
+            createRow('gadmin_info', 'Group Info', 'View details', 'ℹ️')
+        ]);
+
+        const protectionSection = createSection('Protection', [
+            createRow('gadmin_antilink', 'Anti-Link', 'Toggle anti-link', '🛡️'),
+            createRow('gadmin_antidelete', 'Anti-Delete', 'Status', '🗑️')
+        ]);
+
+        const selectButton = createSelectButton('⚙️ Admin Actions', [
+            memberSection,
+            settingsSection,
+            protectionSection
+        ]);
+
+        // Send using utility
+        await sendInteractive(conn, m.chat, {
             title: '👑 Group Admin Panel',
             text: 'Manage your group with ease using the controls below:',
             footer: 'Select an action',
-            interactiveButtons: [
-                {
-                    name: 'single_select',
-                    buttonParamsJson: JSON.stringify({
-                        title: '⚙️ Admin Actions',
-                        sections: [
-                            {
-                                title: 'Member Management',
-                                rows: [
-                                    { id: 'gadmin_tagall', title: 'Tag All Members', description: 'Mention everyone', header: '📢' },
-                                    { id: 'gadmin_promote', title: 'Promote Member', description: 'Make admin', header: '⬆️' },
-                                    { id: 'gadmin_demote', title: 'Demote Admin', description: 'Remove admin', header: '⬇️' },
-                                    { id: 'gadmin_kick', title: 'Remove Member', description: 'Kick from group', header: '🚫' }
-                                ]
-                            },
-                            {
-                                title: 'Group Settings',
-                                rows: [
-                                    { id: 'gadmin_settings', title: 'Group Settings', description: 'Lock/unlock group', header: '🔒' },
-                                    { id: 'gadmin_link', title: 'Group Link', description: 'Get invite link', header: '🔗' },
-                                    { id: 'gadmin_revoke', title: 'Revoke Link', description: 'Reset invite link', header: '♻️' },
-                                    { id: 'gadmin_info', title: 'Group Info', description: 'View details', header: 'ℹ️' }
-                                ]
-                            },
-                            {
-                                title: 'Protection',
-                                rows: [
-                                    { id: 'gadmin_antilink', title: 'Anti-Link', description: 'Toggle anti-link', header: '🛡️' },
-                                    { id: 'gadmin_antidelete', title: 'Anti-Delete', description: 'Status', header: '🗑️' }
-                                ]
-                            }
-                        ]
-                    })
-                }
-            ]
+            buttons: [selectButton]
         });
     }
 });
 
-// Action handlers
+// Promote member
 addCommand({
-    pattern: 'gadmin_tagall',
-    handler: async (m, { conn }) => {
-        await m.reply('💬 Please reply with your message:\n\n`.tagall <message>`');
-    }
-});
+    pattern: 'promote',
+    alias: ['toadmin'],
+    desc: 'Promote member to admin',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin, args }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
 
-addCommand({
-    pattern: 'gadmin_promote',
-    handler: async (m, { conn }) => {
-        await m.reply('⬆️ Tag the user to promote:\n\n`.promote @user`');
-    }
-});
+        const quoted = m.quoted || m;
+        const user = quoted.sender || (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null);
 
-addCommand({
-    pattern: 'gadmin_demote',
-    handler: async (m, { conn }) => {
-        await m.reply('⬇️ Tag the admin to demote:\n\n`.demote @user`');
-    }
-});
+        if (!user) {
+            return m.reply('⚠️ Tag or quote a message to promote the user.');
+        }
 
-addCommand({
-    pattern: 'gadmin_kick',
-    handler: async (m, { conn }) => {
-        await m.reply('🚫 Tag the user to remove:\n\n`.kick @user`');
-    }
-});
-
-addCommand({
-    pattern: 'gadmin_settings',
-    handler: async (m, { conn, isGroup }) => {
-        if (!isGroup) return;
-
-        await sendButtons(conn, m.chat, {
-            text: '🔒 *Group Settings*\n\nChoose a setting to modify:',
-            footer: 'Current settings will be applied',
-            buttons: [
-                { id: 'gsettings_lock', text: '🔒 Lock Group' },
-                { id: 'gsettings_unlock', text: '🔓 Unlock Group' }
-            ]
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupParticipantsUpdate(m.chat, [user], 'promote');
+            log.action('Promoted user', 'group', { user, by: m.sender });
+            await m.reply(`✅ @${user.split('@')[0]} is now an admin.`, { mentions: [user] });
         });
     }
 });
 
+// Demote admin
 addCommand({
-    pattern: 'gsettings_lock',
-    handler: async (m, { conn, isGroup }) => {
-        if (!isGroup) return;
-        try {
-            await conn.groupSettingUpdate(m.chat, 'announcement');
-            await m.reply('🔒 Group locked! Only admins can send messages.');
-        } catch (e) {
-            await m.reply('❌ Failed to lock group. Make sure I\'m an admin!');
-        }
-    }
-});
+    pattern: 'demote',
+    desc: 'Demote admin to member',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin, args }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
 
-addCommand({
-    pattern: 'gsettings_unlock',
-    handler: async (m, { conn, isGroup }) => {
-        if (!isGroup) return;
-        try {
-            await conn.groupSettingUpdate(m.chat, 'not_announcement');
-            await m.reply('🔓 Group unlocked! Everyone can send messages.');
-        } catch (e) {
-            await m.reply('❌ Failed to unlock group. Make sure I\'m an admin!');
-        }
-    }
-});
+        const quoted = m.quoted || m;
+        const user = quoted.sender || (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null);
 
-addCommand({
-    pattern: 'gadmin_link',
-    handler: async (m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['link'];
-        if (cmd) await cmd.handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'gadmin_revoke',
-    handler: async (m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['revoke'];
-        if (cmd) await cmd.handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'gadmin_info',
-    handler: async (m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['groupinfo'];
-        if (cmd) await cmd.handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'gadmin_antilink',
-    handler: async (m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['antilink'];
-        if (cmd) await cmd.handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'gadmin_antidelete',
-    handler: async (m, { conn }) => {
-        await m.reply('🗑️ *Anti-Delete Status*\n\nAnti-Delete is **ALWAYS ON** globally for all chats.\n\nDeleted messages are automatically saved to your Saved Messages.');
-    }
-});
-
-// Keep existing tagall and kick commands but enhance them
-addCommand({
-    pattern: 'tagall',
-    desc: 'Tag all members in a group',
-    handler: async (m, { conn, isGroup, groupMetadata, text, isOwner }) => {
-        if (!isGroup) return m.reply('⚠️ Group only command.');
-        if (!isOwner && !m.key.fromMe) return m.reply('⚠️ Admin/Owner only.');
-
-        let members = groupMetadata.participants;
-        let txt = `📢 *GROUP ANNOUNCEMENT*\n\n${text || 'Hello everyone!'}\n\n`;
-
-        for (let mem of members) {
-            txt += `@${mem.id.split('@')[0]}\n`;
+        if (!user) {
+            return m.reply('⚠️ Tag or quote a message to demote the user.');
         }
 
-        await conn.sendMessage(m.chat, {
-            text: txt,
-            mentions: members.map(a => a.id)
-        }, { quoted: m });
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupParticipantsUpdate(m.chat, [user], 'demote');
+            log.action('Demoted user', 'group', { user, by: m.sender });
+            await m.reply(`✅ @${user.split('@')[0]} is no longer an admin.`, { mentions: [user] });
+        });
     }
 });
 
+// Kick member
 addCommand({
     pattern: 'kick',
-    desc: 'Remove a member from the group',
-    handler: async (m, { conn, isGroup, text }) => {
-        if (!isGroup) return m.reply('⚠️ Group only.');
-        if (!m.mentionedJid[0]) return m.reply('⚠️ Tag someone to kick.');
+    alias: ['remove'],
+    desc: 'Remove member from group',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin, args }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
 
-        try {
-            await conn.groupParticipantsUpdate(m.chat, [m.mentionedJid[0]], 'remove');
-            await m.reply('✅ User removed from the group.');
-        } catch (e) {
-            await m.reply('❌ Failed to remove user. Make sure I\'m an admin!');
+        const quoted = m.quoted || m;
+        const user = quoted.sender || (args[0] ? args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null);
+
+        if (!user) {
+            return m.reply('⚠️ Tag or quote a message to kick the user.');
         }
+
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupParticipantsUpdate(m.chat, [user], 'remove');
+            log.action('Kicked user', 'group', { user, by: m.sender });
+            await m.reply(`✅ @${user.split('@')[0]} has been removed.`, { mentions: [user] });
+        });
     }
 });
+
+// Add member
+addCommand({
+    pattern: 'add',
+    alias: ['invite'],
+    desc: 'Add member to group',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin, args }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
+
+        if (!args[0]) {
+            return m.reply('⚠️ Provide number to add\\n\\nExample: `.add 254712345678`');
+        }
+
+        const number = args[0].replace(/[^0-9]/g, '');
+        const user = number + '@s.whatsapp.net';
+
+        await withReaction(conn, m, '⏳', async () => {
+            const result = await conn.groupParticipantsUpdate(m.chat, [user], 'add');
+
+            if (result[0]?.status === '403') {
+                // Privacy settings - send invite link
+                const code = await conn.groupInviteCode(m.chat);
+                const link = `https://chat.whatsapp.com/${code}`;
+
+                await conn.sendMessage(user, {
+                    text: `👋 You've been invited to a group!\\n\\n🔗 Link: ${link}`
+                });
+
+                await m.reply(`⚠️ @${number} has privacy settings. Invite sent to DM.`, { mentions: [user] });
+            } else {
+                log.action('Added user', 'group', { user, by: m.sender });
+                await m.reply(`✅ @${number} has been added.`, { mentions: [user] });
+            }
+        });
+    }
+});
+
+// Get group link
+addCommand({
+    pattern: 'link',
+    alias: ['grouplink', 'gclink'],
+    desc: 'Get group invite link',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            const code = await conn.groupInviteCode(m.chat);
+            const link = `https://chat.whatsapp.com/${code}`;
+            const meta = await getGroupMeta(conn, m.chat);
+
+            await m.reply(
+                `🔗 *Group Link*\\n\\n` +
+                `*Name:* ${meta?.subject || 'N/A'}\\n` +
+                `*Members:* ${meta?.participants?.length || 0}\\n\\n` +
+                `*Link:* ${link}`
+            );
+        });
+    }
+});
+
+// Revoke/reset group link
+addCommand({
+    pattern: 'revoke',
+    alias: ['resetlink', 'newlink'],
+    desc: 'Reset group invite link',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupRevokeInvite(m.chat);
+            const newCode = await conn.groupInviteCode(m.chat);
+            const newLink = `https://chat.whatsapp.com/${newCode}`;
+
+            log.action('Revoked group link', 'group', { by: m.sender });
+            await m.reply(
+                `✅ *Link Reset*\\n\\n` +
+                `Old link revoked. New link:\\n${newLink}`
+            );
+        });
+    }
+});
+
+// Group info
+addCommand({
+    pattern: 'groupinfo',
+    alias: ['ginfo', 'gcinfo'],
+    desc: 'View group information',
+    handler: async (m, { conn, isGroup }) => {
+        if (!requireGroup(m, isGroup)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            const meta = await getGroupMeta(conn, m.chat);
+
+            if (!meta) {
+                return m.reply('❌ Failed to fetch group info.');
+            }
+
+            const admins = meta.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin');
+            const owner = meta.participants.find(p => p.admin === 'superadmin');
+
+            const info =
+                `📊 *Group Information*\\n\\n` +
+                `*Name:* ${meta.subject}\\n` +
+                `*Owner:* @${owner?.id?.split('@')[0] || 'Unknown'}\\n` +
+                `*Created:* ${new Date(meta.creation * 1000).toLocaleDateString()}\\n` +
+                `*Members:* ${meta.participants.length}\\n` +
+                `*Admins:* ${admins.length}\\n` +
+                `*Description:* ${meta.desc || 'None'}\\n\\n` +
+                `*Settings:*\\n` +
+                `• Locked: ${meta.announce ? 'Yes' : 'No'}\\n` +
+                `• Edit Info: ${meta.restrict ? 'Admins Only' : 'All'}`;
+
+            const mentions = owner ? [owner.id] : [];
+            await m.reply(info, { mentions });
+        });
+    }
+});
+
+// Lock/Unlock group (mute/unmute)
+addCommand({
+    pattern: 'lock',
+    alias: ['close', 'mute'],
+    desc: 'Lock group (only admins can send)',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupSettingUpdate(m.chat, 'announcement');
+            log.action('Locked group', 'group', { by: m.sender });
+            await m.reply('🔒 Group locked. Only admins can send messages.');
+        });
+    }
+});
+
+addCommand({
+    pattern: 'unlock',
+    alias: ['open', 'unmute'],
+    desc: 'Unlock group (all can send)',
+    handler: async (m, { conn, isGroup, isUserAdmin, isBotAdmin }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+        if (!requireBotAdmin(m, isBotAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            await conn.groupSettingUpdate(m.chat, 'not_announcement');
+            log.action('Unlocked group', 'group', { by: m.sender });
+            await m.reply('🔓 Group unlocked. All members can send messages.');
+        });
+    }
+});
+
+// Tag all members
+addCommand({
+    pattern: 'tagall',
+    alias: ['all', 'everyone'],
+    desc: 'Tag all group members',
+    handler: async (m, { conn, isGroup, isUserAdmin, args }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            const meta = await getGroupMeta(conn, m.chat);
+            const mentions = meta.participants.map(p => p.id);
+
+            const message = args.join(' ') || 'Everyone!';
+            let text = `📢 *Tag All*\\n\\n${message}\\n\\n`;
+
+            mentions.forEach((id, i) => {
+                text += `${i + 1}. @${id.split('@')[0]}\\n`;
+            });
+
+            await conn.sendMessage(m.chat, { text, mentions }, { quoted: m });
+        });
+    }
+});
+
+// Export group participants as VCF
+addCommand({
+    pattern: 'vcf',
+    alias: ['contacts', 'savecontact', 'scontact'],
+    desc: 'Export all group participants as VCF contact file',
+    category: 'group',
+    handler: async (m, { conn, isGroup, isUserAdmin }) => {
+        if (!requireGroup(m, isGroup)) return;
+        if (!requireAdmin(m, isUserAdmin)) return;
+
+        await withReaction(conn, m, '⏳', async () => {
+            const meta = await getGroupMeta(conn, m.chat);
+            if (!meta) return m.reply('❌ Failed to fetch group metadata.');
+
+            const participants = meta.participants || [];
+            const groupName = meta.subject || 'Group';
+
+            if (participants.length === 0) {
+                await react(conn, m, '❌');
+                return m.reply('❌ No participants found in this group.');
+            }
+
+            let vcfContent = '';
+            let count = 0;
+
+            for (const member of participants) {
+                const jid = member.id;
+                if (!jid || !jid.endsWith('@s.whatsapp.net')) continue;
+
+                const phone = jid.split('@')[0];
+                count++;
+                vcfContent += `BEGIN:VCARD\nVERSION:3.0\nFN:[${count}] +${phone}\nTEL;type=CELL;type=VOICE;waid=${phone}:+${phone}\nEND:VCARD\n`;
+            }
+
+            if (count === 0) {
+                await react(conn, m, '❌');
+                return m.reply('❌ Could not extract any valid contacts.');
+            }
+
+            await m.reply(`📦 *Generating VCF* for ${count} participants...`);
+
+            await conn.sendMessage(m.chat, {
+                document: Buffer.from(vcfContent.trim(), 'utf-8'),
+                mimetype: 'text/vcard',
+                fileName: `${groupName}.vcf`,
+                caption: `✅ *VCF Export Complete*\n\n👥 *Contacts:* ${count}\n📁 *File:* ${groupName}.vcf`
+            }, { quoted: m });
+        });
+    }
+});
+
+log.info('Group management plugin loaded (refactored)', { commands: 14 });

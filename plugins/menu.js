@@ -2,8 +2,8 @@ import { addCommand, commands } from '../lib/plugins.js';
 import { runtime } from '../lib/utils.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
-import pkg from 'gifted-btns';
-const { sendInteractiveMessage, sendButtons } = pkg;
+import { react, withReaction } from '../src/utils/messaging.js';
+import { sendInteractive, createSelectButton, createSection, createRow } from '../src/utils/buttons.js';
 
 addCommand({
     pattern: 'menu',
@@ -12,164 +12,114 @@ addCommand({
     category: 'bot',
     handler: async (m, { conn }) => {
         try {
-            // 1. Initial Reaction
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+            await react(conn, m, '⏳');
 
-            const allCommands = Object.keys(commands);
+            const allCommandsArr = Object.keys(commands);
             const uptime = runtime(process.uptime());
 
-            // Filter out internal button handlers
-            const userCommands = allCommands.filter(cmd => {
+            // Filter user-facing commands
+            const userCommands = allCommandsArr.filter(cmd => {
                 return !cmd.includes('_') &&
                     !cmd.startsWith('cat_') &&
                     !cmd.startsWith('gsettings_') &&
                     !cmd.startsWith('dl_');
             });
 
-            // Category mapping
+            // Category classification
             const categoryMap = {};
-            const manualCategories = {
-                'add': 'Admin', 'kick': 'Admin', 'promote': 'Admin', 'demote': 'Admin',
-                'tagall': 'Admin', 'antilink': 'Admin', 'antidelete': 'Admin',
-                'groupinfo': 'Admin', 'link': 'Admin', 'revoke': 'Admin', 'gadmin': 'Admin',
-                'block': 'Admin', 'unblock': 'Admin', 'broadcast': 'Admin', 'welcome': 'Admin',
-
-                'sticker': 'Media', 'tiktok': 'Media', 'insta': 'Media',
-                'play': 'Media', 'download': 'Media', 'save': 'Media',
-
-                'ai': 'AI', 'gpt': 'AI', 'chat': 'AI', 'imagine': 'AI', '4o': 'AI',
-                'mini': 'AI', 'gifted': 'AI', 'ask': 'AI',
-
-                'qr': 'Tools', 'scan': 'Tools', 'wikipedia': 'Tools', 'weather': 'Tools',
-                'translate': 'Tools', 'trt': 'Tools', 'google': 'Tools', 'bible': 'Tools',
-                'quran': 'Tools', 'jid': 'Tools',
-
-                'joke': 'Fun', 'fact': 'Fun',
-
-                'ping': 'Bot', 'status': 'Bot', 'restart': 'Bot', 'update': 'Bot',
-                'sudo': 'Bot', 'start': 'Bot', 'menu': 'Bot', 'help': 'Bot',
-                'btnmenu': 'Bot', 'selectmenu': 'Bot', 'contact': 'Bot'
+            const categoryEmojis = {
+                'admin': '👑', 'media': '🎬', 'ai': '🤖', 'tools': '🛠️',
+                'fun': '🎮', 'bot': '⚙️', 'other': '📦', 'general': '🌐',
+                'owner': '👤', 'download': '📥'
             };
 
             userCommands.forEach(cmd => {
                 const cmdData = commands[cmd];
-                const category = cmdData?.category ? cmdData.category.charAt(0).toUpperCase() + cmdData.category.slice(1) : manualCategories[cmd] || 'Other';
+                let category = (cmdData?.category || 'other').toLowerCase();
 
                 if (!categoryMap[category]) categoryMap[category] = [];
                 categoryMap[category].push(cmd);
             });
 
-            // Define category order for consistent display
-            const categoryOrder = ['Bot', 'Admin', 'AI', 'Tools', 'Media', 'Fun', 'Other'];
-            const sortedCategories = categoryOrder.filter(cat => categoryMap[cat]).concat(Object.keys(categoryMap).filter(cat => !categoryOrder.includes(cat)));
+            // Sort categories for consistent display
+            const categoryOrder = ['bot', 'admin', 'ai', 'tools', 'media', 'download', 'fun', 'owner', 'other'];
+            const sortedCategories = categoryOrder
+                .filter(cat => categoryMap[cat])
+                .concat(Object.keys(categoryMap).filter(cat => !categoryOrder.includes(cat)));
 
-            // Build sections
-            const sections = [];
-            const categoryEmojis = {
-                'Admin': '👑', 'Media': '🎬', 'AI': '🤖', 'Tools': '🛠️', 'Fun': '🎮', 'Bot': '⚙️', 'Other': '📦'
-            };
+            // Build select sections
+            const sections = sortedCategories.map(cat => {
+                const cmdList = categoryMap[cat].sort();
+                const emoji = categoryEmojis[cat] || '📦';
+                const rows = cmdList.map(cmd => createRow(
+                    `cat_${cmd}`,
+                    `${global.prefix}${cmd}`,
+                    commands[cmd]?.desc || 'No description',
+                    emoji
+                ));
 
-            for (const category of sortedCategories) {
-                const cmdList = categoryMap[category].sort(); // Sort alphabetically
-                const rows = cmdList.map(cmd => ({
-                    id: `cat_${cmd}`,
-                    title: `\( {global.prefix} \){cmd}`,
-                    description: commands[cmd]?.desc || 'No description',
-                    header: categoryEmojis[category] || '📦'
-                }));
-
-                sections.push({
-                    title: `${categoryEmojis[category] || '📦'} \( {category} Commands ( \){cmdList.length})`,
-                    rows
-                });
-            }
+                return createSection(`${emoji} ${cat.toUpperCase()} (${cmdList.length})`, rows);
+            });
 
             // Send interactive message
-            await sendInteractiveMessage(conn, m.chat, {
-                text: `✧ *\( {global.botName || 'Mantra'} Command Suite* ✧\n \){global.divider}\n` +
+            await sendInteractive(conn, m.chat, {
+                title: `✧ *${global.botName || 'Mantra'} Command Suite* ✧`,
+                text: `${global.divider}\n` +
                     `✦ *User:* @${m.sender.split('@')[0]}\n` +
                     `✦ *Uptime:* ${uptime}\n` +
-                    `✦ *Total Commands:* ${allCommands.length}\n` +
+                    `✦ *Total Commands:* ${allCommandsArr.length}\n` +
                     `✦ *User Commands:* ${userCommands.length}\n\n` +
                     `Select a category to explore commands:\n${global.divider}`,
                 footer: '🕯️ Mantra: The path of minimalist power',
-                interactiveButtons: [
-                    {
-                        name: 'single_select',
-                        buttonParamsJson: JSON.stringify({
-                            title: '📋 Browse Commands',
-                            sections
-                        })
-                    }
-                ]
-            }, {
-                additionalAttributes: {
-                    mentions: [m.sender]
-                }
+                buttons: [createSelectButton('📋 Browse Commands', sections)]
             });
 
-            // 2. Success Reaction
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+            await react(conn, m, '✅');
 
         } catch (e) {
             log.error('Menu command failed', e, { command: 'menu', user: m.sender });
 
-            // Fallback to simple text menu
+            // Text-based fallback
             try {
-                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+                await react(conn, m, '❌');
+                const userCommands = Object.keys(commands).filter(cmd => !cmd.includes('_'));
 
-                const allCommands = Object.keys(commands);
-                const uptime = runtime(process.uptime());
-
-                const userCommands = allCommands.filter(cmd => {
-                    return !cmd.includes('_') &&
-                        !cmd.startsWith('cat_') &&
-                        !cmd.startsWith('gsettings_') &&
-                        !cmd.startsWith('dl_');
-                });
-
-                let menuText = `✧ *\( {global.botName || 'MANTRA'} COMMAND MENU* ✧\n \){global.divider}\n`;
+                let menuText = `✧ *${global.botName || 'MANTRA'} COMMAND MENU* ✧\n${global.divider}\n`;
                 menuText += `✦ *User:* @${m.sender.split('@')[0]}\n`;
-                menuText += `✦ *Uptime:* ${uptime}\n`;
-                menuText += `✦ *Commands:* ${userCommands.length}\n\n`;
-                menuText += `📋 *AVAILABLE COMMANDS*\n${global.divider}\n`;
+                menuText += `✦ *Uptime:* ${runtime(process.uptime())}\n\n`;
 
                 userCommands.sort().forEach(cmd => {
-                    const desc = commands[cmd]?.desc || 'No description';
-                    menuText += `• \( {global.prefix} \){cmd} - ${desc}\n`;
+                    menuText += `• ${global.prefix}${cmd} - ${commands[cmd]?.desc || 'No description'}\n`;
                 });
-
-                menuText += `\n${global.divider}\n🕯️ Mantra: The path of minimalist power`;
 
                 await m.reply(menuText, { mentions: [m.sender] });
             } catch (fallbackError) {
-                log.error('Fallback menu failed', fallbackError, { command: 'menu', user: m.sender });
-                await m.reply(`${global.emojis?.error || '❌'} Menu failed. Try: ${global.prefix}ping`);
+                log.error('Fallback menu failed', fallbackError);
+                await m.reply('❌ Menu failed. Use .ping');
             }
         }
     }
 });
 
-// Handler for category selections (individual command info)
+// Category handler for individual command details
 addCommand({
     pattern: 'cat_.*',
     handler: async (m, { conn }) => {
         try {
-            // 1. Initial Reaction
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+            await react(conn, m, '⏳');
 
-            const cmdName = m.body.trim().replace(/^cat_/, ''); // Robust extraction
+            const cmdName = m.body.trim().replace(/^cat_/, '');
             const cmd = commands[cmdName];
 
             if (cmd) {
                 const aliases = cmd.alias?.length > 0
-                    ? cmd.alias.map(a => `\( {global.prefix} \){a}`).join(', ')
+                    ? cmd.alias.map(a => `${global.prefix}${a}`).join(', ')
                     : 'None';
 
-                const category = cmd.category ? cmd.category.charAt(0).toUpperCase() + cmd.category.slice(1) : 'General';
+                const category = (cmd.category || 'General').toUpperCase();
 
                 let info = `🔮 *Command Info* ✧\n${global.divider}\n`;
-                info += `✦ *Command:* \( {global.prefix} \){cmdName}\n`;
+                info += `✦ *Command:* ${global.prefix}${cmdName}\n`;
                 info += `✦ *Aliases:* ${aliases}\n`;
                 info += `✦ *Category:* ${category}\n`;
                 info += `✦ *Description:* ${cmd.desc || 'No description'}\n\n`;
@@ -177,15 +127,13 @@ addCommand({
 
                 await m.reply(info);
             } else {
-                await m.reply(`\( {global.emojis.error} Command " \){cmdName}" not found.`);
+                await m.reply(`❌ Command "${cmdName}" not found.`);
             }
 
-            // 2. Success Reaction
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+            await react(conn, m, '✅');
         } catch (e) {
-            log.error('Command info fetch failed', e, { command: 'cat_handler', requestedCmd: m.body, user: m.sender });
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            await m.reply(`${global.emojis.error} An error occurred while fetching command info.`);
+            log.error('Command info fetch failed', e);
+            await react(conn, m, '❌');
         }
     }
 });

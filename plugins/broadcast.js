@@ -4,6 +4,7 @@ import { log } from '../src/utils/logger.js';
 import { validateText } from '../src/utils/validator.js';
 import { withTimeout } from '../src/utils/timeout.js';
 import { checkRateLimit } from '../lib/ratelimit.js';
+import { react, withReaction, sendText } from '../src/utils/messaging.js';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -25,7 +26,7 @@ addCommand({
             // Input validation
             const message = validateText(text, false);
 
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+            await react(conn, m, '⏳');
 
             // Fetch all groups with timeout
             const groups = await withTimeout(
@@ -37,7 +38,7 @@ addCommand({
             const groupIds = Object.keys(groups);
 
             if (groupIds.length === 0) {
-                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+                await react(conn, m, '❌');
                 return m.reply(UI.error('No Groups', 'Bot is not in any groups', 'Add bot to groups first'));
             }
 
@@ -49,14 +50,13 @@ addCommand({
             for (let i = 0; i < groupIds.length; i++) {
                 try {
                     await withTimeout(
-                        conn.sendMessage(groupIds[i], { text: broadcastMsg }),
+                        sendText(conn, groupIds[i], broadcastMsg),
                         5000,
                         'Sending broadcast'
                     );
                     successCount++;
 
                     // Rate limiting: 1-3 second delay between messages
-                    // More aggressive for larger broadcasts
                     const delay = Math.floor(Math.random() * 2000) + 1000;
                     if (i < groupIds.length - 1) await sleep(delay);
 
@@ -74,7 +74,7 @@ addCommand({
                 `\n💡 Broadcasts sent with delay to avoid spam detection`
             );
 
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
+            await react(conn, m, '✅');
 
             log.action('Broadcast completed', 'owner', {
                 total: groupIds.length,
@@ -85,20 +85,20 @@ addCommand({
         } catch (error) {
             log.error('Broadcast failed', error, { command: 'broadcast', user: m.sender });
 
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
+            await react(conn, m, '❌');
 
             if (error.message.includes('validation')) {
-                return m.reply(UI.error('Invalid Message', error.message, 'Provide a broadcast message\\nExample: .bc Hello everyone!'));
+                return m.reply(UI.error('Invalid Message', error.message, 'Provide a broadcast message\nExample: .bc Hello everyone!'));
             }
 
             if (error.message.includes('timed out')) {
-                return m.reply(UI.error('Timeout', 'Operation took too long', 'Check internet connection\\nTry with fewer groups\\nTry again later'));
+                return m.reply(UI.error('Timeout', 'Operation took too long', 'Check internet connection\nTry with fewer groups\nTry again later'));
             }
 
             m.reply(UI.error(
                 'Broadcast Failed',
                 error.message || 'Error during broadcast',
-                'Check group permissions\\nEnsure bot is in groups\\nTry again in a moment'
+                'Check group permissions\nEnsure bot is in groups\nTry again in a moment'
             ));
         }
     }

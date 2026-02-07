@@ -18,6 +18,7 @@
   "author": "Midknight Mantra",
   "license": "MIT",
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "axios": "^1.6.0",
     "btch-downloader": "^6.0.25",
     "chalk": "^5.3.0",
