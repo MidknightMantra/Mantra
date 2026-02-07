@@ -2,107 +2,174 @@ import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
 import { validateText } from '../src/utils/validator.js';
-import { withTimeout, retryWithTimeout } from '../src/utils/timeout.js';
+import { withTimeout } from '../src/utils/timeout.js';
 import { checkRateLimit } from '../lib/ratelimit.js';
+import { react, withReaction } from '../src/utils/messaging.js';
 import axios from 'axios';
 
+/**
+ * Unified AI Query Helper
+ * Handles requests, timeouts, and standardized error reporting
+ */
+async function queryAI(m, conn, endpoint, question, modelName = 'Mantra AI') {
+    try {
+        // Rate limiting: 10 requests per minute
+        const rateLimit = await checkRateLimit(m.sender, 'ai', 10, 60);
+        if (!rateLimit.allowed) {
+            return m.reply(UI.error('Rate Limit', `Too many AI requests. Wait ${rateLimit.resetIn}s`, `Limit: 10/${60}s\nRemaining: ${rateLimit.remaining}`));
+        }
+
+        const questionText = validateText(question);
+        if (!questionText) return m.reply(UI.error('No Question', 'Please provide a prompt.'));
+
+        await react(conn, m, '🤖');
+
+        const apiUrl = `${global.giftedApiUrl}/api/ai/${endpoint}?apikey=${global.giftedApiKey}&q=${encodeURIComponent(questionText)}`;
+
+        const response = await withReaction(conn, m, '⏳', async () => {
+            const { data } = await withTimeout(
+                axios.get(apiUrl, { timeout: 30000 }),
+                35000,
+                `AI ${modelName}`
+            );
+
+            if (!data.success || !data.result) {
+                throw new Error('All AI services are currently unavailable or busy.');
+            }
+            return data.result;
+        });
+
+        const reply = `🤖 *${modelName.toUpperCase()}*\n${global.divider}\n\n${response}\n\n${global.divider}`;
+        await m.reply(reply);
+        await react(conn, m, '✅');
+
+    } catch (error) {
+        log.error(`AI ${modelName} failed`, error, { user: m.sender, questionLength: question?.length });
+        await react(conn, m, '❌');
+
+        if (error.message.includes('timed out')) {
+            return m.reply(UI.error('Timeout', 'AI taking too long to respond.', 'Try a simpler prompt or check connection.'));
+        }
+
+        m.reply(UI.error('AI Error', error.message || 'Failed to get AI response.', 'Try a different model or wait a moment.'));
+    }
+}
+
+/**
+ * AI COMMANDS
+ */
+
+// Main Multi-Model AI (Default GPT-4o)
 addCommand({
     pattern: 'ai',
-    alias: ['gpt', 'chat', '4o', 'mini', 'gifted', 'ask'],
+    alias: ['gpt', 'chat', 'ask', 'mini', 'gifted'],
     category: 'ai',
+    desc: 'Chat with GPT-4o (Default)',
     handler: async (m, { conn, text }) => {
-        if (!text) {
-            return m.reply(UI.error('No Question', 'Ask me anything!', 'Example: .ai What is JavaScript?\\nExample: .ai Tell me a joke\\nExample: .ai Explain quantum physics'));
-        }
+        await queryAI(m, conn, 'gpt4o', text || 'Who are you?', 'GPT-4o');
+    }
+});
 
-        try {
-            // Rate limiting: 10 requests per minute
-            const rateLimit = await checkRateLimit(m.sender, 'ai', 10, 60);
-            if (!rateLimit.allowed) {
-                return m.reply(UI.error('Rate Limit', `Too many AI requests. Wait ${rateLimit.resetIn}s`, `You can make ${10} requests per minute\nRemaining: ${rateLimit.remaining}\nTry again in ${rateLimit.resetIn} seconds`));
-            }
+// GPT-4
+addCommand({
+    pattern: 'gpt4',
+    alias: ['chatgpt4'],
+    category: 'ai',
+    desc: 'Chat with GPT-4',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'gpt4', text, 'GPT-4');
+    }
+});
 
-            // Input validation
-            const question = validateText(text);
+// Gemini
+addCommand({
+    pattern: 'gemini',
+    alias: ['googleai'],
+    category: 'ai',
+    desc: 'Chat with Google Gemini',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'geminiai', text, 'Gemini');
+    }
+});
 
-            await conn.sendMessage(m.chat, { react: { text: '🤖', key: m.key } });
+// Gemini Pro
+addCommand({
+    pattern: 'geminipro',
+    category: 'ai',
+    desc: 'Chat with Google Gemini Pro',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'geminiaipro', text, 'Gemini Pro');
+    }
+});
 
-            // Multiple AI endpoints with fallback
-            const apis = [
-                {
-                    name: 'GPT-4o',
-                    url: `https://api.giftedtech.co.ke/api/ai/gpt4o?apikey=gifted&q=${encodeURIComponent(question)}`,
-                    extract: (d) => d.result
-                },
-                {
-                    name: 'Gifted-AI',
-                    url: `https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${encodeURIComponent(question)}`,
-                    extract: (d) => d.result
-                },
-                {
-                    name: 'GPT-4',
-                    url: `https://api.guruapi.tech/ai/gpt4?text=${encodeURIComponent(question)}`,
-                    extract: (d) => d.msg || d.response
-                }
-            ];
+// DeepSeek R1
+addCommand({
+    pattern: 'deepseek',
+    alias: ['r1', 'reasoning'],
+    category: 'ai',
+    desc: 'Chat with DeepSeek R1 (Reasoning)',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'deepseek-r1', text, 'DeepSeek R1');
+    }
+});
 
-            let response = null;
-            let lastError = null;
+// DeepSeek V3
+addCommand({
+    pattern: 'deepseekv3',
+    category: 'ai',
+    desc: 'Chat with DeepSeek V3',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'deepseek-v3', text, 'DeepSeek V3');
+    }
+});
 
-            // Try each API with timeout
-            for (const api of apis) {
-                try {
-                    const { data } = await withTimeout(
-                        axios.get(api.url, { timeout: 15000 }),
-                        20000,
-                        `AI ${api.name}`
-                    );
+// Blackbox AI (Coding)
+addCommand({
+    pattern: 'blackbox',
+    alias: ['codeai'],
+    category: 'ai',
+    desc: 'Chat with Blackbox (Coding Focused)',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'blackbox', text, 'Blackbox AI');
+    }
+});
 
-                    response = api.extract(data);
+// Mistral AI
+addCommand({
+    pattern: 'mistral',
+    category: 'ai',
+    desc: 'Chat with Mistral AI',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'mistral', text, 'Mistral AI');
+    }
+});
 
-                    if (response && response.trim()) {
-                        log.info('AI response success', { api: api.name, questionLength: question.length });
-                        break;
-                    }
-                } catch (err) {
-                    log.warn(`AI API ${api.name} failed`, { error: err.message });
-                    lastError = err;
-                    continue; // Try next API
-                }
-            }
+// OpenAI (General)
+addCommand({
+    pattern: 'openai',
+    category: 'ai',
+    desc: 'Chat with OpenAI General Model',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'openai', text, 'OpenAI');
+    }
+});
 
-            if (!response || !response.trim()) {
-                throw lastError || new Error('All AI APIs failed to respond');
-            }
+// LetMeGPT
+addCommand({
+    pattern: 'letmegpt',
+    category: 'ai',
+    desc: 'Simple GPT-style chat',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'letmegpt', text, 'LetMeGPT');
+    }
+});
 
-            // Format and send response
-            const reply = `🤖 *Mantra AI*\n${global.divider}\n\n${response}\n\n${global.divider}`;
-            await m.reply(reply);
-
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-
-        } catch (error) {
-            log.error('AI chat failed', error, {
-                command: 'ai',
-                questionLength: text?.length,
-                user: m.sender
-            });
-
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-
-            if (error.message.includes('validation')) {
-                return m.reply(UI.error('Invalid Input', error.message, 'Question is too long (max 5000 chars)\\nTry a shorter question'));
-            }
-
-            if (error.message.includes('timed out')) {
-                return m.reply(UI.error('Timeout', 'AI took too long to respond', 'Try a simpler question\\nTry again later\\nCheck internet connection'));
-            }
-
-            m.reply(UI.error(
-                'AI Failed',
-                'All AI services are currently unavailable',
-                'Try again in a few minutes\\nServices may be under maintenance\\nTry a different question'
-            ));
-        }
+// Additional aliases/variants
+addCommand({
+    pattern: 'gpt4o-mini',
+    category: 'ai',
+    desc: 'Chat with GPT-4o Mini (Fast)',
+    handler: async (m, { conn, text }) => {
+        await queryAI(m, conn, 'gpt4o-mini', text, 'GPT-4o Mini');
     }
 });

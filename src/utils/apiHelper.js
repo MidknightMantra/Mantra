@@ -97,4 +97,28 @@ export async function fetchWithTimeout(url, timeoutMs = 10000) {
     } finally {
         clearTimeout(timeout);
     }
+}/**
+ * Fetch a buffer from a URL
+ * @param {string} url - Target URL
+ * @param {Object} options - Axios options
+ * @returns {Promise<Buffer>}
+ */
+export async function fetchBuffer(url, options = {}) {
+    try {
+        const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            ...options
+        });
+        return Buffer.from(response.data);
+    } catch (e) {
+        log.error(`fetchBuffer failed for ${url}`, e);
+        throw e;
+    }
 }
+
+export default {
+    apiCall,
+    apiPost,
+    fetchWithTimeout,
+    fetchBuffer
+};

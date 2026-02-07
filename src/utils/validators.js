@@ -9,7 +9,7 @@ export const validate = {
      */
     phoneNumber: (num) => {
         if (typeof num !== 'string') return false;
-        const cleaned = num.replace(/[@s.whatsapp.net]/g, '');
+        const cleaned = num.split('@')[0]; // Properly extract numeric part
         return /^[0-9]{10,15}$/.test(cleaned);
     },
 
@@ -18,8 +18,8 @@ export const validate = {
      */
     url: (url) => {
         try {
-            new URL(url);
-            return true;
+            const parsed = new URL(url);
+            return ['http:', 'https:'].includes(parsed.protocol);
         } catch {
             return false;
         }
@@ -29,7 +29,7 @@ export const validate = {
      * Validate message length
      */
     messageLength: (text) => {
-        return text && text.length > 0 && text.length <= CONFIG.SECURITY.MAX_MESSAGE_LENGTH;
+        return Boolean(text && text.length > 0 && text.length <= CONFIG.SECURITY.MAX_MESSAGE_LENGTH);
     },
 
     /**

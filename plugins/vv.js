@@ -98,4 +98,55 @@ addCommand({
             m.reply(UI.error('ViewOnce Reveal Failed', e.message || 'Failed to reveal media', 'Reply to a ViewOnce message\nEnsure message hasn\'t expired\nCheck your internet connection'));
         }
     }
+});/**
+ * DIRECT REVEAL COMMAND (.reveal)
+ */
+addCommand({
+    pattern: 'reveal',
+    alias: ['vv2'],
+    desc: 'Reveal ViewOnce media directly in the chat.',
+    category: 'tools',
+    handler: async (m, { conn, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        if (!m.quoted) return m.reply(`${global.emojis.warning} Reply to a ViewOnce message.`);
+
+        try {
+            await react(conn, m, '👁️');
+
+            let quotedMsg = m.quoted.message || m.quoted;
+            if (quotedMsg.ephemeralMessage) quotedMsg = quotedMsg.ephemeralMessage.message;
+
+            let type = getContentType(quotedMsg);
+            if (type === 'viewOnceMessage' || type === 'viewOnceMessageV2') {
+                quotedMsg = quotedMsg[type].message;
+                type = getContentType(quotedMsg);
+            }
+
+            if (!['imageMessage', 'videoMessage', 'audioMessage'].includes(type)) {
+                return m.reply(`${global.emojis.error} Unsupported ViewOnce type: ${type}`);
+            }
+
+            const streamType = type.replace('Message', '').toLowerCase();
+            const mediaMsg = quotedMsg[type];
+            const stream = await downloadContentFromMessage(mediaMsg, streamType);
+            let chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            const buffer = Buffer.concat(chunks);
+
+            const caption = mediaMsg.caption ? `${mediaMsg.caption}\n\n` : '';
+            const footer = `> *REVEALED BY ${global.botName}*`;
+
+            await conn.sendMessage(m.chat, {
+                [streamType]: buffer,
+                mimetype: mediaMsg.mimetype || `application/${streamType}`,
+                caption: caption + footer,
+                ptt: streamType === 'audio'
+            }, { quoted: m });
+
+            await react(conn, m, '✅');
+        } catch (e) {
+            log.error('Direct reveal failed', e);
+            m.reply(UI.error('Reveal Error', 'Failed to reveal media', e.message));
+        }
+    }
 });

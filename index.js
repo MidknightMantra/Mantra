@@ -34,7 +34,15 @@ import { validateSession } from './lib/session.js';
 import { initListeners } from './lib/listeners.js';
 import { keepAlive } from './lib/alive.js';
 import { commands } from './lib/plugins.js';
-import { isAntilinkOn, isSudoMode } from './lib/database.js';
+import {
+    isAntilinkOn,
+    isSudoMode,
+    getGroupSetting,
+    getBadWords,
+    getSetting,
+    setSetting,
+    setSudoMode
+} from './lib/database.js';
 
 // Initialize global error handlers
 initGlobalErrorHandlers();
@@ -180,8 +188,9 @@ const startMantra = async () => {
 
             conn.presenceInterval = setInterval(async () => {
                 try {
-                    await conn.sendPresenceUpdate('available');
-                    console.log(chalk.hex('#6A0DAD')('📡 Presence: Online'));
+                    const presence = await getSetting('PRESENCE', 'available');
+                    await conn.sendPresenceUpdate(presence);
+                    console.log(chalk.hex('#6A0DAD')(`📡 Presence: ${presence.toUpperCase()}`));
                 } catch (e) {
                     console.error('Presence update error:', e.message);
                 }
@@ -201,6 +210,41 @@ const startMantra = async () => {
     });
 
     conn.ev.on('creds.update', saveCreds);
+
+    // --- 4. GROUP PARTICIPANTS MONITOR (Welcome/Goodbye) ---
+    conn.ev.on('group-participants.update', async (anu) => {
+        try {
+            const { id, participants, action } = anu;
+            const metadata = await conn.groupMetadata(id);
+            const isWelcome = await getGroupSetting(id, 'WELCOME');
+            const isGoodbye = await getGroupSetting(id, 'GOODBYE');
+
+            for (const num of participants) {
+                const user = num.split('@')[0];
+                const ppUrl = await conn.profilePictureUrl(num, 'image').catch(() => 'https://telegra.ph/file/241d7168df00416972740.jpg');
+
+                if (action === 'add' && isWelcome) {
+                    const welcomeText = await getGroupSetting(id, 'WELCOME_TEXT');
+                    const msg = welcomeText || `Welcome @${user} to *${metadata.subject}*! 🌟\n\nEnjoy your stay!`;
+                    await conn.sendMessage(id, {
+                        image: { url: ppUrl },
+                        caption: msg,
+                        mentions: [num]
+                    });
+                } else if (action === 'remove' && isGoodbye) {
+                    const goodbyeText = await getGroupSetting(id, 'GOODBYE_TEXT');
+                    const msg = goodbyeText || `Goodbye @${user}. We will miss you! 👋`;
+                    await conn.sendMessage(id, {
+                        image: { url: ppUrl },
+                        caption: msg,
+                        mentions: [num]
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Group Participants Error:', e);
+        }
+    });
 
     conn.ev.on('messages.upsert', async chatUpdate => {
         try {
@@ -265,16 +309,92 @@ const startMantra = async () => {
             const isUserAdmin = groupAdmins.includes(sender);
             const isBotAdmin = groupAdmins.includes(conn.user.id.split(':')[0] + '@s.whatsapp.net');
 
-            // 2. Anti-Link Monitor
-            if (isGroup && isAntilinkOn(m.chat) && !isOwner && !isUserAdmin && isBotAdmin) {
+            // 2. Advanced Anti-Link Monitor
+            const antilinkMode = await getGroupSetting(m.chat, 'ANTILINK');
+            if (isGroup && antilinkMode && antilinkMode !== 'off' && antilinkMode !== 'false' && !isOwner && !isUserAdmin && isBotAdmin) {
                 const linkRegex = /chat.whatsapp.com\/(?:invite\/)?([0-9A-Za-z]{20,24})/i;
                 if (linkRegex.test(body)) {
                     await conn.sendMessage(m.chat, { delete: m.key });
-                    await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
-                    return conn.sendMessage(m.chat, {
-                        text: `🚫 *Anti-Link:* @${sender.split('@')[0]} was removed for sending a group link.`,
-                        mentions: [sender]
-                    });
+
+                    if (antilinkMode === 'kick') {
+                        await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
+                        return conn.sendMessage(m.chat, {
+                            text: `🚫 *Anti-Link Kick:* @${sender.split('@')[0]} removed.`,
+                            mentions: [sender]
+                        });
+                    } else if (antilinkMode === 'warn') {
+                        const warnLimit = await getGroupSetting(m.chat, 'ANTILINK_WARN_COUNT') || 3;
+                        const currentWarns = (global.antilinkWarns?.[m.chat]?.[sender] || 0) + 1;
+                        if (!global.antilinkWarns) global.antilinkWarns = {};
+                        if (!global.antilinkWarns[m.chat]) global.antilinkWarns[m.chat] = {};
+                        global.antilinkWarns[m.chat][sender] = currentWarns;
+
+                        if (currentWarns >= warnLimit) {
+                            await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
+                            delete global.antilinkWarns[m.chat][sender];
+                            return conn.sendMessage(m.chat, {
+                                text: `🚫 *Anti-Link:* @${sender.split('@')[0]} removed after ${warnLimit} warnings.`,
+                                mentions: [sender]
+                            });
+                        } else {
+                            return conn.sendMessage(m.chat, {
+                                text: `⚠️ *Anti-Link Warning:* @${sender.split('@')[0]}\nLinks are prohibited. Warning: *${currentWarns}/${warnLimit}*`,
+                                mentions: [sender]
+                            });
+                        }
+                    } else {
+                        // Default 'delete' or 'on' mode
+                        return conn.sendMessage(m.chat, {
+                            text: `🚫 *Anti-Link:* @${sender.split('@')[0]}, links are not allowed here.`,
+                            mentions: [sender]
+                        });
+                    }
+                }
+            }
+
+            // 3. Advanced Anti-Bad Monitor
+            const antibadMode = await getGroupSetting(m.chat, 'ANTIBAD');
+            if (isGroup && antibadMode && antibadMode !== 'off' && antibadMode !== 'false' && !isOwner && !isUserAdmin && isBotAdmin) {
+                const badWords = await getBadWords(m.chat);
+                if (badWords.length > 0) {
+                    const foundBad = badWords.some(word => body.toLowerCase().includes(word));
+                    if (foundBad) {
+                        await conn.sendMessage(m.chat, { delete: m.key });
+
+                        if (antibadMode === 'kick') {
+                            await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
+                            return conn.sendMessage(m.chat, {
+                                text: `🚫 *Anti-BadWords Kick:* @${sender.split('@')[0]} removed for profanity.`,
+                                mentions: [sender]
+                            });
+                        } else if (antibadMode === 'warn') {
+                            const warnLimit = await getGroupSetting(m.chat, 'ANTIBAD_WARN_COUNT') || 3;
+                            const currentWarns = (global.antibadWarns?.[m.chat]?.[sender] || 0) + 1;
+                            if (!global.antibadWarns) global.antibadWarns = {};
+                            if (!global.antibadWarns[m.chat]) global.antibadWarns[m.chat] = {};
+                            global.antibadWarns[m.chat][sender] = currentWarns;
+
+                            if (currentWarns >= warnLimit) {
+                                await conn.groupParticipantsUpdate(m.chat, [sender], 'remove');
+                                delete global.antibadWarns[m.chat][sender];
+                                return conn.sendMessage(m.chat, {
+                                    text: `🚫 *Anti-BadWords:* @${sender.split('@')[0]} removed after ${warnLimit} warnings.`,
+                                    mentions: [sender]
+                                });
+                            } else {
+                                return conn.sendMessage(m.chat, {
+                                    text: `⚠️ *Anti-BadWords Warning:* @${sender.split('@')[0]}\nBad words are not allowed. Warning: *${currentWarns}/${warnLimit}*`,
+                                    mentions: [sender]
+                                });
+                            }
+                        } else {
+                            // Default delete mode
+                            return conn.sendMessage(m.chat, {
+                                text: `🚫 *Anti-BadWords:* @${sender.split('@')[0]}, please mind your language.`,
+                                mentions: [sender]
+                            });
+                        }
+                    }
                 }
             }
 

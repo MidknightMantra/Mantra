@@ -9,25 +9,7 @@ import { react, withReaction } from '../src/utils/messaging.js';
 import axios from 'axios';
 import Joi from 'joi';
 
-// Bible Translations Mapping
-const supportedTranslations = {
-    web: 'World English Bible (default)',
-    kjv: 'King James Version',
-    asv: 'American Standard Version (1901)',
-    bbe: 'Bible in Basic English',
-    darby: 'Darby Bible',
-    dra: 'Douay-Rheims 1899 American Edition',
-    ylt: 'Young\'s Literal Translation (NT only)',
-    webbe: 'World English Bible, British Edition',
-    oebus: 'Open English Bible, US Edition',
-    oebcw: 'Open English Bible, Commonwealth Edition',
-    cherokee: 'Cherokee New Testament',
-    cuv: 'Chinese Union Version',
-    bkr: 'Bible kralická (Czech)',
-    clementine: 'Clementine Latin Vulgate',
-    almeida: 'João Ferreira de Almeida (Portuguese)',
-    rccv: 'Protestant Romanian Corrected Cornilescu Version'
-};
+import { sendSimpleButtons } from '../src/utils/buttons.js';
 
 // Quran Validation Schema
 const quranSchema = Joi.object({
@@ -37,71 +19,63 @@ const quranSchema = Joi.object({
 
 /**
  * BIBLE COMMAND
- * Fetches verses from bible-api.com
+ * Fetches verses from GiftedTech API with multi-language support
  */
 addCommand({
     pattern: 'bible',
-    alias: ['verse', 'scripture'],
+    alias: ['verse', 'bibleverse', 'scripture'],
+    react: '📖',
     category: 'tools',
-    handler: async (m, { conn, text }) => {
-        if (!text) {
-            let usage = `${global.emojis.warning} *Usage:* ${global.prefix}bible <reference> [translation]\n`;
-            usage += `Example: *${global.prefix}bible John 3:16 kjv*\n`;
-            usage += `For a random verse: *${global.prefix}bible random [translation]*\n\n`;
-            usage += `*Supported Translations:*\n`;
-            for (const [code, name] of Object.entries(supportedTranslations)) {
-                usage += `- ${code}: ${name}\n`;
-            }
-            return m.reply(usage);
+    handler: async (m, { conn, text, isOwner }) => {
+        const verse = text?.trim();
+        if (!verse) {
+            return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}bible <reference>\nExample: *John 3:16*`);
         }
 
         try {
             await withReaction(conn, m, '⏳', async () => {
-                const parts = text.trim().split(/\s+/);
-                let reference = parts[0];
-                let translation = 'web';
-                let isRandom = false;
+                const url = `${global.giftedApiUrl}/api/tools/bible`;
+                const params = {
+                    apikey: global.giftedApiKey,
+                    verse: verse
+                };
 
-                if (reference.toLowerCase() === 'random') {
-                    isRandom = true;
-                    if (parts.length > 1) translation = parts[1].toLowerCase();
-                } else {
-                    // Check if last part is a translation code
-                    const lastPart = parts[parts.length - 1].toLowerCase();
-                    if (supportedTranslations[lastPart]) {
-                        translation = lastPart;
-                        reference = parts.slice(0, -1).join(' ');
-                    } else {
-                        reference = parts.join(' ');
+                const response = await axios.get(url, { params });
+                const res = response.data;
+
+                if (!res?.success || !res?.result) {
+                    throw new Error('Failed to fetch Bible verse. Please check the reference format.');
+                }
+
+                const r = res.result;
+
+                let txt = `✧ *${global.botName} BIBLE* ✧\n${global.divider}\n`;
+                txt += `📖 *Verse:* ${r.verse || verse}\n`;
+                txt += `📊 *Verse Count:* ${r.versesCount || 1}\n\n`;
+                txt += `*English:*\n${r.data?.trim() || "N/A"}\n\n`;
+
+                if (r.translations) {
+                    if (r.translations.swahili) {
+                        txt += `*Swahili:*\n${r.translations.swahili}\n\n`;
+                    }
+                    if (r.translations.hindi) {
+                        txt += `*Hindi:*\n${r.translations.hindi}\n\n`;
                     }
                 }
 
-                if (!supportedTranslations[translation]) {
-                    throw new Error('Invalid translation code');
-                }
+                txt += global.divider;
 
-                const url = isRandom
-                    ? `https://bible-api.com/data/${translation}/random`
-                    : `https://bible-api.com/${encodeURIComponent(reference)}?translation=${translation}`;
+                const copyContent = r.data?.trim() || "";
 
-                const response = await axios.get(url);
-                const data = response.data;
-
-                if (!data || (!data.text && !data.verses)) {
-                    throw new Error('Verse not found');
-                }
-
-                let verseText = data.verses
-                    ? data.verses.map(v => `${v.verse}: ${v.text.trim()}`).join('\n')
-                    : data.text.trim();
-
-                let msg = `✧ *Holy Scripture* ✧\n${global.divider}\n`;
-                msg += `✦ *Ref:* ${data.reference} (${supportedTranslations[translation]})\n\n`;
-                msg += `"${verseText}"\n`;
-                msg += `\n${global.divider}\n`;
-                if (isRandom) msg += `✦ *Note:* This is a random verse.\n`;
-
-                await m.reply(msg);
+                await sendSimpleButtons(conn, m.chat, txt, [
+                    {
+                        name: "cta_copy",
+                        buttonParamsJson: JSON.stringify({
+                            display_text: "📋 Copy Verse",
+                            copy_code: copyContent,
+                        }),
+                    },
+                ], { footer: global.botName, quoted: m });
             });
         } catch (error) {
             log.error('Bible command failed', error, { text });
