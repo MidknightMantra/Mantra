@@ -1,6 +1,7 @@
 import { addCommand } from '../lib/plugins.js';
 import pkg from 'gifted-btns';
 const { sendButtons, sendInteractiveMessage } = pkg;
+import { log } from '../src/utils/logger.js';
 
 // Example 1: Simple Quick Reply Buttons
 addCommand({

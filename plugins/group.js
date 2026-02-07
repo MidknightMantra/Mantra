@@ -1,6 +1,7 @@
 import { addCommand } from '../lib/plugins.js';
 import pkg from 'gifted-btns';
 const { sendInteractiveMessage, sendButtons } = pkg;
+import { log } from '../src/utils/logger.js';
 
 // Enhanced group admin panel
 addCommand({

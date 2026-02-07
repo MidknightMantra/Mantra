@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'help',

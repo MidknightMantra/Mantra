@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { setSudoMode, isSudoMode } from '../lib/database.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'sudo',
@@ -12,10 +13,12 @@ addCommand({
 
         if (option === 'on') {
             setSudoMode(true);
+            log.action('Sudo mode enabled', 'owner', { owner: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
             await m.reply('🔮 *Sudo Mode: ENABLED*\n\nYou can now use commands on your own messages.');
         } else if (option === 'off') {
             setSudoMode(false);
+            log.action('Sudo mode disabled', 'owner', { owner: m.sender });
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
             await m.reply('🔮 *Sudo Mode: DISABLED*\n\nBot will only respond to others.');
         } else {

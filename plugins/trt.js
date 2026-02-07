@@ -1,7 +1,9 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
-import axios from 'axios';
+import { apiCall } from '../src/utils/apiHelper.js';
+import { validateText } from '../src/utils/validator.js';
+import { withTimeout } from '../src/utils/timeout.js';
 
 addCommand({
     pattern: 'trt',
@@ -12,53 +14,64 @@ addCommand({
             let msgToTranslate = '';
             let targetLang = 'en';
 
-            // 1. Identify Content and Target Language
+            // Parse input
             if (m.quoted) {
-                // Reply mode: .trt <lang> (Default to 'en' if no arg provided)
                 msgToTranslate = m.quoted.text || m.quoted.caption || '';
-                if (args[0]) targetLang = args[0];
+                if (args[0]) targetLang = args[0].toLowerCase();
             } else if (args.length >= 2) {
-                // Direct mode: .trt <lang> <text>
-                targetLang = args[0];
+                targetLang = args[0].toLowerCase();
                 msgToTranslate = args.slice(1).join(' ');
             } else if (args.length === 1 && !m.quoted) {
-                // Direct mode (default to English): .trt <text>
                 targetLang = 'en';
                 msgToTranslate = args.join(' ');
             } else {
                 return m.reply(`${global.emojis.warning} *Usage:* \n1. Reply: .trt es\n2. Type: .trt es hello`);
             }
 
-            if (!msgToTranslate.trim()) return m.reply(`${global.emojis.error} No text found.`);
+            // Validate text
+            const textToTranslate = validateText(msgToTranslate);
 
-            // 2. Status Reaction (Processing)
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // 3. API Call
-            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(msgToTranslate)}`;
-            const { data } = await axios.get(url);
+            // API call with retry
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(textToTranslate)}`;
 
-            if (!data || !data[0]) throw new Error('Invalid API response');
+            const data = await withTimeout(
+                apiCall(url, { timeout: 10000 }, 3),
+                15000,
+                'Translation'
+            );
 
-            // 4. Parse Results
-            let translatedText = data[0].map(segment => segment[0]).join('');
+            if (!data || !data[0]) {
+                throw new Error('Invalid translation response');
+            }
+
+            // Parse results
+            const translatedText = data[0].map(segment => segment[0]).join('');
             const sourceLang = data[2];
 
-            // 5. Build Response
+            // Build response
             const response = `🔮 *Mantra Translate*\n${global.divider}\n` +
                 `🗣️ *From:* [${sourceLang.toUpperCase()}]\n` +
                 `💬 *To:* [${targetLang.toUpperCase()}]\n\n` +
-                `📝 *Result:*\n${translatedText}`;
+                `${translatedText}\n` +
+                `${global.divider}`;
 
-            await conn.sendMessage(m.chat, { text: response }, { quoted: m });
-
-            // 6. Success Reaction
+            await m.reply(response);
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
-        } catch (e) {
-            log.error('Translation failed', e, { command: 'trt', targetLang, text: msgToTranslate?.substring(0, 50), user: m.sender });
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(UI.error('Translation Failed', e.message || 'Translation failed', 'Check language code (e.g., es, fr, de)\nVerify text is not empty\nTry again in a moment'));
+        } catch (error) {
+            log.error('Translation failed', error, { text, targetLang: args[0], command: 'trt' });
+
+            if (error.message.includes('validation')) {
+                return m.reply(UI.error('Invalid Input', error.message, 'Provide text to translate\\nExample: .trt es hello world'));
+            }
+
+            if (error.response?.status === 400) {
+                return m.reply(UI.error('Invalid Language', 'Language code not supported', 'Use 2-letter codes (en, es, fr)\\nCheck language code spelling'));
+            }
+
+            throw error;
         }
     }
 });

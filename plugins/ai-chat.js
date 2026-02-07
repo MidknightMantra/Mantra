@@ -1,9 +1,10 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
+import { validateText } from '../src/utils/validator.js';
+import { withTimeout, retryWithTimeout } from '../src/utils/timeout.js';
+import { checkRateLimit } from '../lib/ratelimit.js';
 import axios from 'axios';
-import pkg from 'gifted-btns';
-const { sendButtons } = pkg;
 
 addCommand({
     pattern: 'ai',
@@ -11,121 +12,97 @@ addCommand({
     category: 'ai',
     handler: async (m, { conn, text }) => {
         if (!text) {
-            // Show AI options with buttons
-            await sendButtons(conn, m.chat, {
-                title: '🤖 AI Assistant',
-                text: 'Choose an AI model or ask a question directly:\n\nUsage: `.ai <your question>`',
-                footer: 'Powered by multiple AI APIs',
-                buttons: [
-                    { id: 'ai_example_hello', text: '👋 Say Hello' },
-                    { id: 'ai_example_joke', text: '😄 Tell a Joke' },
-                    { id: 'ai_example_fact', text: '🧠 Random Fact' }
-                ]
-            });
-            return;
+            return m.reply(UI.error('No Question', 'Ask me anything!', 'Example: .ai What is JavaScript?\\nExample: .ai Tell me a joke\\nExample: .ai Explain quantum physics'));
         }
 
         try {
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
+            // Rate limiting: 10 requests per minute
+            const rateLimit = await checkRateLimit(m.sender, 'ai', 10, 60);
+            if (!rateLimit.allowed) {
+                return m.reply(UI.error('Rate Limit', `Too many AI requests. Wait ${rateLimit.resetIn}s`, `You can make ${10} requests per minute\nRemaining: ${rateLimit.remaining}\nTry again in ${rateLimit.resetIn} seconds`));
+            }
 
+            // Input validation
+            const question = validateText(text);
+
+            await conn.sendMessage(m.chat, { react: { text: '🤖', key: m.key } });
+
+            // Multiple AI endpoints with fallback
             const apis = [
                 {
-                    name: 'GPT-4',
-                    url: `https://api.guruapi.tech/ai/gpt4?text=${encodeURIComponent(text)}`,
-                    extract: (d) => d.msg || d.response
+                    name: 'GPT-4o',
+                    url: `https://api.giftedtech.co.ke/api/ai/gpt4o?apikey=gifted&q=${encodeURIComponent(question)}`,
+                    extract: (d) => d.result
                 },
                 {
                     name: 'Gifted-AI',
-                    url: `https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${encodeURIComponent(text)}`,
+                    url: `https://api.giftedtech.co.ke/api/ai/ai?apikey=gifted&q=${encodeURIComponent(question)}`,
                     extract: (d) => d.result
                 },
                 {
-                    name: 'GPT-4o',
-                    url: `https://api.giftedtech.co.ke/api/ai/gpt4o?apikey=gifted&q=${encodeURIComponent(text)}`,
-                    extract: (d) => d.result
-                },
-                {
-                    name: 'GPT-4o-Mini',
-                    url: `https://api.giftedtech.co.ke/api/ai/gpt4o-mini?apikey=gifted&q=${encodeURIComponent(text)}`,
-                    extract: (d) => d.result
+                    name: 'GPT-4',
+                    url: `https://api.guruapi.tech/ai/gpt4?text=${encodeURIComponent(question)}`,
+                    extract: (d) => d.msg || d.response
                 }
             ];
 
-            const racers = apis.map(api =>
-                axios.get(api.url, { timeout: 10000 })
-                    .then(res => {
-                        const result = api.extract(res.data);
-                        if (!result) throw new Error('Empty payload');
-                        return { content: result, source: api.name };
-                    })
-            );
+            let response = null;
+            let lastError = null;
 
-            const winner = await Promise.any(racers);
+            // Try each API with timeout
+            for (const api of apis) {
+                try {
+                    const { data } = await withTimeout(
+                        axios.get(api.url, { timeout: 15000 }),
+                        20000,
+                        `AI ${api.name}`
+                    );
 
-            // Send AI response with follow-up buttons
-            await sendButtons(conn, m.chat, {
-                text: winner.content,
-                footer: `Powered by Mantra`,
-                buttons: [
-                    { id: 'ai_continue', text: '💬 Continue' },
-                    { id: 'ai_new', text: '🔄 New Chat' }
-                ]
-            });
+                    response = api.extract(data);
+
+                    if (response && response.trim()) {
+                        log.info('AI response success', { api: api.name, questionLength: question.length });
+                        break;
+                    }
+                } catch (err) {
+                    log.warn(`AI API ${api.name} failed`, { error: err.message });
+                    lastError = err;
+                    continue; // Try next API
+                }
+            }
+
+            if (!response || !response.trim()) {
+                throw lastError || new Error('All AI APIs failed to respond');
+            }
+
+            // Format and send response
+            const reply = `🤖 *Mantra AI*\n${global.divider}\n\n${response}\n\n${global.divider}`;
+            await m.reply(reply);
 
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
-        } catch (e) {
-            log.error('AI command failed', e, { command: 'ai', query: text?.substring(0, 50), user: m.sender });
+        } catch (error) {
+            log.error('AI chat failed', error, {
+                command: 'ai',
+                questionLength: text?.length,
+                user: m.sender
+            });
+
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(UI.error('AI Error', 'All AI nodes are currently unreachable', 'Try again in a few moments\nCheck your internet connection'));
+
+            if (error.message.includes('validation')) {
+                return m.reply(UI.error('Invalid Input', error.message, 'Question is too long (max 5000 chars)\\nTry a shorter question'));
+            }
+
+            if (error.message.includes('timed out')) {
+                return m.reply(UI.error('Timeout', 'AI took too long to respond', 'Try a simpler question\\nTry again later\\nCheck internet connection'));
+            }
+
+            m.reply(UI.error(
+                'AI Failed',
+                'All AI services are currently unavailable',
+                'Try again in a few minutes\\nServices may be under maintenance\\nTry a different question'
+            ));
         }
-    }
-});
-
-// AI Example Handlers
-addCommand({
-    pattern: 'ai_example_hello',
-    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['ai'];
-        if (cmd) await cmd.handler(m, { conn, args, text: 'Hello! How are you today?', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'ai_example_joke',
-    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['ai'];
-        if (cmd) await cmd.handler(m, { conn, args, text: 'Tell me a funny joke', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'ai_example_fact',
-    handler: async (m, { conn, args, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin }) => {
-        const cmd = (await import('../lib/plugins.js')).commands['ai'];
-        if (cmd) await cmd.handler(m, { conn, args, text: 'Tell me an interesting fact', isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
-    }
-});
-
-addCommand({
-    pattern: 'ai_continue',
-    handler: async (m, { conn }) => {
-        await m.reply('💬 Continue our conversation by using `.ai <your question>`');
-    }
-});
-
-addCommand({
-    pattern: 'ai_new',
-    handler: async (m, { conn }) => {
-        await sendButtons(conn, m.chat, {
-            title: '🔄 New AI Chat Started',
-            text: 'What would you like to talk about?',
-            footer: 'Use .ai <question> to continue',
-            buttons: [
-                { id: 'ai_example_hello', text: '👋 Greetings' },
-                { id: 'ai_example_joke', text: '😄 Jokes' },
-                { id: 'ai_example_fact', text: '🧠 Facts' }
-            ]
-        });
     }
 });

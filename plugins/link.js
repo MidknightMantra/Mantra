@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
+import { UI } from '../src/utils/design.js';
 
 addCommand({
     pattern: 'link',
@@ -27,7 +29,8 @@ addCommand({
             }, { quoted: m });
 
         } catch (e) {
-            m.reply(`${global.emojis.error} I need to be Admin to fetch the link.`);
+            log.error('Failed to fetch group link', e, { command: 'link', group: m.chat });
+            m.reply(UI.error('Link Fetch Failed', e.message, 'Bot must be admin to get group link'));
         }
     }
 });

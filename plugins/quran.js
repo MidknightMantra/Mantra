@@ -1,46 +1,69 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
-import axios from 'axios';
+import { validateText, schemas } from '../src/utils/validator.js';
+import { apiCall } from '../src/utils/apiHelper.js';
+import { withTimeout } from '../src/utils/timeout.js';
+import Joi from 'joi';
+
+// Validation schema for Surah:Ayah format
+const quranSchema = Joi.object({
+    surah: Joi.number().integer().min(1).max(114).required(),
+    ayah: Joi.number().integer().min(1).max(300).required()
+});
 
 addCommand({
     pattern: 'quran',
     alias: ['ayah', 'surah'],
     category: 'tools',
     handler: async (m, { conn, text }) => {
-        if (!text) {
-            return m.reply(`${global.emojis.warning} *Usage:* ${global.prefix}quran <Surah:Ayah>\nExample: *${global.prefix}quran 1:1* or *${global.prefix}quran 112:1*`);
-        }
-
         try {
-            // Split input (e.g. "1:1" -> surah 1, ayah 1)
-            let [surah, ayah] = text.split(':');
+            // Input validation
+            validateText(text, true);
 
-            if (!surah || !ayah) {
-                return m.reply(`${global.emojis.error} Please use the format *Surah:Ayah* (e.g., 1:5)`);
+            // Parse and validate Surah:Ayah format
+            const parts = text.split(':');
+            if (parts.length !== 2) {
+                return m.reply(UI.error('Invalid Format', 'Use format: Surah:Ayah', 'Example: .quran 1:1\\nExample: .quran 112:1'));
             }
 
-            // 1. Initial Reaction
+            const [surahStr, ayahStr] = parts;
+            const { error, value } = quranSchema.validate({
+                surah: parseInt(surahStr),
+                ayah: parseInt(ayahStr)
+            });
+
+            if (error) {
+                return m.reply(UI.error('Invalid Numbers', error.details[0].message, 'Surah: 1-114\\nAyah: 1-300\\nExample: .quran 1:7'));
+            }
+
+            const { surah, ayah } = value;
+
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
-            // 2. Fetch Text (Arabic & English)
-            const textUrl = `http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,en.asahih`;
-            const textReq = await axios.get(textUrl);
+            // Fetch text and audio with timeout
+            const [textData, audioData] = await Promise.all([
+                withTimeout(
+                    apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,en.asad`, { timeout: 10000 }, 3),
+                    15000,
+                    'Quran text fetch'
+                ),
+                withTimeout(
+                    apiCall(`http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.alafasy`, { timeout: 10000 }, 3),
+                    15000,
+                    'Quran audio fetch'
+                )
+            ]);
 
-            // 3. Fetch Audio (Alafasy)
-            const audioUrl = `http://api.alquran.cloud/v1/ayah/${surah}:${ayah}/ar.alafasy`;
-            const audioReq = await axios.get(audioUrl);
-
-            if (textReq.data.code !== 200 || audioReq.data.code !== 200) {
-                await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-                return m.reply(`${global.emojis.error} Ayah not found. Check the numbers.`);
+            if (textData.code !== 200 || audioData.code !== 200) {
+                throw new Error('Ayah not found');
             }
 
-            const arabic = textReq.data.data[0];
-            const english = textReq.data.data[1];
-            const audioData = audioReq.data.data;
+            const arabic = textData.data[0];
+            const english = textData.data[1];
+            const audio = audioData.data;
 
-            // 4. Format the message
+            // Format message
             let msg = `🔮 *MANTRA QURAN* 🔮\n\n`;
             msg += `📖 *Surah:* ${arabic.surah.englishName} (${arabic.surah.name})\n`;
             msg += `🔢 *Ayah:* ${arabic.numberInSurah}\n`;
@@ -49,33 +72,42 @@ addCommand({
             msg += `📝 _${english.text}_\n`;
             msg += `\n──────────────────`;
 
-            // 5. Send Audio with enhanced metadata
+            // Send message with audio
             await conn.sendMessage(m.chat, {
-                audio: { url: audioData.audio },
-                mimetype: 'audio/mp4',
-                ptt: false,
+                text: msg,
                 contextInfo: {
                     externalAdReply: {
-                        title: `Surah ${arabic.surah.englishName} : ${arabic.numberInSurah}`,
-                        body: "Recitation by Mishary Rashid Alafasy",
-                        thumbnailUrl: "https://i.imgur.com/6cO45Xw.jpeg",
-                        sourceUrl: "https://quran.com",
+                        title: `${arabic.surah.englishName} - Ayah ${arabic.numberInSurah}`,
+                        body: 'Quran Audio',
                         mediaType: 1,
-                        renderLargerThumbnail: true
+                        renderLargerThumbnail: false
                     }
                 }
             }, { quoted: m });
 
-            // 6. Send text message
-            await conn.sendMessage(m.chat, { text: msg }, { quoted: m });
+            // Send audio
+            await conn.sendMessage(m.chat, {
+                audio: { url: audio.audioSecondary[0] || audio.audio },
+                mimetype: 'audio/mp4',
+                ptt: true
+            }, { quoted: m });
 
-            // 7. Success Reaction
             await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
 
-        } catch (e) {
-            log.error('Quran fetch failed', e, { command: 'quran', reference: text, user: m.sender });
+        } catch (error) {
+            log.error('Quran fetch failed', error, { command: 'quran', text, user: m.sender });
+
             await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            m.reply(UI.error('Quran Fetch Failed', e.message || 'Failed to fetch verse', 'Check Surah:Ayah format (e.g., 1:1)\nVerify verse numbers are valid\nAPI may be temporarily down'));
+
+            if (error.message.includes('validation')) {
+                return m.reply(UI.error('Invalid Input', error.message, 'Use format: .quran Surah:Ayah\\nExample: .quran 1:1'));
+            }
+
+            if (error.message.includes('not found')) {
+                return m.reply(UI.error('Ayah Not Found', 'Invalid Surah or Ayah number', 'Valid Surah: 1-114\\nCheck Ayah number\\nExample: .quran 2:255'));
+            }
+
+            m.reply(UI.error('Quran Fetch Failed', error.message || 'Failed to fetch Ayah', 'Check Surah and Ayah numbers\\nTry again later\\nAPI may be temporarily down'));
         }
     }
 });

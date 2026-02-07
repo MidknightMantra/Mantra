@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
+import { UI } from '../src/utils/design.js';
 
 addCommand({
     pattern: 'revoke',
@@ -17,9 +19,11 @@ addCommand({
 
         try {
             await conn.groupRevokeInvite(m.chat);
+            log.action('Group link revoked', 'security', { group: m.chat, revokedBy: m.sender });
             m.reply(`${global.emojis.success} *Group link has been reset.*`);
         } catch (e) {
-            m.reply(`${global.emojis.error} Failed to reset link.`);
+            log.error('Link revoke failed', e, { command: 'revoke', group: m.chat });
+            m.reply(UI.error('Link Revoke Failed', e.message, 'Ensure bot is admin\\nCheck bot permissions'));
         }
     }
 });

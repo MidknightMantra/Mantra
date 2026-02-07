@@ -1,6 +1,7 @@
 import { addCommand } from '../lib/plugins.js';
 import { runtime } from '../lib/utils.js';
 import os from 'os';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'status',

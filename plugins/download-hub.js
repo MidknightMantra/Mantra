@@ -2,6 +2,7 @@ import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import pkg from 'gifted-btns';
 const { sendInteractiveMessage } = pkg;
+import { log } from '../src/utils/logger.js';
 
 // Media downloader hub
 addCommand({

@@ -1,4 +1,5 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'tagall',
@@ -18,6 +19,8 @@ addCommand({
         for (let mem of members) {
             message += `➣ @${mem.split('@')[0]}\n`;
         }
+
+        log.action('TagAll used', 'moderation', { group: m.chat, taggedBy: m.sender, count: members.length });
 
         await conn.sendMessage(m.chat, {
             text: message,

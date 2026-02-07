@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
+import { UI } from '../src/utils/design.js';
 
 addCommand({
     pattern: 'promote',
@@ -20,9 +22,11 @@ addCommand({
 
         try {
             await conn.groupParticipantsUpdate(m.chat, [users], 'promote');
+            log.action('User promoted to admin', 'admin', { group: m.chat, target: users, promotedBy: m.sender });
             await m.reply(`${global.emojis.success} *Promoted* @${users.split('@')[0]}`, null, { mentions: [users] });
         } catch (e) {
-            m.reply(`${global.emojis.error} Failed.`);
+            log.error('Promotion failed', e, { command: 'promote', group: m.chat, target: users });
+            m.reply(UI.error('Promotion Failed', e.message, 'Ensure bot is admin\\nTarget must be a participant\\nCheck bot permissions'));
         }
     }
 });

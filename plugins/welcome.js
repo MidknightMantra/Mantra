@@ -1,5 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
 import { setWelcome, isWelcomeOn } from '../lib/database.js';
+import { log } from '../src/utils/logger.js';
 
 addCommand({
     pattern: 'welcome',
@@ -15,9 +16,11 @@ addCommand({
 
         if (option === 'on') {
             setWelcome(m.chat, true);
+            log.action('Welcome enabled', 'config', { group: m.chat, enabledBy: m.sender });
             m.reply(`${global.emojis.success} *Welcome messages ENABLED for this group.*`);
         } else if (option === 'off') {
             setWelcome(m.chat, false);
+            log.action('Welcome disabled', 'config', { group: m.chat, disabledBy: m.sender });
             m.reply(`${global.emojis.success} *Welcome messages DISABLED.*`);
         } else {
             // Check current status

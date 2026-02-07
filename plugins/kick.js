@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
+import { UI } from '../src/utils/design.js';
 
 addCommand({
     pattern: 'kick',
@@ -23,9 +25,11 @@ addCommand({
 
         try {
             await conn.groupParticipantsUpdate(m.chat, [users], 'remove');
+            log.action('User kicked from group', 'moderation', { group: m.chat, target: users, kickedBy: m.sender });
             await m.reply(`${global.emojis.success} *Kicked* @${users.split('@')[0]}`, null, { mentions: [users] });
         } catch (e) {
-            m.reply(`${global.emojis.error} Failed to kick.`);
+            log.error('Kick failed', e, { command: 'kick', group: m.chat, target: users });
+            m.reply(UI.error('Kick Failed', e.message, 'Ensure bot is admin\nTarget must be a participant\nCheck bot permissions'));
         }
     }
 });

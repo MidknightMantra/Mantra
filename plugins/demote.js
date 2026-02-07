@@ -1,4 +1,6 @@
 import { addCommand } from '../lib/plugins.js';
+import { log } from '../src/utils/logger.js';
+import { UI } from '../src/utils/design.js';
 
 addCommand({
     pattern: 'demote',
@@ -20,9 +22,11 @@ addCommand({
 
         try {
             await conn.groupParticipantsUpdate(m.chat, [users], 'demote');
+            log.action('Admin demoted', 'admin', { group: m.chat, target: users, demotedBy: m.sender });
             await m.reply(`${global.emojis.success} *Demoted* @${users.split('@')[0]}`, null, { mentions: [users] });
         } catch (e) {
-            m.reply(`${global.emojis.error} Failed.`);
+            log.error('Demotion failed', e, { command: 'demote', group: m.chat, target: users });
+            m.reply(UI.error('Demotion Failed', e.message, 'Ensure bot is admin\nTarget must be an admin\nCheck bot permissions'));
         }
     }
 });
