@@ -10,7 +10,7 @@ import {
 import { log } from '../src/utils/logger.js';
 import fs from 'fs';
 import path from 'path';
-import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { downloadMediaMessage } from '../src/utils/mediaHelper.js';
 
 // Helper to get user number
 const getUserNum = (jid) => jid ? jid.split('@')[0] : '';

@@ -90,7 +90,7 @@ global.docTypes = {
 };
 
 // --- COMMAND PREFIXES ---
-global.prefa = ['', '!', '.', '#', '&', ','];
+global.prefa = [',', '!', '.', '#', '&', ''];
 
 // ═══════════════════════════════════════════════════════
 // 🔄 HOT RELOAD - Auto-reload config when file changes

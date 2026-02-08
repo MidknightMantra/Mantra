@@ -6,7 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import util from 'util';
 import moment from 'moment-timezone';
-import { Jimp } from 'jimp';
+import pkgJimp from 'jimp';
+const { Jimp } = pkgJimp;
 import { groupCache } from '../src/utils/groupCache.js';
 import {
     getAllSettings,
@@ -18,7 +19,8 @@ import {
     setGroupSetting
 } from '../lib/database.js';
 import { log } from '../src/utils/logger.js';
-import { S_WHATSAPP_NET } from 'gifted-baileys';
+import pkgBaileys from 'gifted-baileys';
+const { S_WHATSAPP_NET } = pkgBaileys;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

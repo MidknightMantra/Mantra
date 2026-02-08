@@ -2,7 +2,8 @@ import { addCommand } from '../lib/plugins.js';
 import { log } from '../src/utils/logger.js';
 import { runtime } from '../lib/utils.js';
 import { getDatabaseInfo } from '../lib/database.js';
-import { sendButtons } from 'gifted-btns';
+import pkgButtons from 'gifted-btns';
+const { sendButtons } = pkgButtons;
 import os from 'os';
 
 /**

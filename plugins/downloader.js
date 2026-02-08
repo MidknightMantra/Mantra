@@ -1,3 +1,4 @@
+import { addCommand } from '../lib/plugins.js';
 import { getBuffer, toPtt, toAudio, toVideo } from '../src/utils/converter.js';
 import { gmd, getMimeFromUrl, getMimeCategory, MAX_MEDIA_SIZE, gitRepoRegex, getFileSize } from '../lib/gift.js';
 import GIFTED_DLS from 'gifted-dls';

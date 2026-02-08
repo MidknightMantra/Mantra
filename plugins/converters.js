@@ -1,6 +1,7 @@
 import { gmd, toAudio, toVideo, toPtt, stickerToImage, gmdFancy, gmdRandom, getSetting, runFFmpeg, getVideoDuration, gmdSticker } from "../lib/gift.js";
 import fs from "fs/promises";
-import { StickerTypes } from "wa-sticker-formatter";
+import pkgSticker from "wa-sticker-formatter";
+const { StickerTypes } = pkgSticker;
 
 /**
  * 🔄 STICKER CONVERTER

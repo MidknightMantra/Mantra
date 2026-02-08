@@ -4,7 +4,8 @@ import { formatBytes, runtime } from '../src/utils/converter.js'; // Check if th
 import os from 'os';
 import axios from 'axios';
 import moment from 'moment-timezone';
-import { sendButtons } from 'gifted-btns';
+import pkgButtons from 'gifted-btns';
+const { sendButtons } = pkgButtons;
 
 // Helpers
 const monospace = (str) => '```' + str + '```';
@@ -125,7 +126,7 @@ addCommand({
     category: 'general',
     desc: 'Show all commands',
     handler: async (m, { conn, isOwner }) => {
-        const cmdList = commands.filter(c => c.pattern && !c.dontAddCommandList);
+        const cmdList = Object.values(commands).filter(c => c.pattern && !c.dontAddCommandList);
         const categories = {};
 
         cmdList.forEach(c => {
@@ -176,7 +177,7 @@ addCommand({
     desc: 'List all commands simple view',
     handler: async (m, { conn }) => {
         let text = `📋 *COMMAND LIST*\n\n`;
-        commands.forEach((c, i) => {
+        Object.values(commands).forEach((c, i) => {
             if (c.pattern) text += `${i + 1}. ${global.prefix}${c.pattern} - ${c.desc || ''}\n`;
         });
         m.reply(text);
