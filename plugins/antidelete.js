@@ -1,20 +1,16 @@
 import { addCommand } from '../lib/plugins.js';
 import { UI } from '../src/utils/design.js';
 import { log } from '../src/utils/logger.js';
-import { getDB, updateDB } from '../lib/database.js';
+import { getGroupSetting, setGroupSetting } from '../lib/database.js';
 
-// Helper to get/set Anti-Delete status from our existing DB
-const getADStatus = (jid) => {
-    const db = getDB();
-    return db.groups?.[jid]?.antidelete || false;
+// Helper to get/set Anti-Delete status
+const getADStatus = async (jid) => {
+    const status = await getGroupSetting(jid, 'ANTIDELETE');
+    return status === true;
 };
 
-const setADStatus = (jid, status) => {
-    const db = getDB();
-    if (!db.groups) db.groups = {};
-    if (!db.groups[jid]) db.groups[jid] = {};
-    db.groups[jid].antidelete = status;
-    updateDB(db);
+const setADStatus = async (jid, status) => {
+    await setGroupSetting(jid, 'ANTIDELETE', status);
 };
 
 addCommand({
@@ -42,13 +38,14 @@ addCommand({
             await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
 
             if (option === 'on') {
-                setADStatus(chatId, true);
+                await setADStatus(chatId, true);
                 await m.reply(`${global.emojis.success} *Anti-Delete enabled* for this chat.\nDeleted messages will now be resent with a note.`);
             } else if (option === 'off') {
-                setADStatus(chatId, false);
+                await setADStatus(chatId, false);
                 await m.reply(`${global.emojis.success} *Anti-Delete disabled* for this chat.`);
             } else {
-                const status = getADStatus(chatId) ? '✅ Enabled' : '❌ Disabled';
+                const isEnabled = await getADStatus(chatId);
+                const status = isEnabled ? '✅ Enabled' : '❌ Disabled';
                 let msg = `🔮 *Mantra Anti-Delete*\n${global.divider}\n`;
                 msg += `✦ *Status:* ${status}\n\n`;
                 msg += `✦ *Description:* When enabled, deleted messages in this group will be automatically resent by the bot with a "Deleted Message" indicator.\n\n`;

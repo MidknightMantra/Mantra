@@ -198,4 +198,4 @@ addCommand({
     }
 });
 
-log.info('Administrative plugin loaded');
+log.action('Administrative plugin loaded', 'system');

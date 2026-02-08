@@ -293,4 +293,4 @@ addCommand({
     }
 });
 
-log.info('Advanced Tools plugin loaded');
+log.action('Advanced Tools plugin loaded', 'system');
