@@ -23,7 +23,7 @@ async function getContextInfo() {
         forwardingScore: 1,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363403054496228@newsletter', // Default or from config
+            newsletterJid: '120363406444239886@newsletter', // Default or from config
             newsletterName: global.botName || 'Mantra-MD',
             serverMessageId: -1,
         },

@@ -75,6 +75,11 @@ export const log = {
         });
     },
 
+    // Warnings
+    warn: (message, context = {}) => {
+        logger.warn(message, context);
+    },
+
     // Performance metrics
     perf: (operation, duration) => {
         logger.debug('Performance', {

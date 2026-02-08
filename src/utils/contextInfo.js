@@ -9,7 +9,7 @@ export async function getContextInfo(mentions = []) {
         forwardingScore: 999,
         isForwarded: true,
         forwardedNewsletterMessageInfo: {
-            newsletterJid: '120363403054496228@newsletter',
+            newsletterJid: '120363406444239886@newsletter',
             newsletterName: global.botName || 'Mantra Bot',
             serverMessageId: -1
         }

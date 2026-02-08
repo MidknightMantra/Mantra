@@ -24,15 +24,8 @@ const { S_WHATSAPP_NET } = pkgBaileys;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Developer numbers (Hardcoded as per user request)
-const DEV_NUMBERS = [
-    "254715206562",
-    "254114018035",
-    "254728782591",
-    "254799916673",
-    "254762016957",
-    "254113174209",
-];
+// Developer number (Derived from live connection)
+const getDevNumber = () => global.owner?.[0] || '0';
 
 // Helper to extract file path from shell output
 function extractFilePath(text) {
@@ -355,7 +348,7 @@ addCommand({
     pattern: 'vv',
     alias: ['reveal'],
     category: 'owner',
-    desc: 'Reveal ViewOnce',
+    desc: 'Reveal ViewOnce media',
     handler: async (m, { conn, isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
         if (!m.quoted) return m.reply("❌ Quote a ViewOnce message");
@@ -366,8 +359,9 @@ addCommand({
         // Baileys automatically handles ViewOnce decoding often, 
         // but if we need to force it, we rely on the buffer download
         try {
+            await m.react('🔓');
             const buffer = await m.quoted.download();
-            const caps = q.caption || "";
+            const caps = q.caption || "🔓 _ViewOnce revealed_";
 
             if (/image/.test(q.mimetype)) {
                 await conn.sendMessage(m.chat, { image: buffer, caption: caps });
@@ -376,7 +370,9 @@ addCommand({
             } else if (/audio/.test(q.mimetype)) {
                 await conn.sendMessage(m.chat, { audio: buffer, ptt: q.ptt });
             }
+            await m.react('✅');
         } catch (e) {
+            await m.react('❌');
             m.reply("❌ Failed to reveal.");
         }
     }

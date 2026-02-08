@@ -5,9 +5,37 @@
   "notes": [],
   "analytics": {
     "global": {
-      "totalCommands": 0,
-      "commandCounts": {}
+      "totalCommands": 18,
+      "commandCounts": {
+        "ping": 3,
+        "menu": 3,
+        "bible": 1,
+        "livescore": 2,
+        "galaxy": 2,
+        "newsletter": 1,
+        "repo": 1,
+        "vv": 2,
+        "blackbox": 2,
+        "play": 1
+      }
     },
-    "users": {}
+    "users": {
+      "14573478363301@lid": {
+        "totalCommands": 18,
+        "commandCounts": {
+          "ping": 3,
+          "menu": 3,
+          "bible": 1,
+          "livescore": 2,
+          "galaxy": 2,
+          "newsletter": 1,
+          "repo": 1,
+          "vv": 2,
+          "blackbox": 2,
+          "play": 1
+        },
+        "lastActive": 1770570369447
+      }
+    }
   }
 }

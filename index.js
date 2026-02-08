@@ -149,7 +149,10 @@ const startMantra = async () => {
             // 🔑 AUTO-DETECT OWNER from connected WhatsApp account
             if (conn.user?.id) {
                 const phoneNumber = conn.user.id.split(':')[0];
-                global.owner = [phoneNumber];
+                if (!global.owner.includes(phoneNumber)) {
+                    global.owner.push(phoneNumber);
+                }
+                global.ownerNumber = phoneNumber; // Set primary owner number
                 global.pairingNumber = phoneNumber;
                 log.action('Owner auto-detected', phoneNumber, { source: 'WhatsApp connection' });
                 console.log(chalk.magenta(`👑 [OWNER] Auto-detected: ${phoneNumber}`));
@@ -263,9 +266,21 @@ const startMantra = async () => {
 
             m = smsg(conn, m, store);
 
-            // Allow owner's own messages if sudo mode is enabled, otherwise skip fromMe
-            const sudoMode = global.isSudoMode ? await global.isSudoMode() : false;
-            if (!m.message || (m.key.fromMe && !sudoMode)) return;
+            // Early logging for debugging (before any filtering)
+            const msgSender = m.sender || 'unknown';
+            console.log(chalk.cyan(`[RAW] Message from: ${msgSender.split('@')[0]} | Type: ${getContentType(m.message)} | FromMe: ${m.key.fromMe}`));
+
+            // Check if sender is owner
+            const senderNumber = msgSender.split('@')[0];
+            const msgIsFromOwner = global.owner.includes(senderNumber);
+
+            // Allow owner messages always, or non-fromMe messages, or fromMe if sudo mode is enabled
+            const { isSudoMode } = await import('./lib/database.js');
+            const sudoMode = await isSudoMode();
+            if (!m.message || (m.key.fromMe && !msgIsFromOwner && !sudoMode)) {
+                console.log(chalk.gray(`[SKIP] Message filtered (fromMe:${m.key.fromMe}, owner:${msgIsFromOwner}, sudo:${sudoMode})`));
+                return;
+            }
 
             // Update presence on each incoming message for instant online status
             try {
@@ -321,7 +336,7 @@ const startMantra = async () => {
                 return '';
             }) : '';
             const groupAdmins = isGroup ? groupMetadata.participants.filter(p => p.admin).map(p => p.id) : [];
-            const isOwner = global.owner.includes(sender.split('@')[0]);
+            const isOwner = global.owner.includes(sender.split('@')[0]) || sender.split('@')[0] === (conn.user?.id ? conn.user.id.split(':')[0] : '');
             const isUserAdmin = groupAdmins.includes(sender);
             const isBotAdmin = groupAdmins.includes(conn.user.id.split(':')[0] + '@s.whatsapp.net');
 

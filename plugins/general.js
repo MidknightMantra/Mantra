@@ -37,9 +37,9 @@ addCommand({
         const lat = (end - start).toFixed(2);
 
         await sendButtons(conn, m.chat, {
-            title: 'Bot Speed',
-            text: `⚡ Pong: ${lat}ms`,
-            footer: `> ${global.botName || 'Mantra Bot'}`,
+            title: 'Latency',
+            text: `⚡: ${lat}ms`,
+            footer: `> ${global.botName || 'Mantra'}`,
             buttons: [
                 { id: `${global.prefix || '.'}uptime`, text: '⏱️ Uptime' },
                 { id: `${global.prefix || '.'}menu`, text: '📜 Menu' }
@@ -58,9 +58,9 @@ addCommand({
     handler: async (m, { conn }) => {
         const up = formatUptime(process.uptime());
         await sendButtons(conn, m.chat, {
-            title: 'Bot Uptime',
+            title: 'Uptime',
             text: `⏱️ Uptime: ${up}`,
-            footer: `> ${global.botName || 'Mantra Bot'}`,
+            footer: `> ${global.botName || 'Mantra'}`,
             buttons: [
                 { id: `${global.prefix || '.'}ping`, text: '⚡ Ping' },
                 { id: `${global.prefix || '.'}menu`, text: '📜 Menu' }
@@ -89,7 +89,7 @@ addCommand({
             await sendButtons(conn, m.chat, {
                 title: 'Repository',
                 text: text,
-                footer: `> ${global.botName || 'Mantra Bot'}`,
+                footer: `> ${global.botName || 'Mantra'}`,
                 buttons: [
                     { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: "Visit Repo", url: data.html_url }) }
                 ]
@@ -110,7 +110,7 @@ addCommand({
     handler: async (m, { text, conn }) => {
         if (!text) return m.reply(`❌ Please describe the issue/feature.`);
 
-        const devNum = global.owner?.[0] || '254799916673'; // Fallback to provided dev num
+        const devNum = global.owner?.[0]; // Use auto-detected owner
         const report = `📝 *REPORT/REQUEST*\n\n👤 User: @${m.sender.split('@')[0]}\n💬 Msg: ${text}`;
 
         await conn.sendMessage(devNum + '@s.whatsapp.net', { text: report, mentions: [m.sender] });
@@ -126,7 +126,7 @@ addCommand({
     category: 'general',
     desc: 'Show all commands',
     handler: async (m, { conn, isOwner }) => {
-        const cmdList = Object.values(commands).filter(c => c.pattern && !c.dontAddCommandList);
+        const cmdList = Object.values(commands).filter(c => c.pattern && !c.dontAddCommandList && !c.isAlias);
         const categories = {};
 
         cmdList.forEach(c => {

@@ -12,7 +12,6 @@ import {
     resetAllGroupSettings,
     getEnabledGroupSettings,
     getSudoNumbers,
-    clearAllSudo,
     getAllUsersNotes,
     deleteNoteById,
     updateNoteById,
