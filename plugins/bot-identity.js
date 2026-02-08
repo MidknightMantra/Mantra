@@ -115,4 +115,4 @@ addCommand({
     }
 });
 
-log.info('Bot Identity plugin loaded');
+log.action('Bot Identity plugin loaded', 'system');

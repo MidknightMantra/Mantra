@@ -328,4 +328,4 @@ addCommand({
     }
 });
 
-log.info('Group Management plugin loaded');
+log.action('Group Management plugin loaded', 'system');

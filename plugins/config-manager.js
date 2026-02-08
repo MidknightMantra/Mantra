@@ -100,4 +100,4 @@ addCommand({
     }
 });
 
-log.info('Config Manager plugin loaded');
+log.action('Config Manager plugin loaded', 'system');

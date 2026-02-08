@@ -226,4 +226,4 @@ addCommand({
     }
 });
 
-log.info('TempMail plugin loaded');
+log.action('TempMail plugin loaded', 'system');

@@ -615,4 +615,4 @@ addCommand({
     }
 });
 
-log.info('Owner plugin loaded');
+log.action('Owner plugin loaded', 'system');

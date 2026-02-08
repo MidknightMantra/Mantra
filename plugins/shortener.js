@@ -90,4 +90,4 @@ addCommand({
     }
 });
 
-log.info('Shortener plugin loaded');
+log.action('Shortener plugin loaded', 'system');

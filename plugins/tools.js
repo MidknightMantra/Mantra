@@ -100,4 +100,4 @@ addCommand({
     }
 });
 
-log.info('Tools plugin loaded (onwa)');
+log.action('Tools plugin loaded (onwa)', 'system');

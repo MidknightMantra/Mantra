@@ -172,4 +172,4 @@ addCommand({
     }
 });
 
-log.info('Protection plugin loaded');
+log.action('Protection plugin loaded', 'system');

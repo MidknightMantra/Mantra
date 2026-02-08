@@ -141,4 +141,4 @@ addCommand({
     handler: async (m, context) => handleUpload(m, context, 'githubcdn')
 });
 
-log.info('Uploader plugin loaded', { commands: 5 });
+log.action('Uploader plugin loaded', 'system', { commands: 5 });

@@ -245,4 +245,4 @@ addCommand({ pattern: 'topscorers', alias: ['scorers'], desc: 'View top goal sco
 addCommand({ pattern: 'standings', alias: ['table'], desc: 'View current league standings', category: 'sports', handler: async (m, { conn }) => handleLeagueCommand(m, conn, 'standings') });
 addCommand({ pattern: 'fixtures', alias: ['upcomingmatches'], desc: 'View upcoming matches', category: 'sports', handler: async (m, { conn }) => handleLeagueCommand(m, conn, 'fixtures') });
 
-log.info('Sports plugin loaded');
+log.action('Sports plugin loaded', 'system');

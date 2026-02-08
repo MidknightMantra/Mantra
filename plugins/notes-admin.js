@@ -86,4 +86,4 @@ addCommand({
     }
 });
 
-log.info('Notes Admin plugin loaded');
+log.action('Notes Admin plugin loaded', 'system');

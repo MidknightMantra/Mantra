@@ -173,4 +173,4 @@ addCommand({
     }
 });
 
-log.info('Scripture plugin loaded (consolidated Bible & Quran)');
+log.action('Scripture plugin loaded (consolidated Bible & Quran)', 'system');

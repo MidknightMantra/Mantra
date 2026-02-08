@@ -359,4 +359,4 @@ addCommand({
     }
 });
 
-log.info('Group management plugin loaded (refactored)', { commands: 14 });
+log.action('Group management plugin loaded (refactored)', 'system', { commands: 14 });

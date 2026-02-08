@@ -83,4 +83,4 @@ addCommand({
     }
 });
 
-log.info('Status Bot plugin loaded');
+log.action('Status Bot plugin loaded', 'system');

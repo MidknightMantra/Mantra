@@ -89,4 +89,4 @@ addCommand({
     }
 });
 
-log.info('Automation plugin loaded');
+log.action('Automation plugin loaded', 'system');

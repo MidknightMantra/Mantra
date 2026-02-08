@@ -207,4 +207,4 @@ addCommand({
     }
 });
 
-log.info('Notes plugin loaded');
+log.action('Notes plugin loaded', 'system');

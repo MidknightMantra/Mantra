@@ -294,10 +294,13 @@ const startMantra = async () => {
                 isButtonResponse = true;
             }
 
-            const isCmd = isButtonResponse || body.startsWith(global.prefix);
+            // Determine if message is a command and extract the used prefix
+            const usedPrefix = isButtonResponse ? '' : (global.prefa.find(p => body.startsWith(p)) || '');
+            const isCmd = isButtonResponse || !!usedPrefix;
+
             const command = isButtonResponse
                 ? body.trim().toLowerCase()
-                : (isCmd ? body.slice(global.prefix.length).trim().split(' ').shift().toLowerCase() : '');
+                : (isCmd ? body.slice(usedPrefix.length).trim().split(' ').shift().toLowerCase() : '');
             const args = body.trim().split(/ +/).slice(1);
             const text = args.join(" ");
             const sender = m.sender;
@@ -405,7 +408,17 @@ const startMantra = async () => {
 
                 if (commands[command]) {
                     console.log(chalk.green(`[CMD] Executing: ${command}`));
-                    await commands[command].handler(m, { conn, args, text, isOwner, isGroup, groupMetadata, isUserAdmin, isBotAdmin });
+                    await commands[command].handler(m, {
+                        conn,
+                        args,
+                        text,
+                        isOwner,
+                        isGroup,
+                        groupMetadata,
+                        isUserAdmin,
+                        isBotAdmin,
+                        botPrefix: usedPrefix || global.prefix // Pass the actual prefix used
+                    });
                 } else {
                     console.log(chalk.yellow(`[WARN] Command "${command}" not found in registry`));
                 }

@@ -99,4 +99,4 @@ addCommand({
     }
 });
 
-log.info('Logo Maker plugin loaded', { count: logoEndpoints.length });
+log.action('Logo Maker plugin loaded', 'system', { count: logoEndpoints.length });

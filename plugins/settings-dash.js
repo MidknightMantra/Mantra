@@ -83,4 +83,4 @@ addCommand({
     }
 });
 
-log.info('Settings Dash plugin loaded');
+log.action('Settings Dash plugin loaded', 'system');

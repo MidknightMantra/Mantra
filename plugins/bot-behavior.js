@@ -125,4 +125,4 @@ addCommand({
     }
 });
 
-log.info('Bot Behavior plugin loaded');
+log.action('Bot Behavior plugin loaded', 'system');
