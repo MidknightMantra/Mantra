@@ -3,6 +3,7 @@ import { log } from './logger.js';
 class GroupCache {
     constructor() {
         this.cache = new Map();
+        this.lidCache = new Map();
     }
 
     /**
@@ -39,6 +40,7 @@ class GroupCache {
     /**
      * Delete a group from cache
      * @param {string} jid 
+     * @returns {void}
      */
     delete(jid) {
         this.cache.delete(jid);
@@ -49,6 +51,7 @@ class GroupCache {
      */
     clear() {
         this.cache.clear();
+        this.lidCache.clear();
         log.info('Group cache cleared');
     }
 
@@ -67,31 +70,29 @@ class GroupCache {
     getAll() {
         return Object.fromEntries(this.cache);
     }
-}
 
-/**
- * Get cached LID mapping
- * @param {string} lid
- * @returns {string|null}
- */
-getLidMapping(lid) {
-    // Implementation based on how LID mapping is stored. 
-    // Assuming mapping might be stored within group metadata or separate cache.
-    // For now, returning null or checking if it's in the cache if adapted.
-    // If the user code expects a separate map, we might need a separate cache.
-    // Let's implement a simple separate map for LIDs.
-    return this.lidCache ? this.lidCache.get(lid) : null;
-}
+    /**
+     * Get cached LID mapping
+     * @param {string} lid
+     * @returns {string|null}
+     */
+    getLidMapping(lid) {
+        return this.lidCache.get(lid) || null;
+    }
 
-setLidMapping(lid, jid) {
-    if (!this.lidCache) this.lidCache = new Map();
-    this.lidCache.set(lid, jid);
-}
+    /**
+     * Set LID mapping
+     * @param {string} lid 
+     * @param {string} jid 
+     */
+    setLidMapping(lid, jid) {
+        this.lidCache.set(lid, jid);
+    }
 }
 
 export const groupCache = new GroupCache();
 
-// Helper to mimic user's previous import structure if needed
+// Helper to mimic user's previous import structure
 export const getGroupMetadata = (jid) => groupCache.get(jid);
 export const cachedGroupMetadata = groupCache;
 export const getLidMapping = (lid) => groupCache.getLidMapping(lid);

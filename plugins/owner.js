@@ -6,8 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import util from 'util';
 import moment from 'moment-timezone';
-import pkgJimp from 'jimp';
-const { Jimp } = pkgJimp;
+import { Jimp } from 'jimp';
 import { groupCache } from '../src/utils/groupCache.js';
 import {
     getAllSettings,

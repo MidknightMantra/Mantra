@@ -7,7 +7,7 @@ const { sendButtons } = pkgButtons;
 import { log } from '../src/utils/logger.js';
 import acrcloud from 'acrcloud';
 import { createSticker, StickerTypes } from '../src/utils/sticker.js';
-import settings from '../config.js'; // Ensure global configs are loaded
+import '../config.js'; // Ensure global configs are loaded
 
 // Re-map createSticker to gmdSticker for consistency with user snippet logic if needed, 
 // or just use createSticker directly.

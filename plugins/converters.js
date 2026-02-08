@@ -1,4 +1,4 @@
-import { gmd, toAudio, toVideo, toPtt, stickerToImage, gmdFancy, gmdRandom, getSetting, runFFmpeg, getVideoDuration, gmdSticker } from "../lib/gift.js";
+import { gmd, toAudio, toVideo, toPtt, stickerToImage, gmdFancy, gmdRandom, getSetting, runFFmpeg, getVideoDuration, gmdSticker } from "../lib/mantra.js";
 import fs from "fs/promises";
 import pkgSticker from "wa-sticker-formatter";
 const { StickerTypes } = pkgSticker;

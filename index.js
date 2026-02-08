@@ -17,7 +17,7 @@ import pino from 'pino';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import qrcode from 'qrcode-terminal';
 
 // Production Infrastructure
@@ -66,7 +66,8 @@ async function loadPlugins() {
 
     for (const file of files) {
         try {
-            await import(`file://${path.join(pluginFolder, file)}`);
+            const pluginPath = path.join(pluginFolder, file);
+            await import(pathToFileURL(pluginPath).href);
             loaded++;
         } catch (e) {
             failed++;
@@ -263,7 +264,7 @@ const startMantra = async () => {
             m = smsg(conn, m, store);
 
             // Allow owner's own messages if sudo mode is enabled, otherwise skip fromMe
-            const sudoMode = global.isSudoMode ? global.isSudoMode() : false;
+            const sudoMode = global.isSudoMode ? await global.isSudoMode() : false;
             if (!m.message || (m.key.fromMe && !sudoMode)) return;
 
             // Update presence on each incoming message for instant online status
@@ -299,8 +300,9 @@ const startMantra = async () => {
             }
 
             // Determine if message is a command and extract the used prefix
-            const usedPrefix = isButtonResponse ? '' : (global.prefa.find(p => body.startsWith(p)) || '');
-            const isCmd = isButtonResponse || !!usedPrefix;
+            const possiblePrefixes = global.prefa || [',', '!', '.', '#', '&'];
+            const usedPrefix = isButtonResponse ? '' : (possiblePrefixes.find(p => p !== '' && body.startsWith(p)) || '');
+            const isCmd = isButtonResponse || (usedPrefix !== '');
 
             const command = isButtonResponse
                 ? body.trim().toLowerCase()
@@ -310,7 +312,14 @@ const startMantra = async () => {
             const sender = m.sender;
             const isGroup = m.isGroup;
 
-            const groupMetadata = isGroup ? await conn.groupMetadata(m.chat) : '';
+            if (body) {
+                console.log(chalk.black.bgWhite(`[MSG] From: ${sender.split('@')[0]} | Body: ${body.substring(0, 60)}${body.length > 60 ? '...' : ''}`));
+            }
+
+            const groupMetadata = isGroup ? await conn.groupMetadata(m.chat).catch(e => {
+                console.log(chalk.yellow(`[WARN] Metadata fetch failed for ${m.chat}: ${e.message}`));
+                return '';
+            }) : '';
             const groupAdmins = isGroup ? groupMetadata.participants.filter(p => p.admin).map(p => p.id) : [];
             const isOwner = global.owner.includes(sender.split('@')[0]);
             const isUserAdmin = groupAdmins.includes(sender);
@@ -411,12 +420,12 @@ const startMantra = async () => {
                 console.log(chalk.cyan(`[DEBUG] Commands available:`, Object.keys(commands).length));
 
                 if (commands[command]) {
-                    console.log(chalk.green(`[CMD] Executing: ${command}`));
+                    console.log(chalk.green(`[CMD] Executing: ${command} (from ${commands[command].filename || 'unknown'})`));
 
                     // Track command usage (Analytics)
                     try {
                         const { default: Analytics } = await import('./lib/analytics.js');
-                        Analytics.track(command, m.sender);
+                        await Analytics.track(command, m.sender);
                     } catch (err) {
                         console.error('Analytics load error:', err);
                     }
@@ -428,12 +437,13 @@ const startMantra = async () => {
                         isOwner,
                         isGroup,
                         groupMetadata,
+                        isAdmin: isUserAdmin || isOwner,
                         isUserAdmin,
                         isBotAdmin,
-                        botPrefix: usedPrefix || global.prefix
+                        botPrefix: usedPrefix || global.prefix || ','
                     });
                 } else {
-                    console.log(chalk.yellow(`[WARN] Command "${command}" not found in registry`));
+                    console.log(chalk.gray(`[INFO] No command found for: "${command}" (Registry size: ${Object.keys(commands).length})`));
                 }
             }
         } catch (err) {

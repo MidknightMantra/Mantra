@@ -1,4 +1,4 @@
-import { gmd } from "../lib/gift.js";
+import { gmd } from "../lib/mantra.js";
 import axios from "axios";
 
 /**
