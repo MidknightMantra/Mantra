@@ -1,4 +1,5 @@
-import { Sticker, StickerTypes } from 'wa-sticker-formatter';
+import pkgSticker from 'wa-sticker-formatter';
+const { Sticker, StickerTypes } = pkgSticker;
 import { log } from './logger.js';
 
 /**

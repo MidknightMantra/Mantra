@@ -149,6 +149,8 @@ export function getMimeType(mediaType) {
     return mimeMap[mediaType] || 'application/octet-stream';
 }
 
+export const downloadMediaMessage = downloadMedia;
+
 export default {
     getMediaType,
     hasMedia,
@@ -156,6 +158,7 @@ export default {
     validateMediaSize,
     validateMediaType,
     downloadMedia,
+    downloadMediaMessage,
     requireMedia,
     getMimeType
 };

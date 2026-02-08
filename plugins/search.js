@@ -1,7 +1,8 @@
 import { addCommand } from '../lib/plugins.js';
 import axios from 'axios';
 import { generateWAMessageContent, generateWAMessageFromContent } from 'gifted-baileys';
-import { sendButtons } from 'gifted-btns';
+import pkgButtons from 'gifted-btns';
+const { sendButtons } = pkgButtons;
 import { log } from '../src/utils/logger.js';
 
 addCommand({

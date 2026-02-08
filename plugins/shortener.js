@@ -1,7 +1,8 @@
 import { addCommand } from '../lib/plugins.js';
 import { log } from '../src/utils/logger.js';
 import axios from 'axios';
-import { sendButtons } from 'gifted-btns';
+import pkgButtons from 'gifted-btns';
+const { sendButtons } = pkgButtons;
 
 const API_URL = global.giftedApiUrl || 'https://api.giftedtech.my.id';
 const API_KEY = global.giftedApiKey || '';

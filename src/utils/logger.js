@@ -51,6 +51,11 @@ if (CONFIG.LOGGING.CONSOLE_LOGGING) {
 
 // Helper methods for common log patterns
 export const log = {
+    // General info
+    info: (message, context = {}) => {
+        logger.info(message, context);
+    },
+
     // Command execution
     command: (commandName, user, success = true) => {
         logger.info('Command executed', {
