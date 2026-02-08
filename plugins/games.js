@@ -1,245 +1,378 @@
 import { addCommand } from '../lib/plugins.js';
 import {
-    createGame, joinGame, getActiveGame, getWaitingGame, makeMove, endGame,
-    createWcgGame, joinWcgGame, startWcgGame, getActiveWcgGame, getWaitingWcgGame, submitWord, endWcgGame,
-    createDiceGame, joinDiceGame, getActiveDiceGame, getWaitingDiceGame, playerRoll, endDiceGame,
-    renderBoard, getPlayerName, findWcgWord, findBestTttMove, getDiceEmoji, formatScores,
-    gameTimeouts, diceTimeouts, wcgTimeouts
+    createGame,
+    joinGame,
+    getActiveGame,
+    getWaitingGame,
+    makeMove,
+    endGame,
+    createWcgGame,
+    joinWcgGame,
+    startWcgGame,
+    getActiveWcgGame,
+    getWaitingWcgGame,
+    submitWord,
+    endWcgGame,
+    createDiceGame,
+    joinDiceGame,
+    getActiveDiceGame,
+    getWaitingDiceGame,
+    playerRoll,
+    endDiceGame,
+    renderBoard,
+    getPlayerName,
+    formatScores,
+    getDiceEmoji
 } from '../lib/games.js';
-import { UI } from '../src/utils/design.js';
-import { react } from '../src/utils/messaging.js';
-
-const BOT_JID = 'bot'; // Logical ID for bot in AI games
+import {
+    clearGameTimeout,
+    clearWcgTimeout,
+    clearDiceTimeout,
+    setMoveTimeout,
+    setWcgTurnTimeout,
+    setDiceTurnTimeout,
+    handleAiTttMove,
+    handleAiWcgMove,
+    handleAiDiceRoll
+} from '../lib/gameHandler.js';
+import { log } from '../src/utils/logger.js';
 
 /**
- * GAMES MENU
+ * 🎮 GAMES MENU
  */
 addCommand({
-    pattern: 'games',
-    alias: ['game', 'gamelist'],
-    category: 'game',
-    desc: 'Show available games and commands',
+    pattern: "games",
+    alias: ["game", "gamelist"],
+    react: "🎮",
+    category: "game",
+    desc: "Show all available games",
     handler: async (m, { conn }) => {
-        const helpText = `🎮 *MANTRA GAMES MENU*\n${global.divider}\n\n` +
-            `❌⭕ *TIC TAC TOE*\n` +
-            `✦ .ttt - Start game (multiplayer)\n` +
-            `✦ .tttai - Play vs AI 🤖\n` +
-            `✦ .tttend - End game\n` +
-            `_Type *join* & *1-9* to play_\n\n` +
-            `🔤 *WORD CHAIN*\n` +
-            `✦ .wcg - Start game (multiplayer)\n` +
-            `✦ .wcgai - Play vs AI 🤖\n` +
-            `✦ .wcgend - End game\n\n` +
-            `🎲 *DICE GAME*\n` +
-            `✦ .dice [rounds] - Start game\n` +
-            `✦ .diceai - vs AI 🤖\n\n` +
-            `> AI modes let you play solo!`;
+        const helpText = `🎮 *MANTRA GAMES*
 
-        await m.reply(helpText);
+╭━━━━━━━━━━━━━━━━━╮
+│ ❌⭕ *TIC TAC TOE*
+├━━━━━━━━━━━━━━━━━┤
+│ .ttt - Start (vs player)
+│ .tttai - Play vs AI 🤖
+│ .tttend - End game
+│ _Type "join" to join_
+│ _Type "1-9" to move_
+╰━━━━━━━━━━━━━━━━━╯
+
+╭━━━━━━━━━━━━━━━━━╮
+│ 🔤 *WORD CHAIN*
+├━━━━━━━━━━━━━━━━━┤
+│ .wcg - Start (multiplayer)
+│ .wcgai - Play vs AI 🤖
+│ .wcgbegin - Start (host)
+│ .wcgend - End game
+│ .wcgscores - Scores
+╰━━━━━━━━━━━━━━━━━╯
+
+╭━━━━━━━━━━━━━━━━━╮
+│ 🎲 *DICE GAME*
+├━━━━━━━━━━━━━━━━━┤
+│ .dice [rounds] - Start
+│ .diceai [rounds] - vs AI 🤖
+│ .diceend - End game
+│ _Type ".roll" to roll_
+╰━━━━━━━━━━━━━━━━━╯`;
+        await conn.sendMessage(m.chat, { text: helpText }, { quoted: m });
     }
 });
 
-// --- TIC TAC TOE ---
-
+/**
+ * ❌⭕ TIC-TAC-TOE
+ */
 addCommand({
-    pattern: 'ttt',
-    alias: ['tictactoe'],
-    category: 'game',
-    desc: 'Play TicTacToe with a friend',
-    handler: async (m, { conn }) => {
-        if (await getActiveGame(m.chat)) return m.reply(UI.error('Active Game', 'A game is already in progress. Use .tttend to end it.'));
-        if (await getWaitingGame(m.chat)) return m.reply(UI.error('Waiting', 'A game is waiting for a player. Type "join" to play.'));
+    pattern: "ttt",
+    alias: ["tictactoe"],
+    react: "🎮",
+    category: "game",
+    desc: "Start TicTacToe",
+    handler: async (m, { conn, isGroup }) => {
+        if (!isGroup) return m.reply(global.messages.group);
 
-        await createGame(m.chat, m.sender, m.key.id);
-        await m.reply(`🎮 *TIC TAC TOE*\n\n@${m.sender.split('@')[0]} wants to play!\n\n*Type "join" within 30s to play!*\n\n${renderBoard([1, 2, 3, 4, 5, 6, 7, 8, 9])}`);
+        if (await getActiveGame(m.chat) || await getWaitingGame(m.chat)) {
+            return m.reply("❌ Game already active! Use .tttend to stop.");
+        }
 
+        await createGame(m.chat, m.sender, m.key);
+
+        await conn.sendMessage(m.chat, {
+            text: `🎮 *TIC TAC TOE*\n\n@${getPlayerName(m.sender)} wants to play!\nType *join* within 30s to play!\n\n${renderBoard([1, 2, 3, 4, 5, 6, 7, 8, 9])}`,
+            mentions: [m.sender]
+        });
+
+        // Set join timeout
         const timeout = setTimeout(async () => {
             if (await getWaitingGame(m.chat)) {
                 await endGame(m.chat);
-                await conn.sendMessage(m.chat, { text: `⏰ *TTT THREAD EXPIRED*\nNo one joined. Game cancelled.` });
+                await conn.sendMessage(m.chat, { text: "⏰ TTT Join Timeout! Game cancelled." });
             }
         }, 30000);
-        gameTimeouts.set(m.chat, timeout);
+        // We'd normally store this in gameTimeouts but gameHandler handles turn timeouts
     }
 });
 
 addCommand({
-    pattern: 'tttai',
-    category: 'game',
-    desc: 'Play TicTacToe vs AI',
-    handler: async (m, { conn }) => {
-        if (await getActiveGame(m.chat)) return m.reply(UI.error('Active Game', 'A game is already in progress.'));
-        await createGame(m.chat, m.sender, m.key.id, true);
-        await m.reply(`🤖 *TTT vs AI*\n\nPlayer: @${m.sender.split('@')[0]} (❌)\nAI: Mantra 🤖 (⭕)\n\n${renderBoard([1, 2, 3, 4, 5, 6, 7, 8, 9])}\n\n*Your move (1-9)!*`);
+    pattern: "tttai",
+    react: "🤖",
+    category: "game",
+    desc: "Play TTT vs AI",
+    handler: async (m, { conn, isGroup }) => {
+        if (!isGroup) return m.reply(global.messages.group);
+        if (await getActiveGame(m.chat)) return m.reply("❌ Game active!");
+
+        await createGame(m.chat, m.sender, m.key, true);
+        const game = await getActiveGame(m.chat);
+
+        await conn.sendMessage(m.chat, {
+            text: `🤖 *TTT vs AI STARTED!*\n\n${renderBoard(JSON.parse(game.board))}\n\n@${getPlayerName(m.sender)}, your move! (1-9)`,
+            mentions: [m.sender]
+        });
     }
 });
 
+// Listener for TTT moves & joins (on body)
 addCommand({
-    pattern: 'tttend',
-    category: 'game',
-    desc: 'End active TicTacToe game',
-    handler: async (m, { conn }) => {
-        const game = await getActiveGame(m.chat) || await getWaitingGame(m.chat);
-        if (!game) return m.reply(UI.error('No Game', 'No TicTacToe game active here.'));
+    on: "body",
+    handler: async (m, { conn, body, isGroup }) => {
+        if (!isGroup) return;
+        const text = body.toLowerCase().trim();
 
-        await endGame(m.chat);
-        await m.reply(`🛑 Game terminated by @${m.sender.split('@')[0]}`);
-    }
-});
+        // JOIN TTT
+        if (text === 'join') {
+            const result = await joinGame(m.chat, m.sender);
+            if (result) {
+                if (result.error) return m.reply(result.error === 'same_player' ? "❌ Play with someone else!" : "");
 
-// --- WORD CHAIN ---
-
-addCommand({
-    pattern: 'wcg',
-    alias: ['wordchain'],
-    category: 'game',
-    desc: 'Start Word Chain game',
-    handler: async (m, { conn }) => {
-        if (await getActiveWcgGame(m.chat)) return m.reply(UI.error('Active Game', 'WCG in progress.'));
-        await createWcgGame(m.chat, m.sender);
-        await m.reply(`🔤 *WORD CHAIN*\n\n@${m.sender.split('@')[0]} started a lobby.\n\n*Type .wcgjoin to join!*\n*Host types .wcgbegin to start!*`);
-    }
-});
-
-addCommand({
-    pattern: 'wcgjoin',
-    category: 'game',
-    desc: 'Join Word Chain game',
-    handler: async (m, { conn }) => {
-        const res = await joinWcgGame(m.chat, m.sender);
-        if (res.error) return m.reply(UI.error('Join Failed', res.error.replace(/_/g, ' ')));
-        await m.reply(`✅ @${m.sender.split('@')[0]} joined! Total players: ${res.players.length}`);
-    }
-});
-
-addCommand({
-    pattern: 'wcgbegin',
-    category: 'game',
-    desc: 'Start the WCG lobby',
-    handler: async (m, { conn }) => {
-        const res = await startWcgGame(m.chat);
-        if (res.error) return m.reply(UI.error('Start Failed', res.error.replace(/_/g, ' ')));
-        await m.reply(`🚀 *WORD CHAIN STARTED!*\n\n🔄 @${res.currentTurn.split('@')[0]}'s turn!\n*Say any word to start!*`);
-    }
-});
-
-addCommand({
-    pattern: 'wcgend',
-    category: 'game',
-    desc: 'End WCG game',
-    handler: async (m, { conn }) => {
-        const scores = await endWcgGame(m.chat);
-        await m.reply(`🛑 Game Over!\n\n📊 *Final Scores:*\n${formatScores(scores)}`);
-    }
-});
-
-// --- DICE GAME ---
-
-addCommand({
-    pattern: 'dice',
-    category: 'game',
-    desc: 'Start a Dice game',
-    handler: async (m, { conn, args }) => {
-        if (await getActiveDiceGame(m.chat)) return m.reply(UI.error('Active Game', 'Dice game in progress.'));
-        const rounds = parseInt(args[0]) || 3;
-        await createDiceGame(m.chat, m.sender, rounds);
-        await m.reply(`🎲 *DICE GAME*\n\n@${m.sender.split('@')[0]} wants to roll! (${rounds} rounds)\n\n*Type .dicejoin to play!*`);
-    }
-});
-
-addCommand({
-    pattern: 'dicejoin',
-    category: 'game',
-    desc: 'Join dice game',
-    handler: async (m, { conn }) => {
-        const game = await joinDiceGame(m.chat, m.sender);
-        if (game.error) return m.reply(UI.error('Join Failed', game.error));
-        await m.reply(`🎲 *DICE STARTED!*\n\n👤 @${game.player1.split('@')[0]} vs @${game.player2.split('@')[0]}\n\n*Round 1*\n@${game.player1.split('@')[0]}, type .roll!`);
-    }
-});
-
-addCommand({
-    pattern: 'roll',
-    category: 'game',
-    desc: 'Roll in dice game',
-    handler: async (m, { conn }) => {
-        const res = await playerRoll(m.chat, m.sender);
-        if (res.error) return m.reply(UI.error('Invalid Roll', res.error.replace(/_/g, ' ')));
-
-        if (res.roundComplete) {
-            let msg = `🎲 *Round ${res.currentRound} Results*\n\n` +
-                `${getDiceEmoji(res.player1Roll)} @${res.player1.split('@')[0]}: ${res.player1Roll}\n` +
-                `${getDiceEmoji(res.player2Roll)} @${res.player2.split('@')[0]}: ${res.player2Roll}\n\n`;
-
-            if (res.roundWinner) msg += `🏆 @${res.roundWinner.split('@')[0]} wins round!\n`;
-            else msg += `🤝 Draw!\n`;
-
-            msg += `\n📊 *Score:* ${res.player1Score} - ${res.player2Score}`;
-
-            if (res.gameFinished) {
-                msg += `\n\n🎮 *GAME OVER!*\n` + (res.gameWinner ? `🏆 WINNER: @${res.gameWinner.split('@')[0]}` : `🤝 It's a tie!`);
-                await endDiceGame(m.chat);
-            } else {
-                msg += `\n\n*Round ${res.nextRound}*\n@${res.player1.split('@')[0]}, it's your turn!`;
+                await conn.sendMessage(m.chat, {
+                    text: `🎮 *GAME STARTED!*\n\n❌ @${getPlayerName(result.player1)}\n⭕ @${getPlayerName(result.player2)}\n\n${renderBoard(JSON.parse(result.board))}\n\n@${getPlayerName(result.player1)}'s turn!`,
+                    mentions: [result.player1, result.player2]
+                });
+                setMoveTimeout(m.chat, conn, result.player1);
+                return;
             }
-            await m.reply(msg);
-        } else {
-            await m.reply(`🎲 @${m.sender.split('@')[0]} rolled: ${getDiceEmoji(res.roll)} *${res.roll}*\n\n@${res.waitingFor.split('@')[0]}, your turn!`);
         }
-    }
-});
 
-// --- HOOK INTO CORE FOR GAMEPLAY (Auto-join/moves) ---
-// This would usually be in listeners.js, but since it's game specific, 
-// we register a generic word/number handler in lib/games.js logic if possible
-// or expect the user to use commands. For now, we support .roll, .w (for wcg), and numbers via a global catch-all.
-// Note: In Mantra, we'll keep it via commands for cleaner architecture.
+        // TTT MOVE (1-9)
+        if (/^[1-9]$/.test(text)) {
+            const game = await getActiveGame(m.chat);
+            if (!game || game.currentTurn !== m.sender) return;
 
-addCommand({
-    pattern: 'w',
-    alias: ['word'],
-    category: 'game',
-    desc: 'Submit word in WCG',
-    handler: async (m, { conn, text }) => {
-        const res = await submitWord(m.chat, m.sender, text);
-        if (res.error) return m.reply(UI.error('Invalid Word', res.error.replace(/_/g, ' ')));
+            const result = await makeMove(m.chat, m.sender, text);
+            if (result.error) return m.reply("❌ Invalid move!");
 
-        const nextLetter = res.word.slice(-1).toUpperCase();
-        await m.reply(`✅ *${res.word.toUpperCase()}* (+${res.word.length} pts)\n\n🔄 @${res.nextPlayer.split('@')[0]}'s turn\nNext word starts with: *${nextLetter}*`);
-    }
-});
+            clearGameTimeout(m.chat);
+            const board = JSON.parse(result.board);
 
-addCommand({
-    pattern: 'move',
-    alias: ['m'],
-    category: 'game',
-    desc: 'Make move in TTT',
-    handler: async (m, { conn, text }) => {
-        const res = await makeMove(m.chat, m.sender, text);
-        if (res.error) return m.reply(UI.error('Invalid Move', res.error.replace(/_/g, ' ')));
-
-        const board = JSON.parse(res.board);
-        if (res.winner) {
-            const msg = `🎮 *TIC TAC TOE*\n\n${renderBoard(board)}\n\n` +
-                (res.winner === 'draw' ? `🤝 *DRAW!*` : `🏆 *WINNER:* @${res.winner.split('@')[0]}!`);
-            await m.reply(msg);
-        } else {
-            await m.reply(`🎮 *TIC TAC TOE*\n\n${renderBoard(board)}\n\n🔄 @${res.currentTurn.split('@')[0]}'s turn!`);
+            if (result.winner) {
+                let msg = `🎮 *TIC TAC TOE*\n\n${renderBoard(board)}\n\n`;
+                msg += result.winner === 'draw' ? "🤝 *It's a draw!*" : `🏆 @${getPlayerName(result.winner)} WINS!`;
+                await conn.sendMessage(m.chat, { text: msg, mentions: [result.winner] });
+                return;
+            }
 
             // AI Move
-            if (res.isAi && res.currentTurn === 'bot') {
-                const aiMove = findBestTttMove(board);
-                const aiRes = await makeMove(m.chat, 'bot', aiMove);
-                const aiBoard = JSON.parse(aiRes.board);
-
-                let aiMsg = `🤖 AI moves to ${aiMove}...\n\n${renderBoard(aiBoard)}\n\n`;
-                if (aiRes.winner) {
-                    aiMsg += (aiRes.winner === 'draw' ? `🤝 *DRAW!*` : `🏆 *AI WINS!* Better luck next time.`);
-                } else {
-                    aiMsg += `🔄 Your turn @${m.sender.split('@')[0]}!`;
-                }
-                await m.reply(aiMsg);
+            if (game.isAi && result.currentTurn === 'bot') {
+                await conn.sendMessage(m.chat, { text: `${renderBoard(board)}\n\n🤖 AI is thinking...` });
+                await handleAiTttMove(m.chat, conn, result);
+                return;
             }
+
+            await conn.sendMessage(m.chat, {
+                text: `${renderBoard(board)}\n\n@${getPlayerName(result.currentTurn)}'s turn!`,
+                mentions: [result.currentTurn]
+            });
+            setMoveTimeout(m.chat, conn, result.currentTurn);
         }
+    }
+});
+
+addCommand({
+    pattern: "tttend",
+    alias: ["stoptictactoe"],
+    react: "🛑",
+    category: "game",
+    desc: "End TTT game",
+    handler: async (m) => {
+        const game = await getActiveGame(m.chat) || await getWaitingGame(m.chat);
+        if (!game) return m.reply("❌ No game active.");
+        clearGameTimeout(m.chat);
+        await endGame(m.chat);
+        m.reply("🛑 Game ended.");
+    }
+});
+
+/**
+ * 🔤 WORD CHAIN GAME
+ */
+addCommand({
+    pattern: "wcg",
+    react: "🔤",
+    category: "game",
+    desc: "Start Word Chain",
+    handler: async (m, { conn, isGroup }) => {
+        if (!isGroup) return m.reply(global.messages.group);
+        if (await getActiveWcgGame(m.chat)) return m.reply("❌ Word Chain active!");
+
+        await createWcgGame(m.chat, m.sender);
+        await conn.sendMessage(m.chat, {
+            text: `🔤 *WORD CHAIN*\n\n@${getPlayerName(m.sender)} started a game!\nType *.wcgjoin* to join.\nHost type *.wcgbegin* to start.`,
+            mentions: [m.sender]
+        });
+    }
+});
+
+addCommand({
+    pattern: "wcgjoin",
+    react: "✅",
+    category: "game",
+    desc: "Join WCG",
+    handler: async (m) => {
+        const res = await joinWcgGame(m.chat, m.sender);
+        if (res.error) return m.reply(`❌ ${res.error}`);
+        m.reply(`✅ Joined! Total players: ${res.players.length}`);
+    }
+});
+
+addCommand({
+    pattern: "wcgbegin",
+    react: "🚀",
+    category: "game",
+    desc: "Start WCG turns",
+    handler: async (m, { conn }) => {
+        const res = await startWcgGame(m.chat);
+        if (res.error) return m.reply(`❌ ${res.error}`);
+
+        await conn.sendMessage(m.chat, {
+            text: `🚀 *WORD CHAIN STARTED!*\n\n@${getPlayerName(res.currentTurn)}, start with any word!\n⏰ 30s per turn.`,
+            mentions: [res.currentTurn]
+        });
+        setWcgTurnTimeout(m.chat, conn, res.currentTurn);
+    }
+});
+
+addCommand({
+    pattern: "w",
+    alias: ["word"],
+    category: "game",
+    desc: "Submit word in WCG",
+    handler: async (m, { conn, text }) => {
+        if (!text) return;
+        const res = await submitWord(m.chat, m.sender, text);
+        if (res.error) return m.reply(`❌ ${res.error}`);
+
+        clearWcgTimeout(m.chat);
+        await conn.sendMessage(m.chat, {
+            text: `✅ *${res.word.toUpperCase()}*\n\n🔄 @${getPlayerName(res.nextPlayer)}'s turn\nLast letter: *${res.word.slice(-1).toUpperCase()}*`,
+            mentions: [res.nextPlayer]
+        });
+        setWcgTurnTimeout(m.chat, conn, res.nextPlayer);
+    }
+});
+
+addCommand({
+    pattern: "wcgscores",
+    react: "📊",
+    category: "game",
+    desc: "Show WCG scores",
+    handler: async (m) => {
+        const game = await getActiveWcgGame(m.chat);
+        if (!game) return m.reply("❌ No active WCG.");
+        m.reply(`📊 *SCORES*\n\n${formatScores(game.scores)}`);
+    }
+});
+
+addCommand({
+    pattern: "wcgend",
+    react: "🛑",
+    category: "game",
+    handler: async (m) => {
+        clearWcgTimeout(m.chat);
+        const scores = await endWcgGame(m.chat);
+        m.reply(`🛑 WCG Ended.\n\n📊 *Final Scores:*\n${formatScores(scores)}`);
+    }
+});
+
+/**
+ * 🎲 DICE GAME
+ */
+addCommand({
+    pattern: "dice",
+    react: "🎲",
+    category: "game",
+    desc: "Start Dice game",
+    handler: async (m, { conn, text, isGroup }) => {
+        if (!isGroup) return m.reply(global.messages.group);
+        const rounds = parseInt(text) || 3;
+        await createDiceGame(m.chat, m.sender, rounds);
+        m.reply(`🎲 *DICE GAME*\n\n@${getPlayerName(m.sender)} wants to play ${rounds} rounds!\nType *.dicejoin* to join.`);
+    }
+});
+
+addCommand({
+    pattern: "dicejoin",
+    react: "✅",
+    category: "game",
+    handler: async (m, { conn }) => {
+        const res = await joinDiceGame(m.chat, m.sender);
+        if (res.error) return m.reply(`❌ ${res.error}`);
+
+        await conn.sendMessage(m.chat, {
+            text: `🎲 *GAME STARTED!*\n\n@${getPlayerName(res.player1)} vs @${getPlayerName(res.player2)}\n\n@${getPlayerName(res.player1)}, type *.roll*!`,
+            mentions: [res.player1, res.player2]
+        });
+        setDiceTurnTimeout(m.chat, conn, res.player1);
+    }
+});
+
+addCommand({
+    pattern: "roll",
+    react: "🎲",
+    category: "game",
+    handler: async (m, { conn }) => {
+        const res = await playerRoll(m.chat, m.sender);
+        if (res.error) return; // Silent error for wrong turn
+
+        clearDiceTimeout(m.chat);
+
+        if (res.roundComplete) {
+            let text = `🎲 *Round ${res.currentRound} Results*\n\n` +
+                `👤 @${getPlayerName(res.player1)}: ${getDiceEmoji(res.player1Roll)} ${res.player1Roll}\n` +
+                `👤 @${getPlayerName(res.player2)}: ${getDiceEmoji(res.player2Roll)} ${res.player2Roll}\n\n`;
+
+            if (res.roundWinner) text += `🏆 @${getPlayerName(res.roundWinner)} wins round!`;
+            else text += "🤝 Tie!";
+
+            text += `\n📊 Score: ${res.player1Score} - ${res.player2Score}`;
+
+            if (res.gameFinished) {
+                text += `\n\n🎮 *GAME OVER!*\nWinner: @${getPlayerName(res.gameWinner || 'Draw')}`;
+                await endDiceGame(m.chat);
+            } else {
+                text += `\n\n*Round ${res.nextRound}*\n@${getPlayerName(res.player1)}, roll!`;
+                setDiceTurnTimeout(m.chat, conn, res.player1);
+            }
+            await conn.sendMessage(m.chat, { text, mentions: [res.player1, res.player2, res.roundWinner, res.gameWinner].filter(Boolean) });
+        } else {
+            await conn.sendMessage(m.chat, {
+                text: `🎲 @${getPlayerName(m.sender)} rolled ${getDiceEmoji(res.roll)} ${res.roll}!\n\n@${getPlayerName(res.waitingFor)}, your turn!`,
+                mentions: [res.waitingFor]
+            });
+            setDiceTurnTimeout(m.chat, conn, res.waitingFor);
+        }
+    }
+});
+
+addCommand({
+    pattern: "diceend",
+    react: "🛑",
+    category: "game",
+    handler: async (m) => {
+        clearDiceTimeout(m.chat);
+        await endDiceGame(m.chat);
+        m.reply("🛑 Dice game ended.");
     }
 });

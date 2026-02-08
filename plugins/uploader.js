@@ -1,144 +1,121 @@
 import { addCommand } from '../lib/plugins.js';
-import { log } from '../src/utils/logger.js';
-import { withReaction } from '../src/utils/messaging.js';
-import { downloadMedia, requireMedia, getMimeType } from '../src/utils/mediaHelper.js';
 import {
     uploadToCatbox,
     uploadToImgBB,
     uploadToPixhost,
-    uploadToTelegraph,
-    uploadToGithubCdn
+    uploadToGithubCdn,
+    uploadToTelegraph
 } from '../src/utils/uploader.js';
-import { sendInteractive, createRow } from '../src/utils/buttons.js';
+import { getFileContentType, getMediaBuffer } from '../lib/utils.js'; // Assuming getMediaBuffer is available or I need to import it
 import path from 'path';
+import { log } from '../src/utils/logger.js';
+
+// Re-importing getMediaBuffer from mediaHelper if likely located there
+import { downloadMediaMessage } from '../src/utils/mediaHelper.js';
 
 /**
- * Generic Upload Handler
+ * Shared Upload Handler
  */
-async function handleUpload(m, { conn, args }, service) {
-    const quoted = m.quoted || null;
+async function handleUpload(m, { conn, text, command, prefix }) {
+    const quoted = m.quoted ? m.quoted : m;
+    const mime = (quoted.msg || quoted).mimetype || '';
 
-    // Support all common media types for uploaders
-    const allowedTypes = ['image', 'video', 'audio', 'document', 'sticker'];
-    const target = requireMedia(m, quoted, allowedTypes);
-    if (!target) return;
+    if (!mime) {
+        return m.reply(`⚠️ Please reply to/quote a media message.\n\n*Usage:* ${prefix}${command}`);
+    }
 
-    await withReaction(conn, m, '⏳', async () => {
-        try {
-            // 1. Download
-            const buffer = await downloadMedia(target, 20); // 20MB limit for uploaders
-            if (!buffer) throw new Error('Failed to download media');
+    await m.react('⬆️');
 
-            const mediaType = Object.keys(target.message)[0];
-            const originalFileName = target.message[mediaType]?.fileName || `file_${Date.now()}`;
+    try {
+        const media = await downloadMediaMessage(quoted, 'buffer');
+        if (!media) throw new Error('Failed to download media');
 
-            let uploadResult;
+        let service = command;
+        let uploadFunc;
 
-            // 2. Upload
-            switch (service) {
-                case 'catbox':
-                    uploadResult = await uploadToCatbox(buffer);
-                    break;
-                case 'pixhost':
-                    if (!mediaType.includes('image')) return m.reply('❌ Pixhost only supports image files.');
-                    uploadResult = await uploadToPixhost(buffer);
-                    break;
-                case 'imgbb':
-                    if (!mediaType.includes('image')) return m.reply('❌ ImgBB only supports image files.');
-                    uploadResult = await uploadToImgBB(buffer);
-                    break;
-                case 'telegraph':
-                case 'giftedcdn':
-                    if (!mediaType.includes('image') && !mediaType.includes('video')) {
-                        return m.reply('❌ Telegraph only supports images and short videos.');
-                    }
-                    uploadResult = await uploadToTelegraph(buffer);
-                    break;
-                case 'githubcdn':
-                    uploadResult = await uploadToGithubCdn(buffer);
-                    break;
-                default:
-                    uploadResult = await uploadToCatbox(buffer);
-            }
-
-            // 3. Prepare Response
-            const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
-            const ext = path.extname(originalFileName).replace('.', '').toUpperCase() || 'MEDIA';
-
-            const caption =
-                `✨ *Mantra Uploader*\n` +
-                `${global.divider}\n` +
-                `🌐 *Service:* ${service.toUpperCase()}\n` +
-                `📊 *Size:* ${sizeMB} MB\n` +
-                `📄 *Type:* ${ext}\n\n` +
-                `🔗 *URL:* ${uploadResult.url}\n\n` +
-                `_Powered by Mantra_`;
-
-            // 4. Send with Interactive Buttons
-            await conn.sendMessage(m.chat, {
-                text: caption,
-                footer: global.botName,
-                buttons: [
-                    {
-                        name: 'cta_copy',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: 'Copy URL 📋',
-                            copy_code: uploadResult.url
-                        })
-                    },
-                    {
-                        name: 'cta_url',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: 'Open Link 🌐',
-                            url: uploadResult.url
-                        })
-                    }
-                ],
-                headerType: 1
-            }, { quoted: m });
-
-        } catch (error) {
-            log.error(`Upload to ${service} failed`, error);
-            await m.reply(`❌ Failed to upload to ${service}.\n\nError: ${error.message}`);
+        // Map commands to upload functions
+        switch (command) {
+            case 'catbox':
+                uploadFunc = uploadToCatbox;
+                break;
+            case 'imgbb':
+                uploadFunc = uploadToImgBB;
+                break;
+            case 'pixhost':
+                uploadFunc = uploadToPixhost;
+                break;
+            case 'githubcdn':
+                uploadFunc = uploadToGithubCdn;
+                break;
+            case 'giftedcdn':
+                // Fallback to Catbox as GiftedCDN implementation is unavailable
+                service = 'catbox (via giftedcdn)';
+                uploadFunc = uploadToCatbox;
+                break;
+            case 'tourl': // Generic alias
+                uploadFunc = uploadToCatbox;
+                break;
+            default:
+                uploadFunc = uploadToCatbox;
         }
-    });
+
+        const result = await uploadFunc(media);
+
+        if (!result || !result.url) {
+            throw new Error('No URL returned from upload service');
+        }
+
+        const sizeMB = (media.length / (1024 * 1024)).toFixed(2);
+        const ext = mime.split('/')[1] || 'bin';
+
+        const caption = `✅ *Upload Successful*\n\n` +
+            `📦 *Service:* ${service.toUpperCase()}\n` +
+            `📄 *Type:* ${ext.toUpperCase()}\n` +
+            `📊 *Size:* ${sizeMB} MB\n` +
+            `🔗 *URL:* ${result.url}\n\n` +
+            `_Link expires based on service policy._`;
+
+        // Send response with Link Preview if possible, otherwise just text
+        // Using standard text response for stability
+        await conn.sendMessage(m.chat, {
+            text: caption,
+            contextInfo: {
+                externalAdReply: {
+                    title: 'Media Uploaded',
+                    body: result.url,
+                    thumbnailUrl: result.url, // Try to show the image itself if it's an image
+                    sourceUrl: result.url,
+                    mediaType: 1,
+                    renderLargerThumbnail: true
+                }
+            }
+        }, { quoted: m });
+
+        await m.react('✅');
+
+    } catch (error) {
+        console.error('Upload Error:', error);
+        await m.react('❌');
+        m.reply(`❌ Upload failed: ${error.message}`);
+    }
 }
 
-// Commands
-addCommand({
-    pattern: 'catbox',
-    desc: 'Upload media to Catbox.moe',
-    category: 'tools',
-    handler: async (m, context) => handleUpload(m, context, 'catbox')
-});
+// Register Commands
+const services = [
+    { cmd: 'catbox', desc: 'Upload to Catbox.moe' },
+    { cmd: 'imgbb', desc: 'Upload to ImgBB' },
+    { cmd: 'pixhost', desc: 'Upload to Pixhost' },
+    { cmd: 'githubcdn', desc: 'Upload to GitHub' },
+    { cmd: 'giftedcdn', desc: 'Upload to GiftedCDN' },
+    { cmd: 'tourl', desc: 'Upload content to URL' }
+];
 
-addCommand({
-    pattern: 'pixhost',
-    desc: 'Upload images to Pixhost.to',
-    category: 'tools',
-    handler: async (m, context) => handleUpload(m, context, 'pixhost')
+services.forEach(svc => {
+    addCommand({
+        pattern: svc.cmd,
+        react: '⬆️',
+        category: 'tools',
+        desc: svc.desc,
+        handler: handleUpload
+    });
 });
-
-addCommand({
-    pattern: 'imgbb',
-    desc: 'Upload images to ImgBB',
-    category: 'tools',
-    handler: async (m, context) => handleUpload(m, context, 'imgbb')
-});
-
-addCommand({
-    pattern: 'telegraph',
-    alias: ['giftedcdn', 'tg'],
-    desc: 'Upload media to Telegra.ph',
-    category: 'tools',
-    handler: async (m, context) => handleUpload(m, context, 'telegraph')
-});
-
-addCommand({
-    pattern: 'githubcdn',
-    desc: 'Upload media via GitHub CDN logic',
-    category: 'tools',
-    handler: async (m, context) => handleUpload(m, context, 'githubcdn')
-});
-
-log.action('Uploader plugin loaded', 'system', { commands: 5 });

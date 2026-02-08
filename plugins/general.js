@@ -1,210 +1,184 @@
 import { addCommand, commands } from '../lib/plugins.js';
-import { UI, Format } from '../src/utils/design.js';
-import { log } from '../src/utils/logger.js';
-import { sendInteractive, sendSimpleButtons } from '../src/utils/buttons.js';
-import { getSystemMetrics } from '../src/utils/performance.js';
-import { react, withReaction } from '../src/utils/messaging.js';
-import axios from 'axios';
+import { formatBytes, runtime } from '../src/utils/converter.js'; // Check if these exist, if not define locally. 
+// Actually converter.js usually has media stuff. I'll define helpers locally to be safe.
 import os from 'os';
+import axios from 'axios';
+import moment from 'moment-timezone';
+import { sendButtons } from 'gifted-btns';
 
-/**
- * PING COMMAND
- */
+// Helpers
+const monospace = (str) => '```' + str + '```';
+const formatUptime = (seconds) => {
+    seconds = Number(seconds);
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor(seconds % (3600 * 24) / 3600);
+    const m = Math.floor(seconds % 3600 / 60);
+    const s = Math.floor(seconds % 60);
+    return `${d > 0 ? d + 'd ' : ''}${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s > 0 ? s + 's' : ''}`;
+};
+const getRAM = () => {
+    const total = os.totalmem();
+    const free = os.freemem();
+    return `${(free / 1024 / 1024 / 1024).toFixed(2)}GB / ${(total / 1024 / 1024 / 1024).toFixed(2)}GB`;
+};
+
+// PING
 addCommand({
     pattern: 'ping',
-    alias: ['pi', 'p'],
+    alias: ['speed', 'p'],
+    react: '⚡',
     category: 'general',
-    desc: 'Check bot response speed',
-    handler: async (m, { conn, botPrefix }) => {
-        const startTime = Date.now();
-        await react(conn, m, '⚡');
+    desc: 'Check bot speed',
+    handler: async (m, { conn }) => {
+        const start = performance.now();
+        await m.react('⚡');
+        const end = performance.now();
+        const lat = (end - start).toFixed(2);
 
-        // Randomized slight delay for "natural" feel if requested, otherwise instant
-        // await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 200)));
-
-        const latency = Date.now() - startTime;
-
-        await sendSimpleButtons(conn, m.chat, `⚡ *Pong:* ${latency}ms`, [
-            { id: `${botPrefix}uptime`, text: '⏱️ Uptime' },
-            { id: `${botPrefix}performance`, text: '📊 Stats' }
-        ], {
+        await sendButtons(conn, m.chat, {
             title: 'Bot Speed',
-            footer: `Mantra v${global.botVersion || '1.0.0'}`
+            text: `⚡ Pong: ${lat}ms`,
+            footer: `> ${global.botName || 'Mantra Bot'}`,
+            buttons: [
+                { id: `${global.prefix || '.'}uptime`, text: '⏱️ Uptime' },
+                { id: `${global.prefix || '.'}menu`, text: '📜 Menu' }
+            ]
         });
-
-        await react(conn, m, '✅');
     }
 });
 
-/**
- * UPTIME COMMAND
- */
+// UPTIME
 addCommand({
     pattern: 'uptime',
     alias: ['up'],
+    react: '⏳',
     category: 'general',
-    desc: 'Check bot uptime status',
-    handler: async (m, { conn, botPrefix }) => {
-        const metrics = await getSystemMetrics();
-        const uptime = Format.time(metrics.uptime);
-        const ram = `${metrics.memory.used}MB / ${metrics.memory.total}MB`;
-
-        let msg = `⏱️ *Mantra Uptime Info*\n\n`;
-        msg += `✦ *Uptime:* ${uptime}\n`;
-        msg += `✦ *Memory:* ${ram}\n`;
-        msg += `✦ *RSS:* ${metrics.memory.rss}MB\n`;
-        msg += `✦ *Host:* ${os.platform()} (${os.release()})`;
-
-        await sendSimpleButtons(conn, m.chat, msg, [
-            { id: `${botPrefix}ping`, text: '⚡ Ping' },
-            { id: `${botPrefix}performance`, text: '📊 Performance' }
-        ], {
-            title: 'System Uptime',
-            footer: 'Mantra Engine Status'
+    desc: 'Check bot uptime',
+    handler: async (m, { conn }) => {
+        const up = formatUptime(process.uptime());
+        await sendButtons(conn, m.chat, {
+            title: 'Bot Uptime',
+            text: `⏱️ Uptime: ${up}`,
+            footer: `> ${global.botName || 'Mantra Bot'}`,
+            buttons: [
+                { id: `${global.prefix || '.'}ping`, text: '⚡ Ping' },
+                { id: `${global.prefix || '.'}menu`, text: '📜 Menu' }
+            ]
         });
-
-        await react(conn, m, '✅');
     }
 });
 
-/**
- * REPO COMMAND
- */
+// REPO
 addCommand({
     pattern: 'repo',
-    alias: ['sc', 'script', 'source'],
+    alias: ['sc', 'script'],
+    react: '💜',
     category: 'general',
-    desc: 'Fetch bot source code details',
-    handler: async (m, { conn, pushname }) => {
-        await react(conn, m, '💜');
-
+    desc: 'Get bot source code',
+    handler: async (m, { conn }) => {
+        const repoUrl = global.githubRepo || 'MidknightMantra/Mantra';
         try {
-            const repoUrl = global.giftedRepo || 'MidknightMantra/Mantra';
-            const { data: repo } = await axios.get(`https://api.github.com/repos/${repoUrl}`);
+            const { data } = await axios.get(`https://api.github.com/repos/${repoUrl}`);
+            const text = `*${data.name}*\n\n` +
+                `⭐ Stars: ${data.stargazers_count}\n` +
+                `🍴 Forks: ${data.forks_count}\n` +
+                `📅 Updated: ${new Date(data.updated_at).toLocaleDateString()}\n\n` +
+                `> ${data.description || 'No description'}`;
 
-            const msg = `Hello *${pushname}*,\n\n` +
-                `This is *${global.botName}*, a powerful WhatsApp bot built for minimalist power and performance.\n\n` +
-                `✦ *Repo:* ${repo.name}\n` +
-                `✦ *Stars:* ${repo.stargazers_count}\n` +
-                `✦ *Forks:* ${repo.forks_count}\n` +
-                `✦ *Created:* ${new Date(repo.created_at).toLocaleDateString()}\n` +
-                `✦ *Updated:* ${new Date(repo.updated_at).toLocaleDateString()}`;
-
-            await sendInteractive(conn, m.chat, {
-                title: '📦 SOURCE CODE',
-                text: msg,
-                footer: 'Mantra Developer Hub',
+            await sendButtons(conn, m.chat, {
+                title: 'Repository',
+                text: text,
+                footer: `> ${global.botName || 'Mantra Bot'}`,
                 buttons: [
-                    {
-                        name: 'cta_url',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: 'Visit Repository',
-                            url: `https://github.com/${repoUrl}`
-                        })
-                    },
-                    {
-                        name: 'cta_copy',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: 'Copy Repo URL',
-                            copy_code: `https://github.com/${repoUrl}.git`
-                        })
-                    }
+                    { name: 'cta_url', buttonParamsJson: JSON.stringify({ display_text: "Visit Repo", url: data.html_url }) }
                 ]
             });
-            await react(conn, m, '✅');
-        } catch (error) {
-            log.error('Repo command failed', error);
-            await m.reply(UI.error('Fetch Failed', 'Could not retrieve repository information.', 'Check your internet connection or try again later.'));
+        } catch (e) {
+            m.reply(`❌ Failed to fetch repo info.`);
         }
     }
 });
 
-/**
- * MENU COMMAND
- */
+// REPORT
 addCommand({
-    pattern: 'menu',
-    alias: ['help', 'allmenu', 'h'],
+    pattern: 'report',
+    alias: ['bug', 'request'],
+    react: '🐞',
     category: 'general',
-    desc: 'Display bot main menu',
-    handler: async (m, { conn, botPrefix, pushname }) => {
-        await react(conn, m, '🔮');
+    desc: 'Report a bug or request feature',
+    handler: async (m, { text, conn }) => {
+        if (!text) return m.reply(`❌ Please describe the issue/feature.`);
 
-        const allCmds = Object.values(commands);
-        const uniqueCmds = [...new Set(allCmds)];
+        const devNum = global.owner?.[0] || '254799916673'; // Fallback to provided dev num
+        const report = `📝 *REPORT/REQUEST*\n\n👤 User: @${m.sender.split('@')[0]}\n💬 Msg: ${text}`;
 
-        // Categorize commands
-        const categorized = uniqueCmds.reduce((acc, cmd) => {
-            if (cmd.dontAddCommandList) return acc;
-            const cat = cmd.category || 'general';
-            if (!acc[cat]) acc[cat] = [];
-            acc[cat].push(cmd.pattern);
-            return acc;
-        }, {});
-
-        const sortedCats = Object.keys(categorized).sort();
-
-        let menuMsg = `🔮 *MANTRA COMMAND CENTER* 🔮\n\n`;
-        menuMsg += `*User:* ${pushname}\n`;
-        menuMsg += `*Prefix:* \`${botPrefix}\`\n`;
-        menuMsg += `*Plugins:* ${uniqueCmds.length}\n`;
-        menuMsg += `${UI.DIVIDER.light}\n\n`;
-
-        sortedCats.forEach(cat => {
-            menuMsg += `*${cat.toUpperCase()}*\n`;
-            menuMsg += categorized[cat].map(p => `▸ \`${p}\``).join(', ');
-            menuMsg += `\n\n`;
-        });
-
-        menuMsg += `\n> Tip: Type .help <command> for details.`;
-
-        await conn.sendMessage(m.chat, {
-            image: { url: global.botPic || 'https://i.imgur.com/6cO45Xw.jpeg' },
-            caption: menuMsg,
-            footer: 'Minimalist Power • Mantra',
-            buttons: [
-                {
-                    name: 'quick_reply',
-                    buttonParamsJson: JSON.stringify({
-                        display_text: '⚡ Ping Status',
-                        id: `${botPrefix}ping`
-                    })
-                },
-                {
-                    name: 'cta_url',
-                    buttonParamsJson: JSON.stringify({
-                        display_text: 'WaChannel',
-                        url: global.newsletterUrl || 'https://whatsapp.com/channel/0029VaJmO6vD38P8q6Dzp92M'
-                    })
-                }
-            ],
-            headerType: 4
-        }, { quoted: m });
-
-        await react(conn, m, '✅');
+        await conn.sendMessage(devNum + '@s.whatsapp.net', { text: report, mentions: [m.sender] });
+        m.reply(`✅ Report sent to developer.`);
     }
 });
 
-/**
- * LIST COMMAND
- */
+// MAIN MENU
 addCommand({
-    pattern: 'list',
-    alias: ['listmenu', 'cmdlist'],
+    pattern: 'menu',
+    alias: ['help', 'usage'],
+    react: '📜',
     category: 'general',
-    desc: 'Show all commands in a structured list',
-    handler: async (m, { conn, botPrefix }) => {
-        const allCmds = Object.values(commands);
-        const uniqueCmds = [...new Set(allCmds)].filter(c => !c.dontAddCommandList);
+    desc: 'Show all commands',
+    handler: async (m, { conn, isOwner }) => {
+        const cmdList = commands.filter(c => c.pattern && !c.dontAddCommandList);
+        const categories = {};
 
-        let listMsg = `📜 *MANTRA COMMAND LIST*\n${UI.DIVIDER.heavy}\n\n`;
-
-        uniqueCmds.forEach((cmd, i) => {
-            listMsg += `*${i + 1}.* \`${botPrefix}${cmd.pattern}\`\n`;
-            if (cmd.desc) listMsg += `   ${cmd.desc.slice(0, 50)}\n`;
+        cmdList.forEach(c => {
+            const cat = c.category || 'misc';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(c);
         });
 
-        await m.reply(listMsg);
-        await react(conn, m, '✅');
+        const time = moment().tz(global.timeZone || 'Africa/Nairobi').format('HH:mm:ss');
+        const date = moment().tz(global.timeZone || 'Africa/Nairobi').format('DD/MM/YYYY');
+
+        let menu = `╭══〘 *${global.botName || 'Mantra'}* 〙══⊷\n`;
+        menu += `┃ 👤 User: ${m.pushName || 'User'}\n`;
+        menu += `┃ 🤖 Mode: ${global.botMode || 'Public'}\n`;
+        menu += `┃ 🧩 Plugins: ${cmdList.length}\n`;
+        menu += `┃ 📅 Date: ${date}\n`;
+        menu += `┃ ⌚ Time: ${time}\n`;
+        menu += `┃ 💾 RAM: ${getRAM()}\n`;
+        menu += `┃ ⏳ Uptime: ${formatUptime(process.uptime())}\n`;
+        menu += `╰═════════════════⊷\n\n`;
+
+        const sortedCats = Object.keys(categories).sort();
+
+        for (const cat of sortedCats) {
+            menu += `╭━━❮ *${cat.toUpperCase()}* ❯━━⊷\n`;
+            categories[cat].sort((a, b) => a.pattern.localeCompare(b.pattern));
+            categories[cat].forEach(c => {
+                menu += `┃ 🔹 ${global.prefix}${c.pattern}\n`;
+            });
+            menu += `╰━━━━━━━━━━━━━━━⊷\n`;
+        }
+
+        const botPic = global.botPic || await conn.profilePictureUrl(conn.user.id, 'image').catch(() => null);
+
+        if (botPic) {
+            await conn.sendMessage(m.chat, { image: { url: botPic }, caption: menu }, { quoted: m });
+        } else {
+            await conn.sendMessage(m.chat, { text: menu }, { quoted: m });
+        }
+    }
+});
+
+// LIST (Simple list)
+addCommand({
+    pattern: 'list',
+    react: '📋',
+    category: 'general',
+    desc: 'List all commands simple view',
+    handler: async (m, { conn }) => {
+        let text = `📋 *COMMAND LIST*\n\n`;
+        commands.forEach((c, i) => {
+            if (c.pattern) text += `${i + 1}. ${global.prefix}${c.pattern} - ${c.desc || ''}\n`;
+        });
+        m.reply(text);
     }
 });

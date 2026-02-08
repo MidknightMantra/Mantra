@@ -1,10 +1,7 @@
 import { addCommand } from '../lib/plugins.js';
-import { UI } from '../src/utils/design.js';
-import { log } from '../src/utils/logger.js';
-import { react } from '../src/utils/messaging.js';
-import { fetchBuffer } from '../lib/scraper.js';
 import axios from 'axios';
 
+// Logo configurations
 const logoEndpoints = [
     { pattern: "glossysilver", aliases: ["glossy", "silverlogo"], description: "Glossy Silver logo", endpoint: "glossysilver" },
     { pattern: "writetext", aliases: ["textwrite", "baby", "writtentext"], description: "Write Text logo", endpoint: "writetext" },
@@ -36,67 +33,62 @@ const logoEndpoints = [
     { pattern: "lighteffect", aliases: ["effectlight", "lightlogo"], description: "Light Effect logo", endpoint: "lighteffect" },
 ];
 
-logoEndpoints.forEach((config) => {
+/**
+ * Dynamically register logo commands
+ */
+logoEndpoints.forEach(config => {
     addCommand({
         pattern: config.pattern,
-        alias: config.aliases,
-        category: 'logo',
+        alias: config.aliases, // My addCommand uses 'alias' (singular key, array value) usually, but checking implementation it likely supports both or singular
         react: '🎨',
-        desc: `Create a ${config.description}`,
-        handler: async (m, { conn, text, pushName }) => {
-            const query = text || m.quoted?.body;
-            if (!query) return m.reply(`${global.emojis.warning} Please provide text for the logo.\n\nExample: .${config.pattern} ${pushName || 'Mantra'}`);
+        category: 'logo',
+        desc: config.description,
+        handler: async (m, { text, conn }) => {
+            if (!text) return m.reply(`🎨 *${config.description}*\n\nUsage: .${config.pattern} <text>`);
 
             try {
-                await react(conn, m, '⏳');
+                m.react('⏳');
 
-                const GIFTED_API = global.giftedTechApi || 'https://api.giftedtech.my.id';
-                const API_KEY = global.giftedApiKey || 'gifted';
+                // Use global config for API
+                const apiUrl = global.giftedApiUrl || 'https://api.giftedtech.my.id';
+                const apiKey = global.giftedApiKey || 'gifted';
 
-                const apiUrl = `${GIFTED_API}/api/ephoto360/${config.endpoint}?apikey=${API_KEY}&text=${encodeURIComponent(query)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 60000 });
+                // Construct URL
+                const targetUrl = `${apiUrl}/api/ephoto360/${config.endpoint}?apikey=${apiKey}&text=${encodeURIComponent(text)}`;
 
-                if (!data || !data.success || !data.result?.image_url) {
-                    throw new Error(data?.message || 'API returned invalid response');
-                }
-
-                const buffer = await fetchBuffer(data.result.image_url);
-                if (!buffer) throw new Error('Failed to download generated image');
+                const response = await axios.get(targetUrl, { responseType: 'arraybuffer' });
 
                 await conn.sendMessage(m.chat, {
-                    image: buffer,
-                    caption: `✨ *${config.description.toUpperCase()}*\n\n📝 *Text:* ${query}\n\n> ${global.botCaption}`
+                    image: response.data,
+                    caption: `✨ *${config.description}*\n\n📝 *Text:* ${text}\n\n> ${global.botName || 'Mantra Bot'}`
                 }, { quoted: m });
 
-                await react(conn, m, '✅');
+                m.react('✅');
             } catch (e) {
-                log.error(`Logo creation failed [${config.pattern}]`, e);
-                m.reply(UI.error('Logo Error', `Failed to generate ${config.pattern} logo`, e.message));
-                await react(conn, m, '❌');
+                console.error(e);
+                m.reply(`❌ Failed to generate logo.`);
+                m.react('❌');
             }
         }
     });
 });
 
 /**
- * LOGO LIST COMMAND
+ * List all logo commands
  */
 addCommand({
     pattern: 'logolist',
-    alias: ['logos', 'logomenu', 'logohelp'],
+    alias: ['logos', 'logomenu'],
+    react: '📜',
     category: 'logo',
-    react: '🎨',
-    desc: 'View all available logo making styles',
+    desc: 'Show all logo commands',
     handler: async (m, { conn }) => {
-        let msg = `🎨 *${global.botName.toUpperCase()} LOGO MAKER*\n${global.divider}\n\n`;
+        let text = `🎨 *LOGO MAKER MENU*\n\n`;
         logoEndpoints.forEach((l, i) => {
-            msg += `*${(i + 1).toString().padStart(2, '0')}.* \`.${l.pattern}\` - ${l.description}\n`;
+            text += `*${i + 1}.* .${l.pattern} - ${l.description}\n`;
         });
-        msg += `\n${global.divider}\n📝 *Usage:* .command <text>\nExample: \`.glossysilver Mantra\``;
+        text += `\n_Usage: .command <text>_`;
 
-        await conn.sendMessage(m.chat, { text: msg }, { quoted: m });
-        await react(conn, m, '✅');
+        await conn.sendMessage(m.chat, { text }, { quoted: m });
     }
 });
-
-log.action('Logo Maker plugin loaded', 'system', { count: logoEndpoints.length });

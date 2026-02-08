@@ -1,94 +1,145 @@
 import { addCommand } from '../lib/plugins.js';
-import { log } from '../src/utils/logger.js';
-import { getSetting, setSetting } from '../lib/database.js';
-import { copyFolderSync, removeDirSync } from '../src/utils/fileHelper.js';
-import axios from 'axios';
+import { exec } from 'child_process';
+import util from 'util';
 import fs from 'fs';
 import path from 'path';
+import axios from 'axios';
 import AdmZip from 'adm-zip';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const execAsync = util.promisify(exec);
+const REPO_URL = 'https://github.com/MidknightMantra/Mantra'; // Update this to your actual repo
 
 addCommand({
     pattern: 'update',
-    alias: ['updatenow', 'updt', 'sync'],
+    alias: ['upgrade', 'updatenow', 'gitpull'],
+    desc: 'Update the bot to the latest version',
     category: 'owner',
-    desc: 'Update the bot to the latest version from GitHub.',
     handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) return m.reply(`${global.emojis.error} Owner only.`);
+        if (!isOwner) return m.reply('❌ This command is only for the bot owner.');
 
-        const repo = global.githubRepo; // Defined in config.js
-        if (!repo) return m.reply(`${global.emojis.error} GitHub repository not configured in config.js`);
+        await m.react('⏳');
 
         try {
-            await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } });
-            await m.reply(`${global.emojis.waiting} *Checking for updates...*`);
+            // Check if git is installed and valid .git exists
+            const isGit = fs.existsSync('.git');
 
-            // 1. Check latest commit
-            const { data: commitData } = await axios.get(`https://api.github.com/repos/${repo}/commits/main`);
-            const latestHash = commitData.sha;
-            const currentHash = await getSetting('latest_commit_hash');
-
-            if (latestHash === currentHash) {
-                await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-                return m.reply(`${global.emojis.success} *Mantra is already on the latest version!*`);
+            if (isGit) {
+                await handleGitUpdate(m);
+            } else {
+                await handleZipUpdate(m);
             }
 
-            // 2. Prepare update details
-            const author = commitData.commit.author.name;
-            const date = new Date(commitData.commit.author.date).toLocaleString();
-            const message = commitData.commit.message;
-
-            await m.reply(
-                `🔄 *Update Found! Starting upgrade...*\n\n` +
-                `👤 *Author:* ${author}\n` +
-                `📅 *Date:* ${date}\n` +
-                `💬 *Message:* ${message}\n\n` +
-                `⏳ _Downloading files..._`
-            );
-
-            // 3. Download Zip
-            const zipPath = path.join(__dirname, '..', 'mantra_update.zip');
-            const { data: zipData } = await axios.get(
-                `https://github.com/${repo}/archive/main.zip`,
-                { responseType: 'arraybuffer' }
-            );
-            fs.writeFileSync(zipPath, zipData);
-
-            // 4. Extract
-            const extractPath = path.join(__dirname, '..', 'temp_update');
-            const zip = new AdmZip(zipPath);
-            zip.extractAllTo(extractPath, true);
-
-            // 5. Detect source folder (GitHub zips usually have a top-level dir like 'repo-main')
-            const extractedDirs = fs.readdirSync(extractPath);
-            const sourceDir = path.join(extractPath, extractedDirs[0]);
-            const destDir = path.join(__dirname, '..');
-
-            // 6. Copy files (exclude sensitive ones)
-            const exclude = ['.env', 'database.json', 'session', 'node_modules', '.git'];
-            copyFolderSync(sourceDir, destDir, exclude);
-
-            // 7. Update hash and cleanup
-            await setSetting('latest_commit_hash', latestHash);
-            fs.unlinkSync(zipPath);
-            removeDirSync(extractPath);
-
-            await conn.sendMessage(m.chat, { react: { text: '✅', key: m.key } });
-            await m.reply(`${global.emojis.success} *Update Complete!*\n\nBot will now restart to apply changes.`);
-
-            log.action('Bot updated successfully', 'owner', { hash: latestHash });
-
-            setTimeout(() => {
-                process.exit(0);
-            }, 3000);
-
         } catch (error) {
-            log.error('Update failed', error, { repo });
-            await conn.sendMessage(m.chat, { react: { text: '❌', key: m.key } });
-            await m.reply(`${global.emojis.error} *Update Failed:*\n\n${error.message}\n\n_Please try redeploying manually if this persists._`);
+            console.error('Update Error:', error);
+            await m.react('❌');
+            return m.reply(`❌ Update Failed:\n\n${error.message}`);
         }
     }
 });
+
+/**
+ * Handle update via Git
+ */
+async function handleGitUpdate(m) {
+    await m.reply('🔍 Checking for updates via Git...');
+
+    try {
+        const { stdout: status } = await execAsync('git fetch');
+        const { stdout: log } = await execAsync('git log HEAD..origin/main --oneline');
+
+        if (!log) {
+            await m.react('✅');
+            return m.reply('✅ Bot is already up to date.');
+        }
+
+        await m.reply(`🔄 Updates available:\n\n${log}\n\nInstalling updates...`);
+
+        await execAsync('git pull');
+        await m.reply('✅ Update installed successfully! Restarting bot...');
+
+        // Wait for message to send
+        setTimeout(() => {
+            process.exit(0); // PM2/Docker will restart it
+        }, 1000);
+
+    } catch (error) {
+        throw new Error(`Git Error: ${error.message}`);
+    }
+}
+
+/**
+ * Handle update via Zip download (Fallback)
+ */
+async function handleZipUpdate(m) {
+    await m.reply('🔍 Git not found. Checking for updates via API...');
+
+    // 1. Get latest commit
+    const { data: commitData } = await axios.get(`https://api.github.com/repos/MidknightMantra/Mantra/commits/main`);
+    const latestHash = commitData.sha;
+
+    // Check stored hash (simple check)
+    let currentHash = '';
+    const hashFile = '.update_hash';
+    if (fs.existsSync(hashFile)) {
+        currentHash = fs.readFileSync(hashFile, 'utf-8').trim();
+    }
+
+    if (currentHash === latestHash) {
+        await m.react('✅');
+        return m.reply('✅ Bot is already up to date (Version matched via Hash).');
+    }
+
+    await m.reply(`🔄 Update detected!\n\n📅 Date: ${commitData.commit.author.date}\n💬 Message: ${commitData.commit.message}\n\nDownloading and extracting...`);
+
+    // 2. Download Zip
+    const zipPath = 'update.zip';
+    const writer = fs.createWriteStream(zipPath);
+    const response = await axios({
+        url: `${REPO_URL}/archive/main.zip`,
+        method: 'GET',
+        responseType: 'stream'
+    });
+
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+    });
+
+    // 3. Extract
+    const zip = new AdmZip(zipPath);
+    const extractEntryTo = (entry, targetPath) => {
+        // Remove the top-level directory (e.g. Mantra-main/)
+        const parts = entry.entryName.split('/');
+        parts.shift(); // Remove root dir
+        if (parts.length === 0) return;
+
+        const relativePath = parts.join('/');
+        const fullPath = path.join(targetPath, relativePath);
+
+        // Don't overwrite config/envs
+        if (entry.entryName.includes('.env') || entry.entryName.includes('session/')) {
+            return;
+        }
+
+        if (entry.isDirectory) {
+            if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
+        } else {
+            const content = entry.getData();
+            fs.writeFileSync(fullPath, content);
+        }
+    };
+
+    zip.getEntries().forEach(entry => extractEntryTo(entry, process.cwd()));
+
+    // 4. Cleanup and Save Hash
+    fs.unlinkSync(zipPath);
+    fs.writeFileSync(hashFile, latestHash);
+
+    await m.reply('✅ Update complete! Restarting bot...');
+
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
+}

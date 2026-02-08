@@ -1,462 +1,174 @@
-import { addCommand } from '../lib/plugins.js';
-import { UI } from '../src/utils/design.js';
-import { log } from '../src/utils/logger.js';
-import { setSetting, getSetting, getSudoNumbers, getAllSettings, isSudoMode, setSudoMode } from '../lib/database.js';
-import { getEnabledGroupSettings, getGroupSetting } from '../lib/database.js';
-import { react, withReaction } from '../src/utils/messaging.js';
-import { Jimp } from 'jimp';
-import pkg from 'gifted-baileys';
-const { S_WHATSAPP_NET, downloadContentFromMessage } = pkg;
-import { exec } from 'node:child_process';
+import { addCommand, commands } from '../lib/plugins.js';
+import { exec, spawn } from 'child_process';
+import fs from 'fs';
+import fsA from 'fs'; // Alias for consistency with user snippet
 import path from 'path';
-import fs from 'fs/promises';
-import fsA from 'node:fs';
-import moment from 'moment-timezone';
-import util from 'util';
 import { fileURLToPath } from 'url';
+import util from 'util';
+import moment from 'moment-timezone';
+import { Jimp } from 'jimp';
+import { groupCache } from '../src/utils/groupCache.js';
+import {
+    getAllSettings,
+    getSudoNumbers,
+    setSudo,
+    delSudo,
+    getEnabledGroupSettings,
+    getGroupSetting,
+    setGroupSetting
+} from '../lib/database.js';
+import { log } from '../src/utils/logger.js';
+import { S_WHATSAPP_NET } from 'gifted-baileys';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Developer numbers (Hardcoded as per user request)
+const DEV_NUMBERS = [
+    "254715206562",
+    "254114018035",
+    "254728782591",
+    "254799916673",
+    "254762016957",
+    "254113174209",
+];
+
+// Helper to extract file path from shell output
+function extractFilePath(text) {
+    const match = text.match(/(\/[^\s]+\.zip)/);
+    return match ? match[0].trim() : null;
+}
 
 /**
- * RESTART COMMAND
+ * RESTART
  */
 addCommand({
     pattern: 'restart',
     alias: ['reboot', 'restartnow'],
-    category: 'owner',
     react: '🔄',
+    category: 'owner',
     desc: 'Restart the bot server',
-    handler: async (m, { conn, isOwner }) => {
+    handler: async (m, { isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-
-        await withReaction(conn, m, '🔄', async () => {
-            await m.reply('🔄 *Restarting bot...*\n\nPlease wait a few seconds for the bot to come back online.');
-            setTimeout(() => process.exit(0), 1500);
-        });
+        await m.reply("🔄 *Restarting bot...*\nPlease wait a few seconds.");
+        setTimeout(() => process.exit(0), 1500);
     }
 });
 
 /**
- * SHUTDOWN COMMAND
+ * SHUTDOWN
  */
 addCommand({
     pattern: 'shutdown',
     alias: ['logout', 'stopbot'],
-    category: 'owner',
     react: '🛑',
-    desc: 'Logout and shutdown the bot',
+    category: 'owner',
+    desc: 'Shutdown the bot',
     handler: async (m, { conn, isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-
-        await withReaction(conn, m, '🛑', async () => {
-            await m.reply('🛑 *Logging out and shutting down...*\nYou will need to re-scan QR to reconnect.');
-            setTimeout(async () => {
-                try { await conn.logout(); } catch (e) { log.error('Logout failed during shutdown', e); }
-                process.exit(0);
-            }, 1500);
-        });
+        await m.reply("🛑 *Shutting down...*");
+        setTimeout(async () => {
+            try { await conn.logout(); } catch (e) { }
+            process.exit(0);
+        }, 1500);
     }
 });
 
 /**
- * OWNER VCARD COMMAND
+ * OWNER VCARD
  */
 addCommand({
     pattern: 'owner',
-    alias: ['creator', 'dev'],
-    category: 'owner',
     react: '👑',
-    desc: 'Get Bot Owner contact',
-    handler: async (m, { conn, isOwner }) => {
-        // Shared with everyone but restricted if wanted
-        const ownerNum = global.owner[0] || conn.user.id.split(':')[0];
-        const ownerName = global.author || 'Mantra Owner';
+    category: 'owner',
+    desc: 'Get Bot Owner',
+    handler: async (m, { conn }) => {
+        const ownerName = global.ownerName || "Bot Owner";
+        const ownerNumber = global.ownerNumber || "0000000000";
+        const botName = global.botName || "Bot";
 
-        const vcard = 'BEGIN:VCARD\n' +
-            'VERSION:3.0\n' +
+        const vcard =
+            "BEGIN:VCARD\n" +
+            "VERSION:3.0\n" +
             `FN:${ownerName}\n` +
-            `ORG:${global.botName};\n` +
-            `TEL;type=CELL;type=VOICE;waid=${ownerNum}:${ownerNum}\n` +
-            'END:VCARD';
+            `ORG:${botName};\n` +
+            `TEL;type=CELL;type=VOICE;waid=${ownerNumber}:${ownerNumber}\n` +
+            "END:VCARD";
 
         await conn.sendMessage(m.chat, {
             contacts: {
                 displayName: ownerName,
-                contacts: [{ vcard }]
-            }
+                contacts: [{ vcard }],
+            },
         }, { quoted: m });
-        await react(conn, m, '✅');
     }
 });
 
 /**
- * SHELL / EXEC COMMAND (ENHANCED)
+ * SHELL
  */
 addCommand({
     pattern: 'shell',
-    alias: ['exec', 'sh', 'ex', 'terminal'],
-    category: 'owner',
+    alias: ['exec', 'sh', 'term'],
     react: '💻',
-    desc: 'Run shell commands with advanced output handling',
-    handler: async (m, { conn, isOwner, text }) => {
+    category: 'owner',
+    desc: 'Run shell commands',
+    handler: async (m, { text, isOwner, conn }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        if (!text) return m.reply(`${global.emojis.warning} Please provide a command.`);
+        if (!text) return m.reply("❌ Please provide a command!");
 
-        await react(conn, m, '⏳');
-        exec(text, { maxBuffer: 10 * 1024 * 1024 }, async (err, stdout, stderr) => {
-            try {
-                if (err) return m.reply(`${global.emojis.error} *Error:* ${err.message}`);
-                if (stderr) await m.reply(`${global.emojis.warning} *stderr:* ${stderr}`);
-
-                if (stdout && stdout.length > 8000) {
-                    await handleLargeOutput(conn, m, stdout);
-                } else if (stdout) {
-                    await m.reply(stdout);
-                } else if (!stderr) {
-                    await m.reply('✅ Executed (No output)');
+        exec(text, async (err, stdout, stderr) => {
+            if (err) return m.reply(`❌ Error: ${err.message}`);
+            if (stderr) return m.reply(`⚠️ stderr: ${stderr}`);
+            if (stdout) {
+                if (stdout.length > 2000) {
+                    await conn.sendMessage(m.chat, { document: Buffer.from(stdout), fileName: 'output.txt', mimetype: 'text/plain' }, { quoted: m });
+                } else {
+                    m.reply(stdout);
                 }
-                await react(conn, m, '✅');
-            } catch (e) {
-                log.error('Shell command handling failed', e);
-                m.reply(`${global.emojis.error} Output handling failed: ${e.message}`);
+            } else {
+                m.reply("✅ Executed (no output)");
             }
         });
     }
 });
 
 /**
- * QUICK EVAL COMMAND (>)
+ * EVAL (>)
  */
 addCommand({
     pattern: '>',
     on: 'body',
     category: 'owner',
-    desc: 'Quick JS evaluation',
-    handler: async (m, { conn, isOwner, body, ...context }) => {
+    desc: 'Eval JS',
+    handler: async (m, { text, isOwner, conn, body }) => {
         if (!isOwner || !body.startsWith('>')) return;
         const code = body.slice(1).trim();
         if (!code) return;
 
         try {
-            await react(conn, m, '🧪');
-
-            // Extensive context for eval
+            // Context for eval
             const evalContext = {
-                m, conn, log, UI,
+                conn, m, text, isOwner,
                 db: {
-                    get: getSetting,
-                    set: setSetting,
-                    all: await getAllSettings(),
+                    settings: await getAllSettings(),
                     groups: await getEnabledGroupSettings(),
-                    isSudoMode
+                    sudo: await getSudoNumbers()
                 },
-                ...context,
+                groupCache,
+                util, fs, path,
                 require
             };
 
-            let evaled = await eval(`(async () => { 
-                const { ${Object.keys(evalContext).join(', ')} } = evalContext;
-                ${code.includes('return') ? code : 'return ' + code} 
-            })()`);
+            const result = await (async () => {
+                return eval(code); // Basic eval for now, can be improved
+            })();
 
-            if (typeof evaled !== 'string') evaled = util.inspect(evaled, { depth: 2 });
-
-            await conn.sendMessage(m.chat, { text: `\`\`\`javascript\n${evaled}\n\`\`\`` }, { quoted: m });
-            await react(conn, m, '✅');
+            let output = util.inspect(result, { depth: 1 });
+            if (output.length > 2000) output = output.substring(0, 2000) + '...';
+            m.reply(`\`\`\`${output}\`\`\``);
         } catch (e) {
-            log.error('Eval failed', e);
-            m.reply(`❌ *Eval Error:*\n\`\`\`${e.message}\`\`\``);
-            await react(conn, m, '❌');
-        }
-    }
-});
-
-/**
- * COMMAND EXTRACTION (.cmd)
- */
-addCommand({
-    pattern: 'cmd',
-    alias: ['getcmd', 'source'],
-    category: 'owner',
-    react: '📄',
-    desc: 'Get source code of a command',
-    handler: async (m, { conn, isOwner, text }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        if (!text) return m.reply(`${global.emojis.warning} Usage: .cmd <command_name>`);
-
-        try {
-            const { commands } = await import('../lib/plugins.js');
-            const target = text.trim().toLowerCase();
-            const cmd = commands[target];
-
-            if (!cmd) return m.reply(`${global.emojis.error} Command '${target}' not found.`);
-
-            // Assuming we might have filename in the future, for now we search plugins dir
-            const pluginsDir = path.join(process.cwd(), 'plugins');
-            const files = await fs.readdir(pluginsDir);
-
-            let source = 'Source mapping not found.';
-            let fileName = 'unknown.js';
-
-            for (const file of files) {
-                if (!file.endsWith('.js')) continue;
-                const content = await fs.readFile(path.join(pluginsDir, file), 'utf-8');
-                if (content.includes(`pattern: '${target}'`) || content.includes(`pattern: "${target}"`)) {
-                    source = content;
-                    fileName = file;
-                    break;
-                }
-            }
-
-            const header = `✧ *COMMAND SOURCE:* ${target} ✧\n📁 *File:* ${fileName}\n${global.divider}\n\n`;
-
-            if (source.length > 8000) {
-                await conn.sendMessage(m.chat, {
-                    document: Buffer.from(source),
-                    fileName: `${target}.js`,
-                    mimetype: 'application/javascript',
-                    caption: header
-                }, { quoted: m });
-            } else {
-                await m.reply(header + `\`\`\`javascript\n${source}\n\`\`\``);
-            }
-            await react(conn, m, '✅');
-        } catch (e) {
-            log.error('Cmd fetch failed', e);
-            m.reply(UI.error('Fetch Error', 'Failed to retrieve command source', e.message));
-        }
-    }
-});
-
-/**
- * CACHED METADATA (.cachedmeta)
- */
-addCommand({
-    pattern: 'cachedmeta',
-    alias: ['gcmeta'],
-    category: 'owner',
-    react: '📋',
-    desc: 'View cached group metadata',
-    handler: async (m, { conn, isOwner, isGroup }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const jid = m.chat;
-        if (!isGroup) return m.reply(global.messages.group);
-
-        try {
-            const { groupCache } = await import('../gift/connection/groupCache.js').catch(() => ({}));
-            const meta = groupCache?.get?.(jid) || await conn.groupMetadata(jid);
-
-            const msg = `╭━━━━━━━━━━━╮\n` +
-                `│ 📋 *CACHED METADATA*\n` +
-                `├━━━━━━━━━━━┤\n` +
-                `│ *Name:* ${meta.subject}\n` +
-                `│ *JID:* ${jid}\n` +
-                `│ *Members:* ${meta.participants?.length}\n` +
-                `│ *Owner:* @${meta.owner?.split('@')[0]}\n` +
-                `│ *Created:* ${new Date(meta.creation * 1000).toLocaleDateString()}\n` +
-                `╰━━━━━━━━━━━╯`;
-
-            await m.reply(msg, { mentions: [meta.owner] });
-            await react(conn, m, '✅');
-        } catch (e) {
-            log.error('Metadata fetch failed', e);
-            m.reply(UI.error('Cache Error', 'Failed to retrieve metadata', e.message));
-        }
-    }
-});
-
-/**
- * UTILS
- */
-async function handleLargeOutput(conn, m, stdout) {
-    const filename = `output_${Date.now()}.txt`;
-    await conn.sendMessage(m.chat, {
-        document: Buffer.from(stdout),
-        fileName: filename,
-        mimetype: 'text/plain',
-        caption: `> *Command Output (Large File)*`
-    }, { quoted: m });
-}
-
-/**
- * JID / LID COMMANDS
- */
-addCommand({
-    pattern: 'jid',
-    alias: ['getjid', 'id'],
-    category: 'owner',
-    react: '🆔',
-    desc: 'Get JID of current chat or quoted user',
-    handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const target = m.quoted ? m.quoted.sender : m.chat;
-        await m.reply(`🆔 *JID:* \`${target}\``);
-        await react(conn, m, '✅');
-    }
-});
-
-addCommand({
-    pattern: 'getlid',
-    alias: ['lid'],
-    category: 'owner',
-    react: '🆔',
-    desc: 'Get user JID from LID or vice versa',
-    handler: async (m, { conn, isOwner, text }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const target = m.quoted ? m.quoted.sender : (text?.trim() || m.chat);
-
-        try {
-            let result = target;
-            if (target.includes('@lid')) {
-                result = await conn.getJidFromLid(target) || target;
-            } else if (target.includes('@s.whatsapp.net')) {
-                result = await conn.getLidFromJid(target) || target;
-            }
-            await m.reply(`🆔 *Result:* \`${result}\``);
-            await react(conn, m, '✅');
-        } catch (e) {
-            m.reply(target); // Fallback to raw ID
-        }
-    }
-});
-
-/**
- * PROFILE PICTURE TOOLS
- */
-addCommand({
-    pattern: 'fullpp',
-    alias: ['full profile'],
-    category: 'owner',
-    react: '🔮',
-    desc: 'Set high-res profile picture without cropping',
-    handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const quoted = m.quoted || m;
-        if (!/image/.test(quoted.mtype)) return m.reply(`${global.emojis.warning} Please reply to an image.`);
-
-        try {
-            await withReaction(conn, m, '⏳', async () => {
-                const buffer = await quoted.download();
-                const image = await Jimp.read(buffer);
-
-                // Crop and scale essentially ensuring it's "full" but optimized for WhatsApp
-                image.scaleToFit({ w: 720, h: 720 });
-                const processedBuffer = await image.getBuffer('image/jpeg');
-
-                await conn.query({
-                    tag: 'iq',
-                    attrs: {
-                        to: S_WHATSAPP_NET,
-                        type: 'set',
-                        xmlns: 'w:profile:picture',
-                    },
-                    content: [{
-                        tag: 'picture',
-                        attrs: { type: 'image' },
-                        content: processedBuffer
-                    }]
-                });
-                await m.reply('✅ Profile picture updated (Full Size)');
-            });
-        } catch (e) {
-            log.error('FullPP failed', e);
-            m.reply(UI.error('Profile Error', 'Failed to update profile picture', e.message));
-        }
-    }
-});
-
-/**
- * WHOIS / PROFILE DETAILS
- */
-addCommand({
-    pattern: 'whois',
-    alias: ['profileinfo'],
-    category: 'owner',
-    react: '👤',
-    desc: 'Get detailed information about a user',
-    handler: async (m, { conn, isOwner, text }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const user = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : (text ? text.replace(/[^0-9]/g, '') + '@s.whatsapp.net' : null);
-
-        if (!user) return m.reply(`${global.emojis.warning} Usage: Reply to someone or tag them.`);
-
-        try {
-            await withReaction(conn, m, '🔍', async () => {
-                let pp;
-                try { pp = await conn.profilePictureUrl(user, 'image'); } catch (e) { pp = 'https://telegra.ph/file/9521e9ee2fdbd0d6f4f1c.jpg'; }
-
-                let status = 'No Info';
-                let setAt = 'N/A';
-                try {
-                    const data = await conn.fetchStatus(user);
-                    status = data.status || status;
-                    if (data.setAt) setAt = moment(data.setAt).format('YYYY-MM-DD HH:mm:ss');
-                } catch (e) { }
-
-                const caption = `╭━━━━━━━━━━━━━━━╮\n` +
-                    `│ 👤 *USER PROFILE*\n` +
-                    `├━━━━━━━━━━━━━━━┤\n` +
-                    `│ 👤 *User:* @${user.split('@')[0]}\n` +
-                    `│ 📞 *JID:* ${user}\n` +
-                    `│ 📝 *About:* ${status}\n` +
-                    `│ 🕒 *Updated:* ${setAt}\n` +
-                    `╰━━━━━━━━━━━━━━━╯\n\n` +
-                    `> *${global.botName} Profiler*`;
-
-                await conn.sendMessage(m.chat, {
-                    image: { url: pp },
-                    caption,
-                    mentions: [user]
-                }, { quoted: m });
-            });
-        } catch (e) {
-            log.error('Whois failed', e);
-            m.reply(UI.error('Profile Fetch Error', 'Failed to retrieve user data', e.message));
-        }
-    }
-});
-
-/**
- * BLOCK / UNBLOCK / BLOCKLIST
- */
-addCommand({
-    pattern: 'block',
-    category: 'owner',
-    react: '🚫',
-    desc: 'Block a user',
-    handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const user = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
-        if (!user) return m.reply(`${global.emojis.warning} Tag or reply to a user to block.`);
-
-        try {
-            await conn.updateBlockStatus(user, 'block');
-            await m.reply(`✅ *Blocked* @${user.split('@')[0]}`, { mentions: [user] });
-            await react(conn, m, '✅');
-        } catch (e) {
-            log.error('Block failed', e);
-            m.reply(UI.error('Action Failed', 'Failed to block user', e.message));
-        }
-    }
-});
-
-addCommand({
-    pattern: 'unblock',
-    category: 'owner',
-    react: '✅',
-    desc: 'Unblock a user',
-    handler: async (m, { conn, isOwner }) => {
-        if (!isOwner) return m.reply(global.messages.owner);
-        const user = m.mentionedJid[0] ? m.mentionedJid[0] : m.quoted ? m.quoted.sender : null;
-        if (!user) return m.reply(`${global.emojis.warning} Tag or reply to a user to unblock.`);
-
-        try {
-            await conn.updateBlockStatus(user, 'unblock');
-            await m.reply(`✅ *Unblocked* @${user.split('@')[0]}`, { mentions: [user] });
-            await react(conn, m, '✅');
-        } catch (e) {
-            log.error('Unblock failed', e);
-            m.reply(UI.error('Action Failed', 'Failed to unblock user', e.message));
+            m.reply(`❌ Error: ${e.message}`);
         }
     }
 });
@@ -468,151 +180,336 @@ addCommand({
     pattern: 'setsudo',
     alias: ['addsudo'],
     category: 'owner',
-    react: '👑',
-    desc: 'Add a user to sudo list',
-    handler: async (m, { conn, isOwner, text }) => {
+    desc: 'Add sudo user',
+    handler: async (m, { text, isOwner, conn }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        const user = m.mentionedJid[0] ? m.mentionedJid[0].split('@')[0] : (m.quoted ? m.quoted.sender.split('@')[0] : text?.trim());
-        if (!user) return m.reply(`${global.emojis.warning} Tag, reply or provide a number.`);
+        let target = text ? text.replace(/\D/g, '') : m.quoted ? m.quoted.sender.split('@')[0] : null;
+        if (!target) return m.reply("❌ Provide number or quote user");
 
-        const sudoNumbers = await getSudoNumbers();
-        if (sudoNumbers.includes(user)) return m.reply('⚠️ User is already in sudo list.');
+        if (DEV_NUMBERS.includes(target)) return m.reply("❌ User is a developer.");
 
-        sudoNumbers.push(user);
-        await setSetting('SUDO_NUMBERS', sudoNumbers.join(','));
-        await m.reply(`✅ Added @${user} to sudo list.`, { mentions: [`${user}@s.whatsapp.net`] });
-        await react(conn, m, '✅');
+        await setSudo(target);
+        m.reply(`✅ Added @${target} to sudo.`, { mentions: [target + '@s.whatsapp.net'] });
     }
 });
 
 addCommand({
     pattern: 'delsudo',
-    alias: ['remsudo'],
+    alias: ['removesudo'],
     category: 'owner',
-    react: '👑',
-    desc: 'Remove a user from sudo list',
-    handler: async (m, { conn, isOwner, text }) => {
+    desc: 'Remove sudo user',
+    handler: async (m, { text, isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        const user = m.mentionedJid[0] ? m.mentionedJid[0].split('@')[0] : (m.quoted ? m.quoted.sender.split('@')[0] : text?.trim());
-        if (!user) return m.reply(`${global.emojis.warning} Tag, reply or provide a number.`);
+        let target = text ? text.replace(/\D/g, '') : m.quoted ? m.quoted.sender.split('@')[0] : null;
+        if (!target) return m.reply("❌ Provide number or quote user");
 
-        let sudoNumbers = await getSudoNumbers();
-        if (!sudoNumbers.includes(user)) return m.reply('⚠️ User is not in sudo list.');
+        if (DEV_NUMBERS.includes(target)) return m.reply("❌ Cannot remove developer.");
 
-        sudoNumbers = sudoNumbers.filter(n => n !== user);
-        await setSetting('SUDO_NUMBERS', sudoNumbers.join(','));
-        await m.reply(`✅ Removed @${user} from sudo list.`, { mentions: [`${user}@s.whatsapp.net`] });
-        await react(conn, m, '✅');
+        await delSudo(target);
+        m.reply(`✅ Removed @${target} from sudo.`, { mentions: [target + '@s.whatsapp.net'] });
+    }
+});
+
+addCommand({
+    pattern: 'getsudo',
+    alias: ['listsudo'],
+    category: 'owner',
+    desc: 'List sudo users',
+    handler: async (m, { isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        const sudos = await getSudoNumbers();
+        m.reply(`👑 *Sudo Users:*\n\n${sudos.map(s => `• @${s}`).join('\n') || "None"}`, { mentions: sudos.map(s => s + '@s.whatsapp.net') });
     }
 });
 
 /**
- * FORWARD COMMAND
+ * UTILS
  */
 addCommand({
-    pattern: 'forward',
-    alias: ['fwd'],
+    pattern: 'jid',
     category: 'owner',
-    react: '↩️',
-    desc: 'Forward a quoted message to a target JID',
-    handler: async (m, { conn, isOwner, args, text }) => {
+    desc: 'Get JID',
+    handler: async (m, { isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        if (!m.quoted) return m.reply(`${global.emojis.warning} Please reply to a message.`);
-        if (!args[0]) return m.reply(`${global.emojis.warning} Usage: .fwd <JID> [caption]`);
+        const jid = m.quoted ? m.quoted.sender : m.chat;
+        m.reply(jid);
+    }
+});
 
-        const target = args[0].includes('@') ? args[0] : args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-        const caption = text.split(' ').slice(1).join(' ') || '';
+addCommand({
+    pattern: 'cmd',
+    category: 'owner',
+    desc: 'Get command source',
+    handler: async (m, { text, isOwner, conn }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        if (!text) return m.reply("❌ Provide command name");
+
+        // This requires searching files, simplified for now to search plugin dir
+        const pluginDir = path.join(__dirname);
+        const files = fs.readdirSync(pluginDir);
+        for (const file of files) {
+            const content = fs.readFileSync(path.join(pluginDir, file), 'utf8');
+            if (content.includes(`pattern: '${text}'`) || content.includes(`pattern: "${text}"`)) {
+                return conn.sendMessage(m.chat, { document: Buffer.from(content), fileName: file, mimetype: 'text/javascript' }, { quoted: m });
+            }
+        }
+        m.reply("❌ Command file not found.");
+    }
+});
+
+// Group Cache Inspector
+addCommand({
+    pattern: 'cachedmeta',
+    category: 'owner',
+    desc: 'View cached group metadata',
+    handler: async (m, { text, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        const target = text || m.chat;
+        const meta = groupCache.get(target);
+        if (!meta) return m.reply("❌ No cache for this JID");
+        m.reply(`📋 *Cached Meta:*\n\n${util.inspect(meta)}`);
+    }
+});
+
+
+/**
+ * PROFILE PICTURES
+ */
+addCommand({
+    pattern: 'gcpp',
+    alias: ['setgcpp', 'gcfullpp'],
+    category: 'group',
+    desc: 'Set group full profile picture',
+    handler: async (m, { conn, isGroup, isAdmin, isBotAdmin }) => {
+        if (!isGroup) return m.reply(global.messages.group);
+        if (!isAdmin) return m.reply(global.messages.admin);
+        if (!isBotAdmin) return m.reply(global.messages.botAdmin);
+
+        const quoted = m.quoted ? m.quoted : m;
+        const mime = (quoted.msg || quoted).mimetype || '';
+        if (!/image/.test(mime)) return m.reply("❌ Quote an image.");
 
         try {
-            await conn.copyNForward(target, m.quoted.message, true, { caption: caption || undefined });
-            await m.reply(`✅ Forwarded to: ${target}`);
-            await react(conn, m, '✅');
+            const img = await quoted.download();
+            const { img: processedImg } = await generateProfilePicture(img);
+
+            await conn.query({
+                tag: 'iq',
+                attrs: { to: m.chat, type: 'set', xmlns: 'w:profile:picture' },
+                content: [{ tag: 'picture', attrs: { type: 'image' }, content: processedImg }]
+            });
+            m.reply("✅ Group PP updated.");
         } catch (e) {
-            log.error('Forward failed', e);
-            m.reply(UI.error('Forward Error', 'Failed to forward message', e.message));
+            console.error(e);
+            m.reply("❌ Failed to update PP.");
         }
     }
 });
 
-/**
- * REPORT COMMAND
- */
 addCommand({
-    pattern: 'report',
-    alias: ['request', 'bug'],
+    pattern: 'fullpp',
+    alias: ['setfullpp'],
     category: 'owner',
-    react: '💫',
-    desc: 'Report a bug or request a new feature',
-    handler: async (m, { conn, text, pushname }) => {
-        if (!text) return m.reply(`${global.emojis.warning} Usage: .report <your message>\nExample: .report the YouTube downloader is slow`);
-
-        const ownerNum = global.owner[0] || conn.user.id.split(':')[0];
-        const report = `*| REPORT / REQUEST |*\n\n` +
-            `*User:* @${m.sender.split('@')[0]}\n` +
-            `*Name:* ${pushname}\n` +
-            `*Message:* ${text}`;
-
-        await conn.sendMessage(ownerNum + '@s.whatsapp.net', {
-            text: report,
-            mentions: [m.sender]
-        }, { quoted: m });
-
-        await m.reply('✨ *Report sent!* Thank you for your feedback. The owner will review it soon.');
-        await react(conn, m, '✅');
-    }
-});
-
-/**
- * RETURN (MESSAGE INSPECTOR)
- */
-addCommand({
-    pattern: 'return',
-    alias: ['inspect', 'raw'],
-    category: 'owner',
-    react: '🔍',
-    desc: 'Inspect the raw structure of a quoted message',
+    desc: 'Set bot full profile picture',
     handler: async (m, { conn, isOwner }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        if (!m.quoted) return m.reply(`${global.emojis.warning} Please reply to a message to inspect.`);
+        const quoted = m.quoted ? m.quoted : m;
+        const mime = (quoted.msg || quoted).mimetype || '';
+        if (!/image/.test(mime)) return m.reply("❌ Quote an image.");
 
         try {
-            const raw = JSON.stringify(m.quoted, null, 2);
-            const chunks = raw.match(/[\s\S]{1,4000}/g) || [raw];
+            const img = await quoted.download();
+            const { img: processedImg } = await generateProfilePicture(img);
 
-            for (const chunk of chunks) {
-                await m.reply(UI.format.codeBlock(chunk, 'json'));
+            await conn.query({
+                tag: 'iq',
+                attrs: { to: S_WHATSAPP_NET, type: 'set', xmlns: 'w:profile:picture' },
+                content: [{ tag: 'picture', attrs: { type: 'image' }, content: processedImg }]
+            });
+            m.reply("✅ Bot PP updated.");
+        } catch (e) {
+            console.error(e);
+            m.reply("❌ Failed to update PP.");
+        }
+    }
+});
+
+// Helper for Full PP
+async function generateProfilePicture(buffer) {
+    const jimp = await Jimp.read(buffer);
+    const min = jimp.getWidth();
+    const max = jimp.getHeight();
+    const cropped = jimp.crop(0, 0, min, max);
+    return {
+        img: await cropped.scaleToFit(720, 720).getBufferAsync(Jimp.MIME_JPEG),
+        preview: await cropped.normalize().getBufferAsync(Jimp.MIME_JPEG)
+    };
+}
+
+
+/**
+ * VIEW ONCE
+ */
+addCommand({
+    pattern: 'vv',
+    alias: ['reveal'],
+    category: 'owner',
+    desc: 'Reveal ViewOnce',
+    handler: async (m, { conn, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        if (!m.quoted) return m.reply("❌ Quote a ViewOnce message");
+
+        const q = m.quoted.msg || m.quoted;
+        if (!q.viewOnce) return m.reply("❌ Not a ViewOnce message");
+
+        // Baileys automatically handles ViewOnce decoding often, 
+        // but if we need to force it, we rely on the buffer download
+        try {
+            const buffer = await m.quoted.download();
+            const caps = q.caption || "";
+
+            if (/image/.test(q.mimetype)) {
+                await conn.sendMessage(m.chat, { image: buffer, caption: caps });
+            } else if (/video/.test(q.mimetype)) {
+                await conn.sendMessage(m.chat, { video: buffer, caption: caps });
+            } else if (/audio/.test(q.mimetype)) {
+                await conn.sendMessage(m.chat, { audio: buffer, ptt: q.ptt });
             }
-            await react(conn, m, '✅');
-        } catch (error) {
-            log.error('Inspect failed', error);
-            await m.reply(UI.error('Inspect Failed', 'Could not parse message structure', error.message));
+        } catch (e) {
+            m.reply("❌ Failed to reveal.");
         }
     }
 });
 
 /**
- * SAVE COMMAND
+ * DISAPPEARING MESSAGES
+ */
+addCommand({
+    pattern: 'disapp',
+    category: 'group',
+    desc: 'Set disappearing messages',
+    handler: async (m, { text, conn, isGroup, isAdmin, isOwner }) => {
+        if (!isGroup) return m.reply(global.messages.group);
+        if (!isAdmin && !isOwner) return m.reply(global.messages.admin);
+
+        let seconds = 0;
+        if (text === 'on') seconds = 86400; // 24h
+        else if (text === 'off') seconds = 0;
+        else if (text === '7') seconds = 7 * 86400;
+        else if (text === '90') seconds = 90 * 86400;
+        else return m.reply("❌ Options: on, off, 7, 90");
+
+        await conn.sendMessage(m.chat, { disappearingMessagesInChat: seconds });
+        m.reply(`✅ Disappearing messages: *${text}*`);
+    }
+});
+
+/**
+ * JOIN GROUP
+ */
+addCommand({
+    pattern: 'join',
+    category: 'owner',
+    desc: 'Join group by link',
+    handler: async (m, { text, conn, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        if (!text) return m.reply("❌ Link required");
+
+        const code = text.split('chat.whatsapp.com/')[1];
+        if (!code) return m.reply("❌ Invalid link");
+
+        try {
+            const res = await conn.groupAcceptInvite(code);
+            m.reply(`✅ Joined group: ${res}`);
+        } catch (e) {
+            m.reply(`❌ Failed: ${e.message}`);
+        }
+    }
+});
+
+/**
+ * BLOCK/UNBLOCK
+ */
+addCommand({
+    pattern: 'block',
+    category: 'owner',
+    desc: 'Block user',
+    handler: async (m, { text, conn, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        const user = m.quoted ? m.quoted.sender : text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null;
+        if (!user) return m.reply("❌ User required");
+
+        await conn.updateBlockStatus(user, "block");
+        m.reply(`✅ Blocked @${user.split('@')[0]}`, { mentions: [user] });
+    }
+});
+
+addCommand({
+    pattern: 'unblock',
+    category: 'owner',
+    desc: 'Unblock user',
+    handler: async (m, { text, conn, isOwner }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        const user = m.quoted ? m.quoted.sender : text ? text.replace(/\D/g, "") + "@s.whatsapp.net" : null;
+        if (!user) return m.reply("❌ User required");
+
+        await conn.updateBlockStatus(user, "unblock");
+        m.reply(`✅ Unblocked @${user.split('@')[0]}`, { mentions: [user] });
+    }
+});
+
+/**
+ * SAVE QUOTED MESSAGE
  */
 addCommand({
     pattern: 'save',
-    alias: ['sv', 'getmedia'],
-    category: 'owner',
+    alias: ['sv', 'grab'],
     react: '💾',
-    desc: 'Save a quoted media message to your personal chat',
-    handler: async (m, { conn, isOwner }) => {
+    category: 'owner',
+    desc: 'Save quoted message to DM',
+    handler: async (m, { conn, isOwner, quoted }) => {
         if (!isOwner) return m.reply(global.messages.owner);
-        if (!m.quoted) return m.reply(`${global.emojis.warning} Please reply to a media message to save.`);
+        if (!quoted) return m.reply("❌ Reply to a message.");
 
         try {
-            await react(conn, m, '⏳');
-            // copyNForward is the most reliable way to save media to PM
-            await conn.copyNForward(conn.user.id.split(':')[0] + '@s.whatsapp.net', m.quoted, true);
-            await react(conn, m, '✅');
-        } catch (error) {
-            log.error('Save failed', error);
-            await m.reply(UI.error('Save Failed', 'Failed to save media', error.message));
+            await conn.sendMessage(m.sender, { forward: quoted.msg }, { quoted: m });
+            // Alternatively if forward fails for some types, manual copy:
+            // const buffer = await quoted.download();
+            // ... (but forward is usually sufficient for internal 'save')
+            // User requested robust save, let's try the media download approach if forward is too simple
+            // But forward is most reliable for preserving type.
+            m.react('✅');
+        } catch (e) {
+            // Fallback content save
+            const msg = quoted.msg || quoted;
+            if (msg.text || msg.caption) {
+                await conn.sendMessage(m.sender, { text: msg.text || msg.caption });
+                m.react('✅');
+            } else {
+                m.reply("❌ Could not forward.");
+            }
         }
     }
 });
 
-log.action('Owner plugin loaded', 'system');
+/**
+ * RETURN RAW JSON
+ */
+addCommand({
+    pattern: 'return',
+    alias: ['json', 'debug'],
+    react: '🔍',
+    category: 'owner',
+    desc: 'Get raw message JSON',
+    handler: async (m, { conn, isOwner, quoted }) => {
+        if (!isOwner) return m.reply(global.messages.owner);
+        if (!quoted) return m.reply("❌ Reply to a message.");
+
+        const json = JSON.stringify(quoted, null, 2);
+        if (json.length > 4000) {
+            await conn.sendMessage(m.chat, { document: Buffer.from(json), fileName: 'message.json', mimetype: 'application/json' }, { quoted: m });
+        } else {
+            m.reply('```' + json + '```');
+        }
+    }
+});

@@ -30,7 +30,7 @@ global.sessionId = process.env.SESSION_ID || "";
 
 // --- API KEYS ---
 global.giftedApiUrl = process.env.GIFTED_TECH_API || 'https://api.giftedtech.my.id';
-global.giftedApiKey = process.env.GIFTED_API_KEY || ''; // Optional but recommended
+global.giftedApiKey = process.env.GIFTED_API_KEY || 'gifted'; // Optional but recommended
 
 // --- UI ELEMENTS ---
 global.divider = '⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤';

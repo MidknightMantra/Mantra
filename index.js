@@ -75,6 +75,10 @@ async function loadPlugins() {
         }
     }
     console.log(chalk.green(`✅ Registered ${Object.keys(commands).length} commands:`, Object.keys(commands).slice(0, 10).join(', ')));
+
+    // Start Plugin Watcher
+    const { watchPlugins } = await import('./lib/plugins.js');
+    watchPlugins(pluginFolder);
 }
 
 const store = new SimpleStore();
@@ -408,6 +412,15 @@ const startMantra = async () => {
 
                 if (commands[command]) {
                     console.log(chalk.green(`[CMD] Executing: ${command}`));
+
+                    // Track command usage (Analytics)
+                    try {
+                        const { default: Analytics } = await import('./lib/analytics.js');
+                        Analytics.track(command, m.sender);
+                    } catch (err) {
+                        console.error('Analytics load error:', err);
+                    }
+
                     await commands[command].handler(m, {
                         conn,
                         args,
@@ -417,7 +430,7 @@ const startMantra = async () => {
                         groupMetadata,
                         isUserAdmin,
                         isBotAdmin,
-                        botPrefix: usedPrefix || global.prefix // Pass the actual prefix used
+                        botPrefix: usedPrefix || global.prefix
                     });
                 } else {
                     console.log(chalk.yellow(`[WARN] Command "${command}" not found in registry`));

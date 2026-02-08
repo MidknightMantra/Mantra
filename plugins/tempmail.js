@@ -1,17 +1,20 @@
 import { addCommand } from '../lib/plugins.js';
 import { log } from '../src/utils/logger.js';
-import { react, withReaction } from '../src/utils/messaging.js';
-import { normalizeUserJid, getUserName } from '../src/utils/jidHelper.js';
-import { setUserEmail, getUserEmailWithExpiry, deleteUserEmail, EXPIRY_MINUTES } from '../lib/database.js';
-import { sendSimpleButtons } from '../src/utils/buttons.js';
 import axios from 'axios';
+import {
+    setUserEmail,
+    getUserEmailWithExpiry,
+    deleteUserEmail,
+    EXPIRY_MINUTES
+} from '../lib/database.js'; // Imported from main database file
+import { getConfig } from '../src/config/constants.js';
+import { normalizeUserJid } from '../src/utils/jidHelper.js';
 
-// API Configuration
-const API_BASE = global.giftedApiUrl || 'https://api.giftedtech.my.id';
+const API_URL = global.giftedApiUrl || 'https://api.giftedtech.my.id';
 const API_KEY = global.giftedApiKey || '';
 
 /**
- * OTP Extraction Logic
+ * Extract code from text
  */
 function extractCode(text) {
     if (!text) return null;
@@ -31,199 +34,199 @@ function extractCode(text) {
 }
 
 /**
- * GENERATE TEMP EMAIL
+ * Generate Temp Mail
  */
 addCommand({
     pattern: 'tempmail',
-    alias: ['getmail', 'newmail', 'tempmailgen'],
+    alias: ['tempmailgen', 'generatemail', 'newmail', 'getmail'],
+    react: '📧',
+    category: 'tempmail',
     desc: 'Generate a new temporary email address',
-    category: 'tools',
     handler: async (m, { conn }) => {
         const userJid = normalizeUserJid(m.sender);
-        const name = getUserName(m.sender);
 
-        const existing = await getUserEmailWithExpiry(userJid);
-        if (existing) {
-            await react(conn, m, '⚠️');
-            const msg = `⚠️ *Active Email Exists*\n\nHey @${name}, you already have an active temp email:\n\n📬 *Email:* ${existing.email}\n⏰ *Expires in:* ${existing.timeRemaining}\n\nUse *.delmail* first to delete it if you want a new one.`;
-
-            await conn.sendMessage(m.chat, { text: msg, mentions: [m.sender] }, { quoted: m });
-            return await sendSimpleButtons(conn, m.chat, '📋 Copy your email:', [
-                {
-                    name: 'cta_copy',
-                    buttonParamsJson: JSON.stringify({
-                        display_text: 'Copy Email 📋',
-                        copy_code: existing.email
-                    })
-                }
-            ], { footer: global.botName });
+        const existingData = await getUserEmailWithExpiry(userJid);
+        if (existingData) {
+            return m.reply(`⚠️ *ACTIVE EMAIL EXISTS*\n\n📬 *Email:* ${existingData.email}\n⏰ *Expires in:* ${existingData.timeRemaining}\n\nUse *.delmail* first to delete it.\n📥 Use *.tempinbox* to check messages.`);
         }
 
-        await withReaction(conn, m, '📧', async () => {
-            try {
-                const res = await axios.get(`${API_BASE}/api/tempmail/generate`, { params: { apikey: API_KEY } });
-                if (!res.data?.success || !res.data?.result?.email) throw new Error('API failed to generate email');
+        await m.react('⏳');
 
-                const email = res.data.result.email;
-                await setUserEmail(userJid, email);
+        try {
+            const res = await axios.get(`${API_URL}/api/tempmail/generate`, {
+                params: { apikey: API_KEY },
+                timeout: 30000
+            });
 
-                const msg = `📧 *Temp Mail Generated*\n\nHey @${name}, your temporary email:\n\n📬 *Email:* ${email}\n\n⏰ *Expires in:* ${EXPIRY_MINUTES} minutes\n📥 Use *.tempinbox* to check messages\n📖 Use *.readmail <number>* to read specific email\n🗑️ Use *.delmail* to delete\n\n_Copy the email below and use it for verification_`;
-
-                await conn.sendMessage(m.chat, { text: msg, mentions: [m.sender] }, { quoted: m });
-                await sendSimpleButtons(conn, m.chat, '📋 Copy your email:', [
-                    {
-                        name: 'cta_copy',
-                        buttonParamsJson: JSON.stringify({
-                            display_text: 'Copy Email 📋',
-                            copy_code: email
-                        })
-                    }
-                ], { footer: global.botName });
-
-            } catch (error) {
-                log.error('Tempmail generation failed', error);
-                throw error;
+            if (!res.data?.success || !res.data?.result?.email) {
+                return m.reply('❌ Failed to generate temp email. Try again later.');
             }
-        });
+
+            const email = res.data.result.email;
+            await setUserEmail(userJid, email);
+
+            await m.reply(`📧 *TEMP MAIL GENERATED*\n\n📬 *Email:* ${email}\n⏰ *Expires in:* ${EXPIRY_MINUTES} minutes\n\n📥 *.tempinbox* Check messages\n📖 *.readmail <number>* Read email\n🗑️ *.delmail* Delete & create new`);
+            await m.react('✅');
+        } catch (e) {
+            log.error('Tempmail generate error', e);
+            m.reply(`❌ Failed: ${e.message}`);
+        }
     }
 });
 
 /**
- * CHECK INBOX
+ * Check Inbox
  */
 addCommand({
     pattern: 'tempinbox',
-    alias: ['inbox', 'checkmail'],
-    desc: 'Check inbox of your temp email',
-    category: 'tools',
+    alias: ['checkinbox', 'inbox', 'myinbox'],
+    react: '📥',
+    category: 'tempmail',
+    desc: 'Check inbox of your generated temp email',
     handler: async (m, { conn }) => {
         const userJid = normalizeUserJid(m.sender);
-        const name = getUserName(m.sender);
-
         const emailData = await getUserEmailWithExpiry(userJid);
-        if (!emailData) return m.reply(`❌ Hey @${name}, you don't have an active temp email. Use *.tempmail* first.`);
 
-        await withReaction(conn, m, '📥', async () => {
-            try {
-                const res = await axios.get(`${API_BASE}/api/tempmail/inbox`, {
-                    params: { apikey: API_KEY, email: emailData.email }
-                });
+        if (!emailData) {
+            return m.reply('❌ You don\'t have an active temp email. Use *.tempmail* first.');
+        }
 
-                if (!res.data?.success || !res.data?.result?.length) {
-                    return m.reply(`📭 *Empty Inbox*\n\nHey @${name}, no emails received yet.\n\n📬 *Email:* ${emailData.email}\n⏰ *Expires in:* ${emailData.timeRemaining}`);
-                }
+        await m.react('⏳');
+        const email = emailData.email;
 
-                const emails = res.data.result;
-                let txt = `📥 *Temp Mail Inbox*\n\nHey @${name}, you have *${emails.length}* email(s)\n\n📬 *Email:* ${emailData.email}\n⏰ *Expires in:* ${emailData.timeRemaining}\n\n`;
+        try {
+            const res = await axios.get(`${API_URL}/api/tempmail/inbox`, {
+                params: { apikey: API_KEY, email: email },
+                timeout: 30000
+            });
 
-                emails.forEach((mail, i) => {
-                    const from = mail.from || mail.sender || 'Unknown';
-                    const sub = mail.subject || 'No Subject';
-                    txt += `${global.divider}\n📩 *#${i + 1}*\n👤 *From:* ${from}\n📋 *Sub:* ${sub}\n`;
-                });
-
-                txt += `${global.divider}\n\n📖 Use *.readmail <number>* to read`;
-                await m.reply(txt);
-
-            } catch (error) {
-                log.error('Tempmail inbox check failed', error);
-                throw error;
+            // Handle "No Emails" case
+            if (!res.data?.success || (res.data?.message && res.data.message.includes('No Emails'))) {
+                await m.react('📭');
+                return m.reply(`📭 *EMPTY INBOX*\n\n📬 ${email}\n⏰ Expires in: ${emailData.timeRemaining}\n\n_Wait a few seconds after sending an email._`);
             }
-        });
+
+            const emails = res.data.result;
+            if (!emails || emails.length === 0) {
+                await m.react('📭');
+                return m.reply(`📭 *EMPTY INBOX*\n\n📬 ${email}`);
+            }
+
+            let inboxText = `📥 *TEMP MAIL INBOX*\n\n📬 ${email}\n⏰ Expires in: ${emailData.timeRemaining}\n\n`;
+
+            emails.forEach((mail, index) => {
+                inboxText += `━━━━━━━━━━━━━━━━━━\n📩 *#${index + 1}*\n👤 *From:* ${mail.from || mail.sender || 'Unknown'}\n📋 *Subject:* ${mail.subject || 'No Subject'}\n📅 *Date:* ${mail.date || mail.received || ''}\n`;
+            });
+
+            inboxText += `\n━━━━━━━━━━━━━━━━━━\n📖 Use *.readmail <number>* to read`;
+
+            await m.reply(inboxText);
+            await m.react('✅');
+
+        } catch (e) {
+            log.error('Tempmail inbox error', e);
+            if (e.message?.includes('expired') || e.response?.status === 404) {
+                return m.reply('❌ Your temp email has expired. Generate a new one.');
+            }
+            m.reply(`❌ Failed: ${e.message}`);
+        }
     }
 });
 
 /**
- * READ MAIL
+ * Read Email
  */
 addCommand({
     pattern: 'readmail',
-    alias: ['viewmail'],
-    desc: 'Read a specific email from your inbox',
-    category: 'tools',
-    handler: async (m, { conn, text }) => {
+    alias: ['getmsg', 'viewmail'],
+    react: '📖',
+    category: 'tempmail',
+    desc: 'Read a specific email',
+    handler: async (m, { text, conn }) => {
         const userJid = normalizeUserJid(m.sender);
-        const name = getUserName(m.sender);
-
         const emailData = await getUserEmailWithExpiry(userJid);
-        if (!emailData) return m.reply(`❌ No active temp email found.`);
 
-        const mailNum = parseInt(text?.trim());
-        if (isNaN(mailNum) || mailNum < 1) return m.reply(`❌ Usage: .readmail <number>\nExample: .readmail 1`);
+        if (!emailData) return m.reply('❌ No active temp email.');
 
-        await withReaction(conn, m, '📖', async () => {
-            try {
-                // 1. Get inbox to find message ID
-                const inboxRes = await axios.get(`${API_BASE}/api/tempmail/inbox`, {
-                    params: { apikey: API_KEY, email: emailData.email }
-                });
+        const mailNum = parseInt(text);
+        if (isNaN(mailNum) || mailNum < 1) return m.reply('❌ Please provide email number (e.g., .readmail 1)');
 
-                if (!inboxRes.data?.success || !inboxRes.data?.result) throw new Error('Failed to fetch inbox');
-                const emails = inboxRes.data.result;
+        await m.react('⏳');
+        const email = emailData.email;
 
-                if (mailNum > emails.length) return m.reply(`❌ You only have ${emails.length} email(s).`);
+        try {
+            // Fetch inbox first to get ID
+            const inboxRes = await axios.get(`${API_URL}/api/tempmail/inbox`, {
+                params: { apikey: API_KEY, email: email },
+                timeout: 30000
+            });
 
-                const target = emails[mailNum - 1];
-                const messageId = target.id || target.mail_id || target.message_id || target.messageId;
+            if (!inboxRes.data?.success || !inboxRes.data?.result) {
+                return m.reply('❌ Failed to fetch inbox or empty.');
+            }
 
-                // 2. Fetch full message
-                let body = target.body || target.text || '';
-                if (messageId) {
-                    const msgRes = await axios.get(`${API_BASE}/api/tempmail/message`, {
-                        params: { apikey: API_KEY, email: emailData.email, message_id: messageId }
+            const emails = inboxRes.data.result;
+            if (mailNum > emails.length) {
+                return m.reply(`❌ You only have ${emails.length} emails.`);
+            }
+
+            const targetMail = emails[mailNum - 1];
+            const messageId = targetMail.id || targetMail.mail_id || targetMail.messageId; // Try different ID keys
+
+            // Try to fetch full message if ID exists
+            let body = targetMail.body || targetMail.text || targetMail.content || '';
+
+            if (messageId) {
+                try {
+                    const msgRes = await axios.get(`${API_URL}/api/tempmail/message`, {
+                        params: { apikey: API_KEY, email: email, message_id: messageId }
                     });
                     if (msgRes.data?.success && msgRes.data?.result) {
-                        const full = msgRes.data.result;
-                        body = full.body || full.text || full.content || body;
+                        const fullMail = msgRes.data.result;
+                        body = fullMail.textBody || fullMail.body || fullMail.content || body;
                     }
-                }
-
-                const cleanBody = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '(No text content)';
-                const otpCode = extractCode(cleanBody);
-
-                let txt = `📧 *Email #${mailNum}*\n\n👤 *From:* ${target.from || 'Unknown'}\n📋 *Sub:* ${target.subject || 'No Subject'}\n\n${global.divider}\n📝 *Message:*\n\n${cleanBody}\n${global.divider}`;
-
-                await m.reply(txt);
-
-                if (otpCode) {
-                    await sendSimpleButtons(conn, m.chat, `🔐 *OTP Found:* ${otpCode}`, [
-                        {
-                            name: 'cta_copy',
-                            buttonParamsJson: JSON.stringify({
-                                display_text: 'Copy OTP 📋',
-                                copy_code: otpCode
-                            })
-                        }
-                    ], { footer: global.botName });
-                }
-
-            } catch (error) {
-                log.error('Read mail failed', error);
-                throw error;
+                } catch (e) { /* Ignore detail fetch error, use summary */ }
             }
-        });
+
+            // Cleanup body
+            let cleanBody = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            if (!cleanBody) cleanBody = '(No text content)';
+
+            const code = extractCode(cleanBody);
+
+            let messageText = `📧 *EMAIL #${mailNum}*\n\n👤 *From:* ${targetMail.from}\n📋 *Subject:* ${targetMail.subject}\n\n━━━━━━━━━━━━━━━━━━\n\n${cleanBody}\n\n━━━━━━━━━━━━━━━━━━`;
+
+            if (code) {
+                messageText += `\n\n🔐 *Code Found:* ${code}`;
+            }
+
+            await m.reply(messageText);
+            await m.react('✅');
+
+        } catch (e) {
+            log.error('Readmail error', e);
+            m.reply(`❌ Failed: ${e.message}`);
+        }
     }
 });
 
 /**
- * DELETE EMAIL
+ * Delete Email
  */
 addCommand({
     pattern: 'delmail',
-    alias: ['deletemail'],
-    desc: 'Delete your current temp email',
-    category: 'tools',
+    alias: ['deletemail', 'cleartempmail'],
+    react: '🗑️',
+    category: 'tempmail',
+    desc: 'Delete your temp email',
     handler: async (m, { conn }) => {
         const userJid = normalizeUserJid(m.sender);
-        const name = getUserName(m.sender);
-
         const emailData = await getUserEmailWithExpiry(userJid);
-        if (!emailData) return m.reply(`❌ No active temp email to delete.`);
+
+        if (!emailData) return m.reply('❌ No active temp email.');
 
         await deleteUserEmail(userJid);
-        await react(conn, m, '✅');
-        await m.reply(`✅ *Email Deleted*\n\nYour temp email *${emailData.email}* has been removed.\nUse *.tempmail* to generate a new one.`);
+        await m.reply(`✅ Temp email *${emailData.email}* deleted.`);
+        await m.react('✅');
     }
 });
-
-log.action('TempMail plugin loaded', 'system');
