@@ -1,9 +1,0 @@
-node_modules
-dist
-build
-logs
-*.log
-.env
-.env.local
-auth_info_baileys
-session

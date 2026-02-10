@@ -1,125 +1,113 @@
-# 🔮 Mantra 🪷
+<div align="center">
 
-> **High-Performance · Stealth-First · Multi-Device WhatsApp Bot**
+# 🕉️ Mantra Multi-Device 🕉️
+> *Automate. Elevate. Transcend.*
 
-Mantra is a next-generation WhatsApp bot built on **Baileys** and **Node.js**, designed for speed, privacy, and extensibility. It features a hybrid database system, enterprise-grade caching, and a comprehensive suite of tools for group management, AI interaction, and media handling.
-
----
-
-## 🚀 Key Features
-
-### 🛡️ Core & Stealth
-- **Anti-Delete Protocol**: Automatically caches and recovers deleted messages (Text, Media, Stickers).
-- **Stealth Mode**: `Anti-ViewOnce` enables you to save ViewOnce media without triggering read receipts.
-- **Auto-Status**: Automatically views status updates from your contacts.
-- **Always Online**: Keeps your presence active 24/7.
-
-### 🧠 AI Intelligence Suite
-- **Multi-Model Support**: Interact with **GPT-4**, **Gemini Pro**, **DeepSeek**, **Mistral**, and **Blackbox**.
-- **Contextual Chat**: Maintains conversation history for natural interactions.
-- **Image Generation**: Create AI art with `.imagine` (DALL-E 3 / Midjourney style).
-
-### ⚡ Performance Architecture
-- **Hybrid Database**: Automatically switches between **MongoDB** (Production) and **JSON** (Development/Local).
-- **Redis Caching**: optional caching layer for extreme performance.
-- **Rate Limiting**: Built-in protection against spam and abuse.
-- **Smart Error Handling**: Graceful degradation—if one API fails, it tries another.
-
-### 👥 Advanced Administration
-- **Group Protections**:
-  - **Anti-Link**: Kicks/Warns users who post invite links.
-  - **Anti-BadWords**: Auto-delete profanity with customizable filters.
-  - **Anti-Toxic**: Detects and manages toxic behavior.
-- **Welcome/Goodbye**: Customizable event messages with automated greetings.
-- **TagAll & broadcasts**: Powerful announcement tools.
-
-### 🎨 Multimedia & Tools
-- **Universal Downloader**: Download content from **YouTube, TikTok, Instagram, Facebook, Twitter/X**.
-- **Media Converter**: Convert Stickers, Images, Audio, and Video formats.
-- **Logo Maker**: Generate professional logos and text effects.
-- **Game Suite**: Interactive group games (Trivia, Tic-Tac-Toe, Math).
+[![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge)](https://github.com/Mantraa)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![Dependencies](https://img.shields.io/badge/Dependencies-Up--to--date-orange?style=for-the-badge)](package.json)
 
 ---
 
-## ☁️ Instant Deployment
+### 🌟 Experience the Nirvana of Automation
+**Mantra** is a state-of-the-art, multi-device WhatsApp bot designed to streamline your digital interactions. Built with efficiency and elegance in mind, it provides a seamless suite of features from group management to creative media tools.
 
-Deploy functionality with a single click.
+[**Features**](#-key-features) • [**Setup**](#-quick-start) • [**Commands**](#-command-showcase) • [**Configuration**](#-configuration)
 
-| Platform | Link |
+---
+
+</div>
+
+## ✨ Key Features
+
+| Feature | Description |
 | :--- | :--- |
-| **Heroku** | [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/MidknightMantra/Mantra) |
-| **Railway** | [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/deploy?referrerCode=Mantra&template=https://github.com/MidknightMantra/Mantra) |
-| **Render** | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MidknightMantra/Mantra) |
-| **Koyeb** | [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/MidknightMantra/Mantra&name=mantra-bot) |
-
-> **Note:** You must configure the **Environment Variables** after deployment.
-
----
-
-## ⚙️ Configuration
-
-Create a `.env` file or set these variables in your cloud dashboard:
-
-| Variable | Description | Required | Default |
-| :--- | :--- | :--- | :--- |
-| `SESSION_ID` | Your Baileys session ID | **Yes** | - |
-| `OWNER_NUMBER` | Your WhatsApp number (e.g., `2547...`) | **Yes** | (Auto-detects) |
-| `DATABASE_URL` | MongoDB Connection String | No | `database.json` |
-| `REDIS_URL` | Redis Connection String | No | (Disabled) |
-| `BOT_NAME` | Custom Name for your bot | No | `Mantra-MD` |
-| `GIFTED_API_KEY` | Key for premium API features | No | (Free Tier) |
+| 🛡️ **Group Guard** | Advanced group management: Tag All, Mention, and automated controls. |
+| 🎨 **Sticker Forge** | Transform images, videos, and GIFs into high-quality stickers instantly. |
+| 🗣️ **Neural TTS** | Convert text to speech with high-fidelity voices. |
+| ⚡ **Flash Response** | Incredible uptime and reaction speeds using optimized Baileys integration. |
+| 📊 **Poll Engine** | Create and manage interactive polls for your community. |
+| 🔄 **Auto-React** | Engage with your audience automatically using smart reactions. |
 
 ---
 
-## 💻 Local Installation
-
-For developers or local hosting:
+## 🚀 Quick Start
 
 ### Prerequisites
-*   Node.js 18+
-*   Git
-*   FFmpeg (for media conversion)
+- [Node.js](https://nodejs.org/) (v16+)
+- [FFmpeg](https://ffmpeg.org/) (for media processing)
+- [PM2](https://pm2.keymetrics.io/) (recommended for 24/7 hosting)
 
-### Quick Start
-```bash
-# 1. Clone the repository
-git clone https://github.com/MidknightMantra/Mantra.git
-cd Mantra
+### Installation
 
-# 2. Install dependencies
-npm install
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Mantraa/Mantra.git
+   cd Mantra
+   ```
 
-# 3. Setup Environment
-cp .env.example .env
-# Edit .env with your details
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-# 4. Start the bot
-npm start
-```
+3. **Configure the environment:**
+   Create a `.env` file in the root directory:
+   ```env
+   SESSION_ID=your_session_id_here
+   PORT=3000
+   ```
 
-### Docker
-```bash
-docker-compose up -d
+4. **Launch the Bot:**
+   ```bash
+   npm run start
+   ```
+
+---
+
+## 🛠️ Configuration
+
+Configure your bot settings in [`config.js`](file:///c:/Users/Mantraa/Mantra/config.js):
+
+```javascript
+global.prefix = '.'; // Set your custom prefix
+global.owners = [
+    '25770239992037@lid', // Add owner numbers here
+];
 ```
 
 ---
 
-## 🛠️ Development
+## 📜 Command Showcase
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-### Run Tests
-```bash
-npm test              # Run unit & integration tests
-npm run test:watch    # Watch mode
-```
-
----
-
-## 📝 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+| Command | Usage | Description |
+| :--- | :--- | :--- |
+| `.menu` | `.menu` | View the interactive command list. |
+| `.sticker` | Reply to image/video | Create a sticker from media. |
+| `.tagall` | `.tagall [text]` | Mention every member in a group. |
+| `.alive` | `.alive` | Check the bot's current status. |
+| `.uptime` | `.uptime` | View how long the bot has been running. |
 
 ---
 
-**Made with ❤️ by Midknight Mantra**
+## 🤝 Contributing
+
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+<div align="center">
+
+Made with ❤️ by [Mantra](https://github.com/Mantraa)
+
+</div>
