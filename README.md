@@ -1,5 +1,7 @@
 # MANTRA WhatsApp Bot
 
+![MANTRA Banner](https://files.catbox.moe/2evo2f.jpg)
+
 MANTRA is a plugin-based WhatsApp bot built on `gifted-baileys` with command hot-reload, group tools, downloader tools, fun commands, and owner utilities.
 
 ## Requirements

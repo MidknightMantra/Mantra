@@ -1,6 +1,6 @@
 {
   "retentionMs": 2400000,
-  "updatedAt": "2026-02-11T14:47:00.848Z",
+  "updatedAt": "2026-02-11T14:50:09.421Z",
   "messages": [
     {
       "id": "ACA2EE263D0E60153A7850EB858154F6",
@@ -118,6 +118,15 @@
       "time": "11/02/2026, 17:36:12",
       "timestamp": 1770820572801,
       "contentType": "unknown"
+    },
+    {
+      "id": "A55DC48A7D201AE707FFE80F732063BE",
+      "body": "How many of you knows that the bot has antibug command",
+      "sender": "120363197273830813@newsletter",
+      "from": "120363197273830813@newsletter",
+      "time": "11/02/2026, 17:50:08",
+      "timestamp": 1770821408416,
+      "contentType": "imageMessage"
     }
   ]
 }
