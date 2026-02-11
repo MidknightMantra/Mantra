@@ -1,5 +1,6 @@
 module.exports = {
     name: "ping",
+    react: "⚡",
     category: "general",
     description: "Check bot response speed",
     usage: ",ping",

@@ -1,0 +1,79 @@
+{
+  "name": "mantra",
+  "description": "WhatsApp bot built with gifted-baileys",
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "nodejs"
+  ],
+  "website": "https://github.com/MidknightMantra/Mantra",
+  "repository": "https://github.com/MidknightMantra/Mantra",
+  "success_url": "/",
+  "stack": "heroku-22",
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "scripts": {
+    "postdeploy": "npm run check"
+  },
+  "env": {
+    "MANTRA_SESSION": {
+      "description": "Optional base64 session string prefixed with 'Mantra~' to restore WhatsApp auth without QR scan",
+      "required": true
+    },
+    "BOT_NAME": {
+      "description": "Display name used by menu/help messages",
+      "value": "MANTRA",
+      "required": false
+    },
+    "BOT_OWNER": {
+      "description": "Owner display name used by menu/help messages",
+      "value": "MidknightMantra",
+      "required": false
+    },
+    "BOT_GITHUB": {
+      "description": "GitHub repo/link shown in alive command",
+      "value": "https://github.com/MidknightMantra/Mantra",
+      "required": false
+    },
+    "ALIVE_IMG": {
+      "description": "Image URL used by alive command",
+      "value": "https://files.catbox.moe/2evo2f.jpg",
+      "required": false
+    },
+    "ALIVE_AUDIO": {
+      "description": "Audio URL used by alive command",
+      "value": "https://files.catbox.moe/9h4ttf.mp3",
+      "required": false
+    },
+    "OWNER_NUMBER": {
+      "description": "Owner WhatsApp number in international format (digits only), used for owner-only command checks",
+      "required": false
+    },
+    "BOT_OWNER_NUMBER": {
+      "description": "Alternative owner number variable (digits only)",
+      "required": false
+    },
+    "OPENWEATHER_API_KEY": {
+      "description": "OpenWeatherMap API key for weather command",
+      "required": false
+    },
+    "AI_ENDPOINT": {
+      "description": "AI endpoint URL(s) for ,ai command. Multiple endpoints can be comma-separated.",
+      "required": false
+    },
+    "OPENAI_API_KEY": {
+      "description": "Optional OpenAI API key fallback for ,ai command",
+      "required": false
+    },
+    "AI_MODEL": {
+      "description": "Optional OpenAI model for ,ai fallback (default: gpt-4.1-mini)",
+      "value": "gpt-4.1-mini",
+      "required": false
+    }
+  }
+}

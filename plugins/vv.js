@@ -114,6 +114,7 @@ function getCandidateMessages(m, mantra) {
 
 module.exports = {
     name: 'vv',
+    react: '🕶️',
     category: 'media',
     description: 'Forward quoted view-once media to your saved messages',
     usage: ',vv',

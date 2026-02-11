@@ -1,5 +1,6 @@
 module.exports = {
     name: "antidelete",
+    react: "🧹",
     category: "security",
 
     execute: async (sock, m, mantra) => {

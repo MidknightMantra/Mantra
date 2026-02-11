@@ -1,6 +1,10 @@
 const { downloadMediaMessage } = require('gifted-baileys');
 const { sendButtons, sendInteractiveMessage } = require('gifted-btns');
 
+function jidUser(jid) {
+    return String(jid || '').split('@')[0].split(':')[0];
+}
+
 function readButtonCommand(content) {
     const legacyId = content?.buttonsResponseMessage?.selectedButtonId;
     if (legacyId) return String(legacyId);
@@ -42,7 +46,7 @@ module.exports = async function handler(sock, msg, mantra) {
     m.from = msg.key.remoteJid;
     m.sender = msg.key.participant || msg.key.remoteJid;
     m.isGroup = m.from.endsWith('@g.us');
-    m.isOwner = m.sender === sock.user.id;
+    m.isOwner = Boolean(msg.key.fromMe) || jidUser(m.sender) === jidUser(sock.user.id);
 
     const content = msg.message || {};
     const contextInfo = readContextInfo(content);
@@ -81,11 +85,13 @@ module.exports = async function handler(sock, msg, mantra) {
         mantra.safeInteractive(sock, m.from, opts);
 
     m.quoted = contextInfo?.quotedMessage || null;
+    m.mentionedJid = Array.isArray(contextInfo?.mentionedJid) ? contextInfo.mentionedJid : [];
+    m.mentioned = m.mentionedJid;
     m.quotedKey = contextInfo?.stanzaId
         ? {
             id: contextInfo.stanzaId,
             remoteJid: m.from,
-            fromMe: contextInfo.participant === sock.user.id,
+            fromMe: jidUser(contextInfo.participant) === jidUser(sock.user.id),
             participant: contextInfo.participant || undefined
         }
         : null;

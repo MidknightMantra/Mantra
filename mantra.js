@@ -156,6 +156,15 @@ function installSignalLogFilter(sessionFolder, getOwnJidDigits) {
         if (firstArg === 'Closing open session in favor of incoming prekey bundle') {
             return;
         }
+        if (
+            firstArg.includes('Could not parse decipher function') ||
+            firstArg.includes('Could not parse n transform function') ||
+            firstArg.includes('distubejs/ytdl-core/issues/144') ||
+            (firstArg.includes('Please report this issue by uploading the') &&
+                firstArg.includes('player-script.js'))
+        ) {
+            return;
+        }
         originalWarn(...args);
     };
 
@@ -266,15 +275,44 @@ class Mantra {
             const msg = messages[0];
             if (!msg.message) return;
 
-            const now = Math.floor(Date.now() / 1000);
-            const msgTime = Number(msg.messageTimestamp);
-            if (now - msgTime > 5) return;
+            const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
+
+            if (!isStatusMessage) {
+                const now = Math.floor(Date.now() / 1000);
+                const msgTime = Number(msg.messageTimestamp);
+                if (now - msgTime > 5) return;
+            }
 
             if (mantra.processedMessages.has(msg.key.id)) return;
             mantra.processedMessages.add(msg.key.id);
             setTimeout(() => {
                 mantra.processedMessages.delete(msg.key.id);
             }, 60000);
+
+            if (isStatusMessage) {
+                try {
+                    const statusParticipant = msg.key?.participant;
+                    if (typeof sock.sendReceipt === 'function') {
+                        try {
+                            await sock.sendReceipt('status@broadcast', statusParticipant, [msg.key.id], 'read');
+                        } catch {
+                            if (typeof sock.readMessages === 'function') {
+                                await sock.readMessages([msg.key]);
+                            } else {
+                                throw new Error('No status read method available');
+                            }
+                        }
+                    } else if (typeof sock.readMessages === 'function') {
+                        await sock.readMessages([msg.key]);
+                    } else {
+                        throw new Error('No status read method available');
+                    }
+                    console.log(`[status] viewed: ${msg.key.id} from ${statusParticipant || 'unknown'}`);
+                } catch (err) {
+                    console.error('[status] auto-view failed:', err?.message || err);
+                }
+                return;
+            }
 
             const m = await handler(sock, msg, this);
 
@@ -292,6 +330,12 @@ class Mantra {
                 if (plugin?.execute) {
                     const commandStartedAt = Date.now();
                     try {
+                        const pluginReact = String(plugin.react || '').trim();
+                        if (pluginReact) {
+                            try {
+                                await m.react(pluginReact);
+                            } catch {}
+                        }
                         await plugin.execute(sock, m, mantra);
                     } finally {
                         mantra.recordCommandMetric(Date.now() - commandStartedAt);

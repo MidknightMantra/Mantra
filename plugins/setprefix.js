@@ -1,45 +1,26 @@
-function digits(value) {
-    return String(value || "").replace(/\D/g, "");
-}
-
-function jidUser(value) {
-    const raw = String(value || "");
-    const beforeAt = raw.split("@")[0];
-    return beforeAt.split(":")[0];
-}
-
-function isOwnerSender(m, sock) {
-    if (m.isOwner) return true;
-
-    const configuredOwner = digits(process.env.OWNER_NUMBER || process.env.BOT_OWNER_NUMBER);
-    if (!configuredOwner) return false;
-
-    const senderDigits = digits(jidUser(m.sender));
-    return senderDigits === configuredOwner;
-}
-
 module.exports = {
     name: "setprefix",
+    react: "🪄",
     category: "owner",
     description: "Set the bot command prefix",
     usage: ",setprefix <symbol>",
     aliases: ["prefix"],
 
-    execute: async (sock, m, mantra) => {
-        if (!isOwnerSender(m, sock)) {
+    execute: async (_sock, m, mantra) => {
+        if (!m.isOwner) {
             await m.reply("Owner only command.");
             return;
         }
 
         const text = String(m.args?.join("") || "").trim();
         if (!text) {
-            await m.reply(`No symbol detected. Usage: ${m.prefix}setprefix <symbol>`);
+            await m.reply("No symbol detected ...");
             return;
         }
 
         const symbolRegex = /^[^\w\s]$/u;
         if (!symbolRegex.test(text)) {
-            await m.reply("Invalid symbol input. Provide exactly one symbol as prefix.");
+            await m.reply("Invalid symbol input. Please provide exactly one symbol as a prefix.");
             return;
         }
 
@@ -49,6 +30,6 @@ module.exports = {
             mantra.prefix = text;
         }
 
-        await m.reply(`The prefix has been changed to *${text}*`);
+        await m.reply(`the prefix has been changed to *${text}*`);
     }
 };
