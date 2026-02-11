@@ -1,5 +1,31 @@
 const axios = require("axios");
 
+const DEFAULT_QUOTES_ENDPOINT = "https://api.giftedtech.co.ke/api/fun/quotes";
+const DEFAULT_GIFTED_KEY = "gifted";
+
+function getApiKey() {
+    return String(process.env.AI_API_KEY || process.env.GIFTED_API_KEY || "").trim() || DEFAULT_GIFTED_KEY;
+}
+
+function buildGiftedUrl() {
+    const endpoint = String(process.env.GIFTED_QUOTES_ENDPOINT || "").trim() || DEFAULT_QUOTES_ENDPOINT;
+    const url = new URL(endpoint);
+    if (!url.searchParams.get("apikey")) {
+        url.searchParams.set("apikey", getApiKey());
+    }
+    return url.toString();
+}
+
+async function fetchFromGiftedQuotes() {
+    const { data } = await axios.get(buildGiftedUrl(), { timeout: 15000 });
+    const content = String(data?.result || "").trim();
+    if (!content) return null;
+    return {
+        content,
+        author: "Unknown"
+    };
+}
+
 async function fetchFromZenQuotes() {
     const { data } = await axios.get("https://zenquotes.io/api/random", { timeout: 12000 });
     const first = Array.isArray(data) ? data[0] : null;
@@ -21,14 +47,15 @@ async function fetchFromQuotable() {
 
 module.exports = {
     name: "quote",
-    react: "💬",
+    react: "\u{1F4AC}",
     category: "fun",
     description: "Get a random inspiring quote",
     usage: ",quote",
-    aliases: ["inspire", "motivate"],
+    aliases: ["inspire", "motivate", "quotes"],
 
     execute: async (_sock, m) => {
         const providers = [
+            ["gifted", fetchFromGiftedQuotes],
             ["zenquotes", fetchFromZenQuotes],
             ["quotable", fetchFromQuotable]
         ];
@@ -52,14 +79,8 @@ module.exports = {
             return;
         }
 
-        const botName = process.env.BOT_NAME || "MANTRA";
-        const message = `
-💬 "${quote.content}"
-- ${quote.author}
-
-> *${botName} QUOTES*
-`;
-
-        await m.reply(message.trim());
+        const author = String(quote.author || "Unknown").trim();
+        const message = `\u{1F4AC} "${quote.content}"\n- ${author}`;
+        await m.reply(message);
     }
 };

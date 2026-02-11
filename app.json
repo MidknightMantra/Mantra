@@ -7,7 +7,7 @@
     "baileys",
     "nodejs"
   ],
-  "website": "https://github.com/MidknightMantra/Mantra",
+  "website": "https://github.com/MidknightMantra/",
   "repository": "https://github.com/MidknightMantra/Mantra",
   "success_url": "/",
   "stack": "heroku-22",
@@ -22,8 +22,12 @@
   },
   "env": {
     "MANTRA_SESSION": {
-      "description": "Optional base64 session string prefixed with 'Mantra~' to restore WhatsApp auth without QR scan",
-      "required": true
+      "description": "Primary session string for restore. Supports raw creds JSON, base64 JSON, or Mantra~<base64> format.",
+      "required": false
+    },
+    "SESSION_ID": {
+      "description": "Alternative session variable name used by many hosting dashboards. Same format as MANTRA_SESSION.",
+      "required": false
     },
     "BOT_NAME": {
       "description": "Display name used by menu/help messages",

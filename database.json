@@ -1,0 +1,24 @@
+{
+  "retentionMs": 2400000,
+  "updatedAt": "2026-02-11T13:23:44.763Z",
+  "messages": [
+    {
+      "id": "AC77D24575EBA332F6043E1C276F7851",
+      "body": "Mavi",
+      "sender": "61620516597944@lid",
+      "from": "61620516597944@lid",
+      "time": "11/02/2026, 16:23:39",
+      "timestamp": 1770816219595,
+      "contentType": "conversation"
+    },
+    {
+      "id": "AC924DC6A038A4C0241CE12B8EC7C60B",
+      "body": "",
+      "sender": "61620516597944@lid",
+      "from": "61620516597944@lid",
+      "time": "11/02/2026, 16:23:43",
+      "timestamp": 1770816223752,
+      "contentType": "protocolMessage"
+    }
+  ]
+}
