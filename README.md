@@ -34,23 +34,6 @@ GitHub Repo for deployment:
 
 - `https://github.com/MidknightMantra/Mantra`
 
-## Railway Deployment
-
-This repo includes `railway.json` and is ready for Railway.
-
-1. Push this project to GitHub.
-2. In Railway, create a new project from this GitHub repo.
-3. Add your generated session from https://mantra-pair.up.railway.app/ in your project configuration.
-4. Deploy.
-
-Start command:
-
-- `npm start`
-
-## Other Hosting (Heroku / Render / Koyeb)
-
-Use the same setup flow as Railway and deploy with start command `npm start`.
-
 ## Notes
 
 - Keep your session string private.
