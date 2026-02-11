@@ -1,4 +1,4 @@
-const { getGroupAdminState, getTargetFromMentionOrQuote, mentionTag } = require("../lib/groupTools");
+const { getGroupAdminState, resolveTargetFromInput, mentionTag, isSuperAdminParticipant } = require("../lib/groupTools");
 
 module.exports = {
     name: "demote",
@@ -15,8 +15,15 @@ module.exports = {
             if (!state.botIsAdmin) return m.reply("Bot must be an admin to use this command.");
             if (!state.senderIsAdmin) return m.reply("You must be an admin to use this command.");
 
-            const user = getTargetFromMentionOrQuote(m);
+            const user = resolveTargetFromInput(m, state);
             if (!user) return m.reply("Please tag or reply to a user to demote.");
+            if (user === state.botJid) return m.reply("I cannot demote myself.");
+
+            const entry = state.byJid.get(user);
+            if (!entry?.admin) return m.reply(`${mentionTag(user)} is not an admin.`);
+            if (isSuperAdminParticipant(entry)) {
+                return m.reply(`${mentionTag(user)} is the group owner and cannot be demoted.`);
+            }
 
             await sock.groupParticipantsUpdate(m.from, [user], "demote");
             await sock.sendMessage(m.from, {

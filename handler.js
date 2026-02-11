@@ -40,6 +40,7 @@ function readContextInfo(content) {
 module.exports = async function handler(sock, msg, mantra) {
     const m = {};
 
+    m.raw = msg;
     m.key = msg.key;
     const rawTimestamp = Number(msg.messageTimestamp || 0);
     m.timestamp = rawTimestamp > 0 ? rawTimestamp * 1000 : Date.now();
@@ -49,6 +50,7 @@ module.exports = async function handler(sock, msg, mantra) {
     m.isOwner = Boolean(msg.key.fromMe) || jidUser(m.sender) === jidUser(sock.user.id);
 
     const content = msg.message || {};
+    m.message = content;
     const contextInfo = readContextInfo(content);
     const type = Object.keys(content)[0];
     const body =

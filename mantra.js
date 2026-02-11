@@ -190,7 +190,7 @@ function appendFooterToContent(content) {
 
 function loadSettings(folder) {
     const file = path.join(folder, 'settings.json');
-    const fallback = { antidelete: false, prefix: DEFAULT_PREFIX };
+    const fallback = { antidelete: false, antigcmention: false, prefix: DEFAULT_PREFIX };
 
     if (!fs.existsSync(file)) {
         fs.writeFileSync(file, JSON.stringify(fallback, null, 2));
@@ -208,11 +208,13 @@ function loadSettings(folder) {
     const normalizedPrefix = /^[^\w\s]$/u.test(prefixCandidate) ? prefixCandidate : DEFAULT_PREFIX;
     const normalized = {
         antidelete: Boolean(parsed.antidelete),
+        antigcmention: Boolean(parsed.antigcmention),
         prefix: normalizedPrefix
     };
 
     if (
         parsed.antidelete !== normalized.antidelete ||
+        parsed.antigcmention !== normalized.antigcmention ||
         parsed.prefix !== normalized.prefix
     ) {
         fs.writeFileSync(file, JSON.stringify(normalized, null, 2));
@@ -570,7 +572,9 @@ class Mantra {
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             const msg = messages[0];
-            if (!msg.message) return;
+            const hasMessage = Boolean(msg?.message);
+            const hasStub = Number.isFinite(Number(msg?.messageStubType)) && Number(msg.messageStubType) > 0;
+            if (!hasMessage && !hasStub) return;
 
             const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
             if (!isStatusMessage && type !== 'notify') return;

@@ -6,7 +6,7 @@ module.exports = {
     category: "group",
     description: "Add a member to the group",
     usage: ",add <phone_number>",
-    aliases: [],
+    aliases: ["invite"],
 
     execute: async (sock, m) => {
         try {

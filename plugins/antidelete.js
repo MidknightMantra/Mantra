@@ -1,4 +1,4 @@
-const { WAProto } = require("gifted-baileys");
+const { WAProto, downloadMediaMessage } = require("gifted-baileys");
 
 const REVOKE_STUB_TYPE = Number(WAProto?.WebMessageInfo?.StubType?.REVOKE ?? 1);
 const REVOKE_PROTOCOL_TYPE = Number(WAProto?.Message?.ProtocolMessage?.Type?.REVOKE ?? 0);
@@ -14,6 +14,17 @@ function normalizeJid(jid) {
     return `${left}@${right}`;
 }
 
+function getSelfJid(userId) {
+    const raw = String(userId || "").trim();
+    if (!raw) return "";
+
+    const [userPart = "", serverPart = "s.whatsapp.net"] = raw.split("@");
+    const user = userPart.split(":")[0];
+    if (!user) return "";
+
+    return `${user}@${serverPart || "s.whatsapp.net"}`;
+}
+
 function pickDeletedMessageId(update) {
     const protocol = update?.update?.message?.protocolMessage;
     if (Number(protocol?.type) === REVOKE_PROTOCOL_TYPE && protocol?.key?.id) {
@@ -27,18 +38,61 @@ function pickDeletedMessageId(update) {
     return "";
 }
 
-function resolveTargetJid(update, cached, ownJid) {
-    const own = normalizeJid(ownJid);
-    const candidates = [
-        normalizeJid(update?.key?.remoteJid),
-        normalizeJid(update?.update?.key?.remoteJid),
-        normalizeJid(cached?.from)
-    ].filter(Boolean);
+function unwrapMessageForMedia(message) {
+    let current = message || null;
+    let guard = 0;
 
-    const nonStatus = candidates.filter((jid) => jid !== "status@broadcast");
-    const nonSelf = nonStatus.filter((jid) => jid !== own);
+    while (current && guard < 12) {
+        guard += 1;
 
-    return nonSelf[0] || nonStatus[0] || "";
+        if (current.ephemeralMessage?.message) {
+            current = current.ephemeralMessage.message;
+            continue;
+        }
+        if (current.documentWithCaptionMessage?.message) {
+            current = current.documentWithCaptionMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessage?.message) {
+            current = current.viewOnceMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2?.message) {
+            current = current.viewOnceMessageV2.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2Extension?.message) {
+            current = current.viewOnceMessageV2Extension.message;
+            continue;
+        }
+
+        break;
+    }
+
+    return current;
+}
+
+function getDeletedMediaMeta(cached) {
+    const message = unwrapMessageForMedia(cached?.raw?.message || null);
+    if (!message) return null;
+
+    if (message.imageMessage) {
+        return { type: "image", meta: message.imageMessage };
+    }
+    if (message.videoMessage) {
+        return { type: "video", meta: message.videoMessage };
+    }
+    if (message.audioMessage) {
+        return { type: "audio", meta: message.audioMessage };
+    }
+    if (message.stickerMessage) {
+        return { type: "sticker", meta: message.stickerMessage };
+    }
+    if (message.documentMessage) {
+        return { type: "document", meta: message.documentMessage };
+    }
+
+    return null;
 }
 
 function describeDeletedContent(cached) {
@@ -52,13 +106,65 @@ function describeDeletedContent(cached) {
     if (contentType.includes("sticker")) return "[sticker]";
     if (contentType.includes("document")) return "[document]";
 
-    const msg = cached?.raw?.message || {};
-    if (msg.imageMessage) return "[image]";
-    if (msg.videoMessage) return "[video]";
-    if (msg.audioMessage) return "[audio]";
-    if (msg.stickerMessage) return "[sticker]";
-    if (msg.documentMessage) return "[document]";
+    const media = getDeletedMediaMeta(cached);
+    if (media?.type) return `[${media.type}]`;
+
     return "[media]";
+}
+
+async function resendDeletedMedia(sock, targetJid, cached) {
+    const media = getDeletedMediaMeta(cached);
+    if (!media) return false;
+
+    const sourceKey = cached?.raw?.key;
+    const sourceMessage = cached?.raw?.message;
+    if (!sourceKey || !sourceMessage) return false;
+
+    const buffer = await downloadMediaMessage(
+        { key: sourceKey, message: sourceMessage },
+        "buffer",
+        {},
+        { reuploadRequest: sock.updateMediaMessage }
+    );
+
+    if (!buffer || !Buffer.isBuffer(buffer) || !buffer.length) return false;
+
+    const caption = String(media.meta?.caption || "").trim() || undefined;
+
+    if (media.type === "image") {
+        await sock.sendMessage(targetJid, { image: buffer, caption });
+        return true;
+    }
+
+    if (media.type === "video") {
+        await sock.sendMessage(targetJid, { video: buffer, caption });
+        return true;
+    }
+
+    if (media.type === "audio") {
+        await sock.sendMessage(targetJid, {
+            audio: buffer,
+            mimetype: String(media.meta?.mimetype || "audio/mpeg"),
+            ptt: Boolean(media.meta?.ptt)
+        });
+        return true;
+    }
+
+    if (media.type === "sticker") {
+        await sock.sendMessage(targetJid, { sticker: buffer });
+        return true;
+    }
+
+    if (media.type === "document") {
+        await sock.sendMessage(targetJid, {
+            document: buffer,
+            mimetype: String(media.meta?.mimetype || "application/octet-stream"),
+            fileName: String(media.meta?.fileName || "deleted-document")
+        });
+        return true;
+    }
+
+    return false;
 }
 
 module.exports = {
@@ -100,20 +206,27 @@ module.exports = {
             if (!cached) continue;
             if (cached?.fromMe || cached?.raw?.key?.fromMe) continue;
 
-            const targetJid = resolveTargetJid(update, cached, sock.user?.id);
-            if (!targetJid || targetJid === "status@broadcast") continue;
+            const targetJid = getSelfJid(sock.user?.id);
+            if (!targetJid) continue;
 
+            const originalChat = normalizeJid(cached?.from) || "unknown";
             const text = [
                 "🗑️ *Deleted Message Detected*",
                 "",
                 `*From:* ${cached.sender}`,
-                `*Chat:* ${targetJid}`,
+                `*Chat:* ${originalChat}`,
                 "",
                 "*Message:*",
                 describeDeletedContent(cached)
             ].join("\n");
 
             await sock.sendMessage(targetJid, { text });
+
+            try {
+                await resendDeletedMedia(sock, targetJid, cached);
+            } catch (mediaError) {
+                console.error("antidelete media resend error:", mediaError?.message || mediaError);
+            }
         }
     }
 };
