@@ -1,19 +1,17 @@
-const process = require('process');
-
 module.exports = {
-    name: 'uptime',
-    aliases: ['up'],
-    description: 'Check how long the bot has been running.',
+    name: "uptime",
+    category: "general",
+    description: "Check bot uptime status",
+    usage: ",uptime",
+    aliases: ["up"],
 
-    async execute(sock, m) {
-        const uptime = process.uptime();
+    execute: async (sock, m) => {
+        const uptimeMs = process.uptime() * 1000;
+        const seconds = Math.floor((uptimeMs / 1000) % 60);
+        const minutes = Math.floor((uptimeMs / (1000 * 60)) % 60);
+        const hours = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
+        const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
 
-        const hours = Math.floor(uptime / 3600);
-        const minutes = Math.floor((uptime % 3600) / 60);
-        const seconds = Math.floor(uptime % 60);
-
-        const formattedTime = `${hours}h ${minutes}m ${seconds}s`;
-
-        await m.reply(`⏱️Uptime: ${formattedTime}`);
+        await m.reply(`⏱ : ${days}d ${hours}h ${minutes}m ${seconds}s\n> Mantra`);
     }
 };

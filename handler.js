@@ -1,98 +1,113 @@
-/**
- * Serialize Message
- * Created By ABZTECH
- * Follow https://github.com/abrahamdw882
- * Whatsapp : https://whatsapp.com/channel/0029VaMGgVL3WHTNkhzHik3c
- */
+const { downloadMediaMessage } = require('gifted-baileys');
+const { sendButtons, sendInteractiveMessage } = require('gifted-btns');
 
-const { downloadMediaMessage } = require('@whiskeysockets/baileys'); 
+function readButtonCommand(content) {
+    const legacyId = content?.buttonsResponseMessage?.selectedButtonId;
+    if (legacyId) return String(legacyId);
 
-async function serializeMessage(sock, msg) {
-    const from = msg.key.remoteJid;
-    const isGroup = from.endsWith('@g.us');
-    const sender = msg.key.fromMe ? sock.user.id : (isGroup ? msg.key.participant : from);
-    const pushName = msg.pushName || (sender ? sender.split('@')[0] : 'Unknown');
-    let body = '';
-    const type = Object.keys(msg.message || {})[0] || '';
-    
-   
-    if (msg.message?.interactiveResponseMessage) {
-        body = msg.message.interactiveResponseMessage.buttonId || 
-               msg.message.interactiveResponseMessage?.body?.text || 
-               '';
-    }
-   
-    else if (msg.message?.conversation) {
-        body = msg.message.conversation;
-    }
-    else if (msg.message?.extendedTextMessage?.text) {
-        body = msg.message.extendedTextMessage.text;
-    }
-    else if (msg.message?.imageMessage?.caption) {
-        body = msg.message.imageMessage.caption;
-    }
-    else if (msg.message?.videoMessage?.caption) {
-        body = msg.message.videoMessage.caption;
-    }
-    else if (msg.message?.documentMessage?.caption) {
-        body = msg.message.documentMessage.caption;
-    }
-    else if (msg.message?.buttonsResponseMessage?.selectedButtonId) {
-        body = msg.message.buttonsResponseMessage.selectedButtonId;
-    }
-    else if (msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId) {
-        body = msg.message.listResponseMessage.singleSelectReply.selectedRowId;
-    }
-    else if (msg.message?.templateButtonReplyMessage?.selectedId) {
-        body = msg.message.templateButtonReplyMessage.selectedId;
+    const templateId = content?.templateButtonReplyMessage?.selectedId;
+    if (templateId) return String(templateId);
+
+    const interactiveJson = content?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+    if (interactiveJson) {
+        try {
+            const parsed = JSON.parse(interactiveJson);
+            if (parsed?.id) return String(parsed.id);
+            if (parsed?.selectedId) return String(parsed.selectedId);
+        } catch {}
     }
 
-    const isMedia = ['imageMessage', 'videoMessage', 'documentMessage', 'audioMessage', 'stickerMessage'].includes(type);
-    const mediaType = type.replace('Message', '').toLowerCase();
-    const mimetype = msg.message?.[type]?.mimetype || null;
-
-    const groupMetadata = isGroup ? await sock.groupMetadata(from).catch(() => {}) : '';
-
-    let quoted;
-    const ctxInfo = msg.message?.extendedTextMessage?.contextInfo;
-    if (ctxInfo?.quotedMessage) {
-        const qMsg = ctxInfo.quotedMessage;
-        const qType = Object.keys(qMsg)[0] || '';
-        quoted = {
-            key: { remoteJid: from, id: ctxInfo.stanzaId, participant: ctxInfo.participant || from },
-            message: qMsg,
-            type: qType,
-            body: qMsg?.conversation || qMsg?.extendedTextMessage?.text || qMsg?.[qType]?.caption || '',
-            isMedia: ['imageMessage','videoMessage','documentMessage','audioMessage','stickerMessage'].includes(qType),
-            mediaType: qType.replace('Message','').toLowerCase(),
-            mimetype: qMsg?.[qType]?.mimetype || null,
-            download: async () => await downloadMediaMessage({ message: qMsg, key: { ...msg.key } }, 'buffer', {}, sock)
-        };
-    }
-
-    return {
-        id: msg.key.id,
-        from,
-        sender,
-        pushName,
-        isGroup,
-        groupMetadata,
-        body,
-        text: body,
-        type,
-        mtype: type,
-        isMedia,
-        mediaType,
-        mimetype,
-        quoted,
-        isButtonResponse: !!msg.message?.interactiveResponseMessage,
-        buttonId: msg.message?.interactiveResponseMessage?.buttonId || null,
-        reply: async (text, options={}) => await sock.sendMessage(from, { text, ...options }, { quoted: msg }),
-        send: async (content, options={}) => await sock.sendMessage(from, typeof content === 'string' ? { text: content, ...options } : content, { quoted: msg }),
-        react: async emoji => await sock.sendMessage(from, { react: { text: emoji, key: msg.key } }),
-        forward: async (jid, force=false) => await sock.sendMessage(jid, { forward: msg, force }),
-        download: async () => isMedia ? await downloadMediaMessage(msg, 'buffer', {}, sock) : (quoted?.isMedia ? await quoted.download() : null)
-    };
+    return '';
 }
 
-module.exports = serializeMessage;
+function readContextInfo(content) {
+    return (
+        content?.extendedTextMessage?.contextInfo ||
+        content?.imageMessage?.contextInfo ||
+        content?.videoMessage?.contextInfo ||
+        content?.documentMessage?.contextInfo ||
+        content?.buttonsResponseMessage?.contextInfo ||
+        content?.templateButtonReplyMessage?.contextInfo ||
+        content?.interactiveResponseMessage?.contextInfo ||
+        null
+    );
+}
+
+module.exports = async function handler(sock, msg, mantra) {
+    const m = {};
+
+    m.key = msg.key;
+    const rawTimestamp = Number(msg.messageTimestamp || 0);
+    m.timestamp = rawTimestamp > 0 ? rawTimestamp * 1000 : Date.now();
+    m.from = msg.key.remoteJid;
+    m.sender = msg.key.participant || msg.key.remoteJid;
+    m.isGroup = m.from.endsWith('@g.us');
+    m.isOwner = m.sender === sock.user.id;
+
+    const content = msg.message || {};
+    const contextInfo = readContextInfo(content);
+    const type = Object.keys(content)[0];
+    const body =
+        readButtonCommand(content) ||
+        content.conversation ||
+        content.extendedTextMessage?.text ||
+        content.buttonsResponseMessage?.selectedDisplayText ||
+        content.templateButtonReplyMessage?.selectedDisplayText ||
+        content.interactiveResponseMessage?.nativeFlowResponseMessage?.name ||
+        content.imageMessage?.caption ||
+        content.videoMessage?.caption ||
+        '';
+
+    m.body = body.trim();
+    m.prefix = mantra.prefix;
+
+    if (m.body.startsWith(m.prefix)) {
+        const args = m.body.slice(1).trim().split(/\s+/);
+        m.command = args.shift().toLowerCase();
+        m.args = args;
+    }
+
+    m.reply = (text) => mantra.safeSend(sock, m.from, { text }, msg);
+
+    m.react = (emoji) =>
+        sock.sendMessage(m.from, {
+            react: { text: emoji, key: msg.key }
+        });
+
+    m.buttons = (opts) =>
+        mantra.safeButtons(sock, m.from, opts);
+
+    m.interactive = (opts) =>
+        mantra.safeInteractive(sock, m.from, opts);
+
+    m.quoted = contextInfo?.quotedMessage || null;
+    m.quotedKey = contextInfo?.stanzaId
+        ? {
+            id: contextInfo.stanzaId,
+            remoteJid: m.from,
+            fromMe: contextInfo.participant === sock.user.id,
+            participant: contextInfo.participant || undefined
+        }
+        : null;
+
+    m.downloadQuoted = async () => {
+        if (!m.quoted) throw new Error('No quoted message found');
+        return await downloadMediaMessage(
+            { key: m.quotedKey || msg.key, message: m.quoted },
+            'buffer',
+            {},
+            { reuploadRequest: sock.updateMediaMessage }
+        );
+    };
+
+    m.download = async () => {
+        return await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            { reuploadRequest: sock.updateMediaMessage }
+        );
+    };
+
+    return m;
+};
