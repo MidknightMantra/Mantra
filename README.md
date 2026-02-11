@@ -14,8 +14,6 @@ Use this site to generate your MANTRA session string:
 
 - **https://mantra-pair.up.railway.app/**
 
-After generating it, set it in env vars as `SESSION_ID` (recommended) or `MANTRA_SESSION`.
-
 ## Quick Start (Local)
 
 ```bash
@@ -23,31 +21,16 @@ npm install
 npm start
 ```
 
-## Environment Variables
+## One-Click Platform Deploy
 
-Required for login:
+[![Deploy on Railway](https://img.shields.io/badge/Deploy%20on-Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app/new)
+[![Deploy to Heroku](https://img.shields.io/badge/Deploy%20to-Heroku-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://heroku.com/deploy?template=https://github.com/MidknightMantra/Mantra)
+[![Deploy to Render](https://img.shields.io/badge/Deploy%20to-Render-1A1A1A?style=for-the-badge&logo=render&logoColor=46E3B7)](https://render.com/deploy?repo=https://github.com/MidknightMantra/Mantra)
+[![Deploy to Koyeb](https://img.shields.io/badge/Deploy%20to-Koyeb-121212?style=for-the-badge&logo=koyeb&logoColor=6DEDBB)](https://app.koyeb.com/deploy?type=git&repository=github.com/MidknightMantra/Mantra&branch=main)
 
-- `SESSION_ID` (recommended), or
-- `MANTRA_SESSION`
+GitHub Repo for deployment:
 
-Also supported:
-
-- `SESSION`
-- `SESSIONID`
-- `WHATSAPP_SESSION`
-- `WA_SESSION`
-- `BOT_SESSION`
-
-Common optional vars:
-
-- `BOT_NAME` (default: `MANTRA`)
-- `BOT_OWNER`
-- `BOT_OWNER_NUMBER`
-- `OWNER_NUMBER`
-- `OPENWEATHER_API_KEY`
-- `OPENAI_API_KEY`
-- `AI_ENDPOINT`
-- `AI_MODEL`
+- `https://github.com/MidknightMantra/Mantra`
 
 ## Railway Deployment
 
@@ -55,9 +38,7 @@ This repo includes `railway.json` and is ready for Railway.
 
 1. Push this project to GitHub.
 2. In Railway, create a new project from this GitHub repo.
-3. Add environment variables:
-   - `SESSION_ID` = your generated session from https://mantra-pair.up.railway.app/
-   - Optional bot config vars (`BOT_NAME`, `BOT_OWNER`, etc.)
+3. Add your generated session from https://mantra-pair.up.railway.app/ in your project configuration.
 4. Deploy.
 
 Start command:
@@ -66,10 +47,7 @@ Start command:
 
 ## Other Hosting (Heroku / Render / Koyeb)
 
-Use the same environment variables as Railway.
-
-- Set `SESSION_ID` (or `MANTRA_SESSION`)
-- Deploy with start command `npm start`
+Use the same setup flow as Railway and deploy with start command `npm start`.
 
 ## Notes
 
@@ -78,4 +56,3 @@ Use the same environment variables as Railway.
   - https://mantra-pair.up.railway.app/
 - Plugin files are in `plugins/`.
 - Group helper utilities are in `lib/`.
-

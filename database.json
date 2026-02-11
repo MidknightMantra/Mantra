@@ -1,106 +1,7 @@
 {
   "retentionMs": 2400000,
-  "updatedAt": "2026-02-11T14:27:00.759Z",
+  "updatedAt": "2026-02-11T14:47:00.848Z",
   "messages": [
-    {
-      "id": "ACBA0B8335DCD8EF9BF7EC5F31439556",
-      "body": ",bible 1 chronicles 4:9",
-      "sender": "61620516597944@lid",
-      "from": "61620516597944@lid",
-      "time": "11/02/2026, 16:49:58",
-      "timestamp": 1770817798072,
-      "contentType": "conversation"
-    },
-    {
-      "id": "AC7D6ADD0DE3DD1A517DE74CAD10ECFB",
-      "body": "😂😂😂 uko around?",
-      "sender": "216990472003585@lid",
-      "from": "216990472003585@lid",
-      "time": "11/02/2026, 16:52:19",
-      "timestamp": 1770817939129,
-      "contentType": "extendedTextMessage"
-    },
-    {
-      "id": "A51FEE5CFD396953860B339C853087EF",
-      "body": "",
-      "sender": "254710407153@s.whatsapp.net",
-      "from": "254710407153@s.whatsapp.net",
-      "time": "11/02/2026, 16:54:10",
-      "timestamp": 1770818050959,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "A5F4AD4462E0DADD5D686335FC3C1EF3",
-      "body": "",
-      "sender": "254710407153@s.whatsapp.net",
-      "from": "254710407153@s.whatsapp.net",
-      "time": "11/02/2026, 17:01:57",
-      "timestamp": 1770818517882,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "A5E9553397EE58843D489EEDC172DD8F",
-      "body": "Naah nimetoka kuendea kitu soko😹😹",
-      "sender": "216990472003585@lid",
-      "from": "216990472003585@lid",
-      "time": "11/02/2026, 17:01:58",
-      "timestamp": 1770818518217,
-      "contentType": "extendedTextMessage"
-    },
-    {
-      "id": "A549B0596B22763006B3B5B967D76C33",
-      "body": "",
-      "sender": "216990472003585@lid",
-      "from": "216990472003585@lid",
-      "time": "11/02/2026, 17:02:15",
-      "timestamp": 1770818535467,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "A53A148F6836C14670429B331BFDF64B",
-      "body": "",
-      "sender": "254710407153@s.whatsapp.net",
-      "from": "254710407153@s.whatsapp.net",
-      "time": "11/02/2026, 17:02:30",
-      "timestamp": 1770818550746,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "ACEF2BD3AF8640455FD851E2569FDF08",
-      "body": "Nakuonaaa 🫴🫴🫴 Mimi huyu kwa mlango",
-      "sender": "216990472003585@lid",
-      "from": "216990472003585@lid",
-      "time": "11/02/2026, 17:02:31",
-      "timestamp": 1770818551258,
-      "contentType": "extendedTextMessage"
-    },
-    {
-      "id": "A51A7C4A73A3BFEB5C526100C62E814F",
-      "body": "",
-      "sender": "254710407153@s.whatsapp.net",
-      "from": "254710407153@s.whatsapp.net",
-      "time": "11/02/2026, 17:04:56",
-      "timestamp": 1770818696962,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "A5F3DB271687528EE4D408C05FA69A79",
-      "body": "",
-      "sender": "254710407153@s.whatsapp.net",
-      "from": "254710407153@s.whatsapp.net",
-      "time": "11/02/2026, 17:05:04",
-      "timestamp": 1770818704094,
-      "contentType": "protocolMessage"
-    },
-    {
-      "id": "A543EE72DC9F99C87428736487CE1BDD",
-      "body": "Hutapata mtu😹kufuli itakukaribisha",
-      "sender": "216990472003585@lid",
-      "from": "216990472003585@lid",
-      "time": "11/02/2026, 17:05:04",
-      "timestamp": 1770818704532,
-      "contentType": "extendedTextMessage"
-    },
     {
       "id": "ACA2EE263D0E60153A7850EB858154F6",
       "body": "https://youtube.com/watch?v=q-2DCEiP1Lo&si=eHl31FyWbBoB0lp1",
@@ -127,6 +28,96 @@
       "time": "11/02/2026, 17:26:42",
       "timestamp": 1770820002299,
       "contentType": "conversation"
+    },
+    {
+      "id": "A5A23D9F3B88A6A5BE7EAF9C1C113238",
+      "body": "",
+      "sender": "254710407153@s.whatsapp.net",
+      "from": "254710407153@s.whatsapp.net",
+      "time": "11/02/2026, 17:33:25",
+      "timestamp": 1770820405986,
+      "contentType": "protocolMessage"
+    },
+    {
+      "id": "A56782BEB352E0CE91C0545AEFA4E324",
+      "body": "",
+      "sender": "254710407153@s.whatsapp.net",
+      "from": "254710407153@s.whatsapp.net",
+      "time": "11/02/2026, 17:33:31",
+      "timestamp": 1770820411373,
+      "contentType": "protocolMessage"
+    },
+    {
+      "id": "A5257F2CAB68C501B447F5DD5C812836",
+      "body": "",
+      "sender": "254710407153@s.whatsapp.net",
+      "from": "254710407153@s.whatsapp.net",
+      "time": "11/02/2026, 17:33:38",
+      "timestamp": 1770820418205,
+      "contentType": "protocolMessage"
+    },
+    {
+      "id": "A580221DCF728BACBB4EA4F17C4491A6",
+      "body": "",
+      "sender": "254710407153@s.whatsapp.net",
+      "from": "254710407153@s.whatsapp.net",
+      "time": "11/02/2026, 17:33:43",
+      "timestamp": 1770820423520,
+      "contentType": "protocolMessage"
+    },
+    {
+      "id": "A59644CB673A2BBF6FD1402E5E3F34F7",
+      "body": "",
+      "sender": "254710407153@s.whatsapp.net",
+      "from": "254710407153@s.whatsapp.net",
+      "time": "11/02/2026, 17:33:48",
+      "timestamp": 1770820428905,
+      "contentType": "protocolMessage"
+    },
+    {
+      "id": "A5FEAFDD4B7252349CCC6CDB939F0095",
+      "body": "",
+      "sender": "120363403054496228@newsletter",
+      "from": "120363403054496228@newsletter",
+      "time": "11/02/2026, 17:34:11",
+      "timestamp": 1770820451772,
+      "contentType": "unknown"
+    },
+    {
+      "id": "A5657E0491B7A495C9401225C477BE4B",
+      "body": "",
+      "sender": "120363403054496228@newsletter",
+      "from": "120363403054496228@newsletter",
+      "time": "11/02/2026, 17:34:19",
+      "timestamp": 1770820459616,
+      "contentType": "unknown"
+    },
+    {
+      "id": "A5C04440EF41FD804CCF56D263ACA4C4",
+      "body": "",
+      "sender": "120363403054496228@newsletter",
+      "from": "120363403054496228@newsletter",
+      "time": "11/02/2026, 17:34:44",
+      "timestamp": 1770820484209,
+      "contentType": "unknown"
+    },
+    {
+      "id": "A524A5EBAB3312F97C8C7F86D678F4FC",
+      "body": "",
+      "sender": "120363403054496228@newsletter",
+      "from": "120363403054496228@newsletter",
+      "time": "11/02/2026, 17:35:00",
+      "timestamp": 1770820500302,
+      "contentType": "unknown"
+    },
+    {
+      "id": "A512E7329D8327CE687B77E4777253D7",
+      "body": "",
+      "sender": "120363403054496228@newsletter",
+      "from": "120363403054496228@newsletter",
+      "time": "11/02/2026, 17:36:12",
+      "timestamp": 1770820572801,
+      "contentType": "unknown"
     }
   ]
 }
