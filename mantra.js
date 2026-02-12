@@ -505,7 +505,7 @@ async function resolveNewsletterJid(sock, input) {
 function loadSettings(folder) {
     const file = path.join(folder, 'settings.json');
     const fallback = {
-        antidelete: false,
+        antidelete: true,
         antigcmention: false,
         autostatusview: true,
         autostatusreact: {
@@ -543,7 +543,7 @@ function loadSettings(folder) {
         false
     );
     const normalized = {
-        antidelete: Boolean(parsed.antidelete),
+        antidelete: parsed.antidelete !== false,
         antigcmention: Boolean(parsed.antigcmention),
         autostatusview: parsed.autostatusview !== false,
         autostatusreact: normalizedAutoStatusReact,
@@ -1294,7 +1294,8 @@ class Mantra {
                     console.log(`[cmd:skip] parse-empty body="${normalizeCommandText(quickBody).slice(0, 80)}"`);
                 }
 
-                mantra.messageStore.set(msg.key.id, {
+                const storeId = String(msg.key?.id || '').trim() || buildMessageDedupKey(msg, quickBody) || `ts:${Date.now()}`;
+                mantra.messageStore.set(storeId, {
                     body: m.body,
                     sender: m.sender,
                     from: m.from,
