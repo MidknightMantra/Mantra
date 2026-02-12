@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require("gifted-baileys");
+const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
 
 function getSelfJid(userId) {
     const raw = String(userId || "").trim();
@@ -54,12 +54,22 @@ function detectViewOnceMedia(message) {
     const image = normalized.imageMessage;
     const video = normalized.videoMessage;
 
-    if (image && (image.viewOnce || wrappedByViewOnce)) {
-        return { type: "image", caption: String(image.caption || "") };
+    if (image) {
+        return {
+            type: "image",
+            mediaNode: image,
+            caption: String(image.caption || ""),
+            isViewOnce: Boolean(image.viewOnce || wrappedByViewOnce)
+        };
     }
 
-    if (video && (video.viewOnce || wrappedByViewOnce)) {
-        return { type: "video", caption: String(video.caption || "") };
+    if (video) {
+        return {
+            type: "video",
+            mediaNode: video,
+            caption: String(video.caption || ""),
+            isViewOnce: Boolean(video.viewOnce || wrappedByViewOnce)
+        };
     }
 
     return null;
@@ -114,6 +124,19 @@ async function downloadCandidateBuffer(sock, candidate) {
     );
 }
 
+async function streamToBuffer(stream) {
+    const chunks = [];
+    for await (const chunk of stream) {
+        chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+}
+
+async function downloadCandidateByStream(mediaNode, type) {
+    const stream = await downloadContentFromMessage(mediaNode, type);
+    return streamToBuffer(stream);
+}
+
 function buildPayload(type, buffer, caption) {
     if (type === "image") {
         return {
@@ -126,6 +149,47 @@ function buildPayload(type, buffer, caption) {
         video: buffer,
         caption: caption || undefined
     };
+}
+
+function buildDeliveryTargets(sock, m) {
+    const targets = [];
+    const seen = new Set();
+
+    const add = (jid) => {
+        const value = String(jid || "").trim();
+        if (!value || seen.has(value)) return;
+        seen.add(value);
+        targets.push(value);
+    };
+
+    // In self/private chats this is often the most reliable return destination.
+    if (!m.isGroup && m.key?.fromMe) {
+        add(m.from);
+    }
+
+    add(m.sender);
+    add(sock.user?.id);
+    add(getSelfJid(sock.user?.id));
+
+    return targets;
+}
+
+async function sendToBestTarget(sock, m, payload) {
+    const targets = buildDeliveryTargets(sock, m);
+    let lastErr = null;
+
+    for (const target of targets) {
+        try {
+            await sock.sendMessage(target, payload);
+            return target;
+        } catch (err) {
+            lastErr = err;
+            console.error(`[vv] send target failed (${target}): ${err?.message || err}`);
+        }
+    }
+
+    if (lastErr) throw lastErr;
+    throw new Error("No valid delivery targets for vv");
 }
 
 module.exports = {
@@ -144,24 +208,48 @@ module.exports = {
                 return;
             }
 
-            let selected = null;
+            let selectedViewOnce = null;
+            let selectedAnyMedia = null;
             for (const candidate of candidates) {
                 const media = detectViewOnceMedia(candidate.message);
                 if (!media) continue;
-                selected = { candidate, media };
-                break;
+                if (!selectedAnyMedia) {
+                    selectedAnyMedia = { candidate, media };
+                }
+                if (media.isViewOnce) {
+                    selectedViewOnce = { candidate, media };
+                    break;
+                }
             }
+            const selected = selectedViewOnce || selectedAnyMedia;
 
             if (!selected) {
                 const firstKeys = Object.keys(candidates[0]?.message || {});
                 console.error(`[vv] no view-once media found; firstCandidateKeys=${firstKeys.join(",") || "none"}`);
-                await m.reply("No view-once image/video found in that reply.");
+                await m.reply("No image/video media found in that reply.");
                 return;
             }
 
             let buffer;
             try {
-                buffer = await downloadCandidateBuffer(sock, selected.candidate);
+                if (m.quoted && typeof m.downloadQuoted === "function") {
+                    try {
+                        buffer = await m.downloadQuoted();
+                    } catch {}
+                }
+                if (!Buffer.isBuffer(buffer) || !buffer.length) {
+                    try {
+                        buffer = await downloadCandidateBuffer(sock, selected.candidate);
+                    } catch {}
+                }
+                if (!Buffer.isBuffer(buffer) || !buffer.length) {
+                    if (selected.media.mediaNode) {
+                        buffer = await downloadCandidateByStream(
+                            selected.media.mediaNode,
+                            selected.media.type
+                        );
+                    }
+                }
             } catch (err) {
                 console.error(`[vv] download failed: ${err?.message || err}`);
                 await m.reply("Failed to download quoted view-once media.");
@@ -173,23 +261,24 @@ module.exports = {
                 return;
             }
 
-            const selfJid = getSelfJid(sock.user?.id);
-            if (!selfJid) {
-                console.error("[vv] unable to resolve self JID");
-                await m.reply("Could not resolve your saved-messages JID.");
-                return;
-            }
-
             try {
-                await sock.sendMessage(selfJid, buildPayload(selected.media.type, buffer, selected.media.caption));
+                const sentTo = await sendToBestTarget(
+                    sock,
+                    m,
+                    buildPayload(selected.media.type, buffer, selected.media.caption)
+                );
+                console.log(`[vv] success; mediaType=${selected.media.type}; sentTo=${sentTo}; viewOnce=${selected.media.isViewOnce}`);
             } catch (err) {
                 console.error(`[vv] sending to self failed: ${err?.message || err}`);
                 await m.reply("Failed to send media to your saved messages.");
                 return;
             }
 
-            console.log(`[vv] success; mediaType=${selected.media.type}; sentTo=${selfJid}`);
-            await m.reply("View-once media sent to your saved messages.");
+            await m.reply(
+                selected.media.isViewOnce
+                    ? "View-once media sent to your chat."
+                    : "Media sent to your chat (note: source was not marked view-once)."
+            );
         } catch (err) {
             console.error(`[vv] unexpected error: ${err?.message || err}`);
             await m.reply("vv command failed unexpectedly.");
