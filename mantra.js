@@ -146,6 +146,31 @@ function extractQuickBody(message) {
     return String(text || '').trim();
 }
 
+function normalizeCommandText(text) {
+    return String(text || '')
+        .replace(/^[\u200B-\u200F\uFEFF]+/g, '')
+        .trim();
+}
+
+function parseCommandFromBody(bodyText, prefix) {
+    const text = normalizeCommandText(bodyText);
+    const activePrefix = String(prefix || DEFAULT_PREFIX);
+    if (!text.startsWith(activePrefix)) return null;
+
+    const tail = text.slice(activePrefix.length).trim();
+    if (!tail) return null;
+
+    const parts = tail.split(/\s+/).filter(Boolean);
+    if (!parts.length) return null;
+
+    return {
+        body: text,
+        command: String(parts.shift() || '').toLowerCase(),
+        args: parts,
+        prefix: activePrefix
+    };
+}
+
 function buildMessageDedupKey(msg, bodyPreview = '') {
     const key = msg?.key || {};
     const id = String(key.id || '').trim();
@@ -1097,7 +1122,8 @@ class Mantra {
 
                 const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
                 const quickBody = extractQuickBody(msg.message);
-                const isPotentialCommand = quickBody.startsWith(String(mantra.prefix || DEFAULT_PREFIX));
+                const parsedQuick = parseCommandFromBody(quickBody, mantra.prefix || DEFAULT_PREFIX);
+                const isPotentialCommand = Boolean(parsedQuick);
 
                 if (!isStatusMessage && type !== 'notify') {
                     if (quickBody) {
@@ -1256,17 +1282,16 @@ class Mantra {
                 }
 
                 const m = await handler(sock, msg, this);
-                if (!m.command && isPotentialCommand) {
-                    const activePrefix = String(mantra.prefix || DEFAULT_PREFIX);
-                    const tail = quickBody.slice(activePrefix.length).trim();
-                    if (tail) {
-                        const parts = tail.split(/\s+/);
-                        m.command = String(parts.shift() || '').toLowerCase();
-                        m.args = parts;
-                        m.body = quickBody;
-                        m.prefix = activePrefix;
-                        console.log(`[cmd:parse-fallback] command=${m.command} from=${m.sender} chat=${m.from}`);
-                    }
+                if (!m.command && parsedQuick) {
+                    m.command = parsedQuick.command;
+                    m.args = parsedQuick.args;
+                    m.body = parsedQuick.body;
+                    m.prefix = parsedQuick.prefix;
+                    console.log(`[cmd:parse-fallback] command=${m.command} from=${m.sender} chat=${m.from}`);
+                }
+
+                if (isPotentialCommand && !m.command) {
+                    console.log(`[cmd:skip] parse-empty body="${normalizeCommandText(quickBody).slice(0, 80)}"`);
                 }
 
                 mantra.messageStore.set(msg.key.id, {

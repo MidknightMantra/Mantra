@@ -5,6 +5,31 @@ function jidUser(jid) {
     return String(jid || '').split('@')[0].split(':')[0];
 }
 
+function getConfiguredOwnerUsers() {
+    const keys = ['BOT_OWNER_NUMBER', 'OWNER_NUMBER'];
+    const owners = new Set();
+
+    for (const key of keys) {
+        const raw = String(process.env[key] || '').trim();
+        if (!raw) continue;
+
+        const parts = raw
+            .split(/[\s,\n]+/)
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+
+        for (const part of parts) {
+            const userFromJid = jidUser(part);
+            if (userFromJid) owners.add(userFromJid);
+
+            const digits = part.replace(/\D+/g, '');
+            if (digits) owners.add(digits);
+        }
+    }
+
+    return owners;
+}
+
 function toSelfUserJid(userId) {
     const raw = String(userId || '').trim();
     if (!raw) return '';
@@ -91,10 +116,15 @@ module.exports = async function handler(sock, msg, mantra) {
     m.from = msg.key.remoteJid;
     m.sender = msg.key.participant || msg.key.remoteJid;
     m.isGroup = m.from.endsWith('@g.us');
+    const configuredOwners = getConfiguredOwnerUsers();
+    const senderUser = jidUser(m.sender);
+    const fromUser = jidUser(m.from);
     const selfUser = jidUser(sock.user?.id);
     m.isOwner =
         Boolean(msg.key.fromMe) ||
-        (Boolean(selfUser) && (jidUser(m.sender) === selfUser || jidUser(m.from) === selfUser));
+        (Boolean(selfUser) && (senderUser === selfUser || fromUser === selfUser)) ||
+        configuredOwners.has(senderUser) ||
+        configuredOwners.has(fromUser);
     const selfDirectJid = toSelfUserJid(sock.user?.id);
     const preferredReplyJid = (!m.isGroup && msg.key?.fromMe && selfDirectJid) ? selfDirectJid : m.from;
 

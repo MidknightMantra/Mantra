@@ -1,5 +1,14 @@
 const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
 
+function toSelfJid(userId) {
+    const raw = String(userId || "").trim();
+    if (!raw) return "";
+    const [left = "", right = "s.whatsapp.net"] = raw.split("@");
+    const user = left.split(":")[0];
+    if (!user) return "";
+    return `${user}@${right || "s.whatsapp.net"}`;
+}
+
 function unwrapContainers(message) {
     let current = message && typeof message === "object" ? message : {};
     let wrappedByViewOnce = false;
@@ -131,17 +140,57 @@ function buildSendPayload(media, buffer) {
             caption: media.caption || undefined
         };
     }
+
     return {
         video: buffer,
         caption: media.caption || undefined
     };
 }
 
+function buildSavedTargets(sock, m) {
+    const targets = [];
+    const seen = new Set();
+
+    const add = (jid) => {
+        const value = String(jid || "").trim();
+        if (!value || seen.has(value)) return;
+        seen.add(value);
+        targets.push(value);
+    };
+
+    add(toSelfJid(sock.user?.id));
+    add(sock.user?.id);
+
+    // In companion mode, private self chat JID can be different from canonical JID.
+    if (!m.isGroup && m.key?.fromMe) {
+        add(m.from);
+    }
+
+    return targets;
+}
+
+async function sendToSavedMessages(sock, m, payload) {
+    const targets = buildSavedTargets(sock, m);
+    let lastError = null;
+
+    for (const target of targets) {
+        try {
+            await sock.sendMessage(target, payload, { quoted: m.raw });
+            return target;
+        } catch (err) {
+            lastError = err;
+            console.error(`[vv] send target failed (${target}): ${err?.message || err}`);
+        }
+    }
+
+    throw lastError || new Error("No saved-messages target available");
+}
+
 module.exports = {
     name: "vv",
     react: "👁️",
     category: "convert",
-    description: "Reveal quoted view-once image/video in the same chat",
+    description: "Forward quoted view-once image/video to saved messages",
     usage: ",vv (reply to view-once image/video)",
     aliases: ["viewviewonce", "viewonce"],
 
@@ -153,6 +202,7 @@ module.exports = {
 
             const candidates = getCandidates(m, mantra);
             if (!candidates.length) {
+                try { await m.react("❌"); } catch {}
                 await m.reply(`Reply to a view-once image/video.\nUsage: ${m.prefix}vv`);
                 return;
             }
@@ -163,11 +213,14 @@ module.exports = {
                 throw new Error("Downloaded media buffer is empty");
             }
 
-            await sock.sendMessage(m.from, buildSendPayload(selected.media, buffer), { quoted: m.raw });
+            const sentTo = await sendToSavedMessages(sock, m, buildSendPayload(selected.media, buffer));
+            try { await m.react("✅"); } catch {}
+            await m.reply("Sent to saved messages.");
             console.log(
-                `[vv] success mediaType=${selected.media.type} viewOnce=${selected.media.isViewOnce} bytes=${buffer.length}`
+                `[vv] success mediaType=${selected.media.type} viewOnce=${selected.media.isViewOnce} bytes=${buffer.length} sentTo=${sentTo}`
             );
         } catch (err) {
+            try { await m.react("❌"); } catch {}
             console.error(`[vv] failed: ${err?.message || err}`);
             await m.reply(`vv failed: ${err?.message || "unknown error"}`);
         }
