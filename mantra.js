@@ -623,6 +623,20 @@ function getSessionFromEnv() {
     return null;
 }
 
+function shouldRestoreSessionFromEnv(sessionFolder) {
+    const credsFile = path.join(sessionFolder, 'creds.json');
+    if (!fs.existsSync(credsFile)) return true;
+
+    try {
+        const raw = fs.readFileSync(credsFile, 'utf8').trim();
+        if (!raw) return true;
+        JSON.parse(raw);
+        return false;
+    } catch {
+        return true;
+    }
+}
+
 function restoreSessionFromString(sessionString, sessionFolder) {
     try {
         const creds = parseCredsFromSessionString(sessionString);
@@ -874,14 +888,18 @@ class Mantra {
         const folder = path.join('./sessions', id);
         fs.mkdirSync(folder, { recursive: true });
 
-        const sessionFromEnv = getSessionFromEnv();
-        if (sessionFromEnv) {
-            const restored = restoreSessionFromString(sessionFromEnv.value, folder);
-            if (restored) {
-                console.log(`Session loaded from ${sessionFromEnv.key}`);
-            } else {
-                console.warn(`Failed to restore session from ${sessionFromEnv.key}`);
+        if (shouldRestoreSessionFromEnv(folder)) {
+            const sessionFromEnv = getSessionFromEnv();
+            if (sessionFromEnv) {
+                const restored = restoreSessionFromString(sessionFromEnv.value, folder);
+                if (restored) {
+                    console.log(`Session loaded from ${sessionFromEnv.key}`);
+                } else {
+                    console.warn(`Failed to restore session from ${sessionFromEnv.key}`);
+                }
             }
+        } else {
+            console.log('Using existing session files from disk (env restore skipped)');
         }
 
         const { state, saveCreds } = await useMultiFileAuthState(folder);
