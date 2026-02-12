@@ -30,7 +30,7 @@ module.exports = {
         const msgCacheSize = Number(mantra?.messageStore?.size || 0);
 
         const autoreact = mantra?.settings?.autoreact || { enabled: false, emoji: "✅" };
-        const autostatusreact = mantra?.settings?.autostatusreact || { enabled: true, emoji: "❤️" };
+        const autostatusreact = mantra?.settings?.autostatusreact || { enabled: false, emoji: "❤️" };
         const text = [
             "*Health Check*",
             "",

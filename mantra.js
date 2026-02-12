@@ -399,7 +399,7 @@ function loadSettings(folder) {
         antigcmention: false,
         autostatusview: true,
         autostatusreact: {
-            enabled: true,
+            enabled: false,
             emoji: DEFAULT_AUTOSTATUS_REACT_EMOJI
         },
         autobio: false,
@@ -430,7 +430,7 @@ function loadSettings(folder) {
     const normalizedAutoStatusReact = normalizeReactionSetting(
         parsed.autostatusreact,
         DEFAULT_AUTOSTATUS_REACT_EMOJI,
-        true
+        false
     );
     const normalized = {
         antidelete: Boolean(parsed.antidelete),
@@ -992,7 +992,7 @@ class Mantra {
                 if (!hasMessage && !hasStub) return;
 
                 const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
-                if (!isStatusMessage && type !== 'notify') return;
+                if (!isStatusMessage && type !== 'notify' && !msg.key?.fromMe) return;
 
                 if (!isStatusMessage) {
                     const now = Math.floor(Date.now() / 1000);
@@ -1010,7 +1010,7 @@ class Mantra {
                     const statusReactConfig = normalizeReactionSetting(
                         mantra.settings?.autostatusreact,
                         DEFAULT_AUTOSTATUS_REACT_EMOJI,
-                        true
+                        false
                     );
                     const shouldViewStatus = mantra.settings.autostatusview !== false;
                     const shouldReactStatus = Boolean(statusReactConfig.enabled);

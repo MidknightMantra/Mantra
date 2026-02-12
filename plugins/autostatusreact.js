@@ -4,7 +4,7 @@ function normalizeStatusReact(value) {
     const source = value && typeof value === "object" ? value : {};
     const hasEnabled = Object.prototype.hasOwnProperty.call(source, "enabled");
     return {
-        enabled: hasEnabled ? Boolean(source.enabled) : true,
+        enabled: hasEnabled ? Boolean(source.enabled) : false,
         emoji: String(source.emoji || "").trim() || DEFAULT_EMOJI
     };
 }
