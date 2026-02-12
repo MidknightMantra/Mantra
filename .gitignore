@@ -24,6 +24,7 @@ coverage/
 .cache/
 tmp/
 temp/
+deleted_media/
 
 # OS/editor files
 .DS_Store

@@ -100,8 +100,24 @@ function getCandidates(m, mantra) {
     addCandidate(m.quotedKey || m.key, m.quoted);
 
     const quotedId = String(m.quotedKey?.id || "");
-    if (quotedId && mantra?.messageStore?.has(quotedId)) {
-        const cached = mantra.messageStore.get(quotedId)?.raw;
+    const messageStore = mantra?.messageStore instanceof Map ? mantra.messageStore : null;
+
+    const findRawByMessageId = (id) => {
+        if (!messageStore || !id) return null;
+
+        const direct = messageStore.get(id)?.raw;
+        if (direct?.key?.id === id && direct?.message) return direct;
+
+        for (const entry of messageStore.values()) {
+            const raw = entry?.raw;
+            if (raw?.key?.id === id && raw?.message) return raw;
+        }
+
+        return null;
+    };
+
+    if (quotedId) {
+        const cached = findRawByMessageId(quotedId);
         if (cached?.key && cached?.message) {
             addCandidate(cached.key, cached.message);
         }
@@ -109,9 +125,9 @@ function getCandidates(m, mantra) {
 
     // iPhone/LID sessions sometimes miss quoted payload on self-sent commands.
     // Fallback to recent media in the same chat to keep vv usable.
-    if (!candidates.length && Boolean(m.key?.fromMe) && mantra?.messageStore instanceof Map) {
+    if (!candidates.length && Boolean(m.key?.fromMe) && messageStore) {
         const now = Date.now();
-        const entries = Array.from(mantra.messageStore.values()).reverse();
+        const entries = Array.from(messageStore.values()).reverse();
 
         for (const entry of entries) {
             const timestamp = Number(entry?.timestamp || 0);
@@ -189,14 +205,27 @@ function buildSavedTargets(sock, m) {
         targets.push(value);
     };
 
+    // Allow explicit self target for companion sessions (often needed for @lid).
+    const configured = String(m?.mantra?.settings?.selfjid || "").trim();
+    const envSelf = String(process.env.SELF_JID || "").trim();
+    for (const entry of [configured, envSelf]) {
+        const parts = String(entry || "")
+            .split(/[\s,\n]+/)
+            .map((v) => String(v || "").trim())
+            .filter(Boolean);
+        for (const part of parts) add(part);
+    }
+
     add(toSelfLid(sock.user?.id));
     add(toSelfJid(sock.user?.id));
     add(sock.user?.id);
 
-    // In companion mode, private self chat JID can be different from canonical JID.
-    if (!m.isGroup && m.key?.fromMe) {
-        add(m.from);
-    }
+    // Only add chat ids if they are actually the self chat; never leak vv payload to a 1:1 chat partner.
+    const selfUser = String(sock.user?.id || "").split("@")[0].split(":")[0];
+    const fromUser = String(m.from || "").split("@")[0].split(":")[0];
+    const senderUser = String(m.sender || "").split("@")[0].split(":")[0];
+    if (selfUser && fromUser === selfUser) add(m.from);
+    if (selfUser && senderUser === selfUser) add(m.sender);
 
     return targets;
 }
@@ -228,6 +257,8 @@ module.exports = {
 
     execute: async (sock, m, mantra) => {
         try {
+            // Expose mantra to helper functions without threading it through every call.
+            m.mantra = mantra;
             console.log(
                 `[vv] invoked from=${m.sender} chat=${m.from} fromMe=${Boolean(m.key?.fromMe)} quoted=${Boolean(m.quoted)}`
             );

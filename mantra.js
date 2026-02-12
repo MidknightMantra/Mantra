@@ -221,6 +221,41 @@ function pruneMessageStore(messageStore, maxAgeMs) {
     return changed;
 }
 
+function normalizeStoredDeletedMessage(entry) {
+    const id = String(entry?.id || '').trim();
+    if (!id) return null;
+
+    const deletedAt = Number(entry?.deletedAt || 0);
+    if (!Number.isFinite(deletedAt) || deletedAt <= 0) return null;
+
+    return {
+        id,
+        deletedAt,
+        from: String(entry?.from || ''),
+        sender: String(entry?.sender || ''),
+        body: String(entry?.body || ''),
+        contentType: String(entry?.contentType || 'unknown'),
+        mediaType: String(entry?.mediaType || ''),
+        mimetype: String(entry?.mimetype || ''),
+        filePath: String(entry?.filePath || '')
+    };
+}
+
+function pruneDeletedStore(deletedStore, maxAgeMs) {
+    const now = Date.now();
+    let changed = false;
+
+    for (const [id, entry] of deletedStore.entries()) {
+        const deletedAt = Number(entry?.deletedAt || 0);
+        if (!Number.isFinite(deletedAt) || deletedAt <= 0 || now - deletedAt > maxAgeMs) {
+            deletedStore.delete(id);
+            changed = true;
+        }
+    }
+
+    return changed;
+}
+
 function serializeMessageStore(messageStore, maxAgeMs) {
     const now = Date.now();
     const messages = [];
@@ -246,20 +281,50 @@ function serializeMessageStore(messageStore, maxAgeMs) {
     return messages.sort((a, b) => a.timestamp - b.timestamp);
 }
 
-function writeMessageDatabase(filePath, messageStore, maxAgeMs) {
+function serializeDeletedStore(deletedStore, maxAgeMs) {
+    const now = Date.now();
+    const deleted = [];
+
+    for (const [id, entry] of deletedStore.entries()) {
+        const deletedAt = Number(entry?.deletedAt || 0);
+        if (!Number.isFinite(deletedAt) || deletedAt <= 0 || now - deletedAt > maxAgeMs) continue;
+
+        deleted.push({
+            id,
+            deletedAt,
+            from: String(entry?.from || ''),
+            sender: String(entry?.sender || ''),
+            body: String(entry?.body || ''),
+            contentType: String(entry?.contentType || 'unknown'),
+            mediaType: String(entry?.mediaType || ''),
+            mimetype: String(entry?.mimetype || ''),
+            filePath: String(entry?.filePath || '')
+        });
+    }
+
+    return deleted.sort((a, b) => a.deletedAt - b.deletedAt);
+}
+
+function writeMessageDatabase(filePath, messageStore, deletedStore, maxAgeMs) {
     const payload = {
         retentionMs: maxAgeMs,
         updatedAt: new Date().toISOString(),
-        messages: serializeMessageStore(messageStore, maxAgeMs)
+        messages: serializeMessageStore(messageStore, maxAgeMs),
+        deleted: serializeDeletedStore(deletedStore, maxAgeMs)
     };
     fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
 }
 
-function loadMessageStoreFromDisk(filePath, maxAgeMs) {
+function loadDatabaseFromDisk(filePath, maxAgeMs) {
     if (!fs.existsSync(filePath)) {
-        const initial = { retentionMs: maxAgeMs, updatedAt: new Date().toISOString(), messages: [] };
+        const initial = {
+            retentionMs: maxAgeMs,
+            updatedAt: new Date().toISOString(),
+            messages: [],
+            deleted: []
+        };
         fs.writeFileSync(filePath, JSON.stringify(initial, null, 2));
-        return new Map();
+        return { messageStore: new Map(), deletedStore: new Map() };
     }
 
     let parsed;
@@ -269,13 +334,11 @@ function loadMessageStoreFromDisk(filePath, maxAgeMs) {
         parsed = { messages: [] };
     }
 
-    const rawMessages = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed?.messages)
-            ? parsed.messages
-            : [];
+    const rawMessages = Array.isArray(parsed?.messages) ? parsed.messages : [];
+    const rawDeleted = Array.isArray(parsed?.deleted) ? parsed.deleted : [];
 
     const messageStore = new Map();
+    const deletedStore = new Map();
     const now = Date.now();
 
     for (const entry of rawMessages) {
@@ -294,8 +357,16 @@ function loadMessageStoreFromDisk(filePath, maxAgeMs) {
         });
     }
 
-    writeMessageDatabase(filePath, messageStore, maxAgeMs);
-    return messageStore;
+    for (const entry of rawDeleted) {
+        const normalized = normalizeStoredDeletedMessage(entry);
+        if (!normalized) continue;
+        if (now - normalized.deletedAt > maxAgeMs) continue;
+
+        deletedStore.set(normalized.id, normalized);
+    }
+
+    writeMessageDatabase(filePath, messageStore, deletedStore, maxAgeMs);
+    return { messageStore, deletedStore };
 }
 
 function hasFooterLine(text) {
@@ -507,6 +578,7 @@ function loadSettings(folder) {
     const fallback = {
         antidelete: true,
         antigcmention: false,
+        selfjid: '',
         autostatusview: true,
         autostatusreact: {
             enabled: false,
@@ -545,6 +617,7 @@ function loadSettings(folder) {
     const normalized = {
         antidelete: parsed.antidelete !== false,
         antigcmention: Boolean(parsed.antigcmention),
+        selfjid: String(parsed.selfjid || '').trim(),
         autostatusview: parsed.autostatusview !== false,
         autostatusreact: normalizedAutoStatusReact,
         autobio: Boolean(parsed.autobio),
@@ -559,6 +632,7 @@ function loadSettings(folder) {
     if (
         parsed.antidelete !== normalized.antidelete ||
         parsed.antigcmention !== normalized.antigcmention ||
+        String(parsed.selfjid || '').trim() !== normalized.selfjid ||
         parsed.autostatusview !== normalized.autostatusview ||
         Boolean(parsedAutoStatusReact.enabled) !== normalized.autostatusreact.enabled ||
         String(parsedAutoStatusReact.emoji || '').trim() !== normalized.autostatusreact.emoji ||
@@ -966,7 +1040,9 @@ class Mantra {
         const settings = loadSettings(folder);
         this.prefix = settings.prefix || this.prefix;
         console.log(`[boot] Active prefix: "${this.prefix}"`);
-        const persistedMessageStore = loadMessageStoreFromDisk(MESSAGE_DB_PATH, MESSAGE_RETENTION_MS);
+        const loadedDb = loadDatabaseFromDisk(MESSAGE_DB_PATH, MESSAGE_RETENTION_MS);
+        const persistedMessageStore = loadedDb.messageStore;
+        const deletedStore = loadedDb.deletedStore;
         let messageStoreFlushTimer = null;
 
         const flushMessageStore = () => {
@@ -976,7 +1052,7 @@ class Mantra {
             }
 
             try {
-                writeMessageDatabase(MESSAGE_DB_PATH, persistedMessageStore, MESSAGE_RETENTION_MS);
+                writeMessageDatabase(MESSAGE_DB_PATH, persistedMessageStore, deletedStore, MESSAGE_RETENTION_MS);
             } catch (err) {
                 console.error('message database write failed:', err?.message || err);
             }
@@ -993,6 +1069,7 @@ class Mantra {
         const mantra = {
             prefix: this.prefix,
             messageStore: persistedMessageStore,
+            deletedStore,
             processedMessages: new Set(),
             settings,
             startedAt: Date.now(),
@@ -1023,6 +1100,24 @@ class Mantra {
             },
             flushMessageStore,
             scheduleMessageStoreFlush,
+            logDeleted(entry) {
+                const normalized = entry && typeof entry === 'object' ? entry : {};
+                const id = String(normalized.id || '').trim();
+                if (!id) return;
+
+                deletedStore.set(id, {
+                    id,
+                    deletedAt: Number(normalized.deletedAt || Date.now()),
+                    from: String(normalized.from || ''),
+                    sender: String(normalized.sender || ''),
+                    body: String(normalized.body || ''),
+                    contentType: String(normalized.contentType || 'unknown'),
+                    mediaType: String(normalized.mediaType || ''),
+                    mimetype: String(normalized.mimetype || ''),
+                    filePath: String(normalized.filePath || '')
+                });
+                this.scheduleMessageStoreFlush();
+            },
             getReconnectAttempts: () => this.reconnectAttempts,
             refreshAutoBio: async () => updateAutoBio(sock, settings)
         };
@@ -1032,7 +1127,11 @@ class Mantra {
         }
         this.pruneTimer = setInterval(() => {
             const changed = pruneMessageStore(mantra.messageStore, MESSAGE_RETENTION_MS);
+            const deletedChanged = pruneDeletedStore(deletedStore, MESSAGE_RETENTION_MS);
             if (changed) {
+                mantra.scheduleMessageStoreFlush();
+            }
+            if (deletedChanged) {
                 mantra.scheduleMessageStoreFlush();
             }
         }, 2 * 60 * 1000);
