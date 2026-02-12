@@ -174,9 +174,9 @@ function parseCommandFromBody(bodyText, prefix) {
 function buildMessageDedupKey(msg, bodyPreview = '') {
     const key = msg?.key || {};
     const id = String(key.id || '').trim();
-    if (id) return `id:${id}`;
-
     const remote = String(key.remoteJid || '').trim();
+    if (id) return `id:${remote || 'unknown'}:${id}`;
+
     const participant = String(key.participant || '').trim();
     const fromMe = key.fromMe ? '1' : '0';
     const timestamp = Number(msg?.messageTimestamp || 0);
@@ -1070,7 +1070,7 @@ class Mantra {
             prefix: this.prefix,
             messageStore: persistedMessageStore,
             deletedStore,
-            processedMessages: new Set(),
+            processedMessages: new Map(),
             settings,
             startedAt: Date.now(),
             metrics: {
@@ -1247,18 +1247,36 @@ class Mantra {
 
                 const dedupeKey = buildMessageDedupKey(msg, quickBody);
                 if (dedupeKey) {
-                    if (mantra.processedMessages.has(dedupeKey)) {
+                    const nowMs = Date.now();
+                    const prev = mantra.processedMessages.get(dedupeKey);
+                    if (prev) {
+                        const ageMs = nowMs - Number(prev.ts || 0);
+                        const prevHandled = Boolean(prev.handled);
+                        const prevInFlight = Boolean(prev.inFlight);
+
                         if (isPotentialCommand) {
-                            console.log(`[cmd:skip] duplicate key=${dedupeKey.slice(0, 140)}`);
+                            // Allow retry if previous attempt is stuck/failed (common around reconnects).
+                            if (!prevHandled && ageMs > 5000) {
+                                console.log(`[cmd:retry] key=${dedupeKey.slice(0, 140)} ageMs=${ageMs} inFlight=${prevInFlight}`);
+                                mantra.processedMessages.set(dedupeKey, { ts: nowMs, inFlight: true, handled: false });
+                            } else {
+                                console.log(`[cmd:skip] duplicate key=${dedupeKey.slice(0, 140)} handled=${prevHandled} inFlight=${prevInFlight} ageMs=${ageMs}`);
+                                return;
+                            }
+                        } else {
+                            return;
                         }
-                        return;
+                    } else {
+                        mantra.processedMessages.set(dedupeKey, { ts: nowMs, inFlight: true, handled: false });
                     }
-                    mantra.processedMessages.add(dedupeKey);
+
                     setTimeout(() => {
                         mantra.processedMessages.delete(dedupeKey);
                     }, 60000);
                 }
 
+                let didComplete = false;
+                try {
                 if (isStatusMessage) {
                     const statusReactConfig = normalizeReactionSetting(
                         mantra.settings?.autostatusreact,
@@ -1446,6 +1464,19 @@ class Mantra {
                 }
 
                 await pluginManager.runOnMessage(sock, m, mantra);
+                didComplete = true;
+                } finally {
+                    if (dedupeKey) {
+                        const prev = mantra.processedMessages.get(dedupeKey);
+                        if (prev) {
+                            // Mark completion so duplicates won't starve future retries.
+                            prev.inFlight = false;
+                            if (didComplete) prev.handled = true;
+                            prev.ts = Number(prev.ts || Date.now());
+                            mantra.processedMessages.set(dedupeKey, prev);
+                        }
+                    }
+                }
             } catch (err) {
                 console.error('[messages.upsert] handler failed:', err?.message || err);
             }
