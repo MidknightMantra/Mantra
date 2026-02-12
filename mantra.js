@@ -193,7 +193,12 @@ function appendFooterToContent(content) {
 
 function loadSettings(folder) {
     const file = path.join(folder, 'settings.json');
-    const fallback = { antidelete: false, antigcmention: false, prefix: DEFAULT_PREFIX };
+    const fallback = {
+        antidelete: false,
+        antigcmention: false,
+        autostatusview: true,
+        prefix: DEFAULT_PREFIX
+    };
 
     if (!fs.existsSync(file)) {
         fs.writeFileSync(file, JSON.stringify(fallback, null, 2));
@@ -212,12 +217,14 @@ function loadSettings(folder) {
     const normalized = {
         antidelete: Boolean(parsed.antidelete),
         antigcmention: Boolean(parsed.antigcmention),
+        autostatusview: parsed.autostatusview !== false,
         prefix: normalizedPrefix
     };
 
     if (
         parsed.antidelete !== normalized.antidelete ||
         parsed.antigcmention !== normalized.antigcmention ||
+        parsed.autostatusview !== normalized.autostatusview ||
         parsed.prefix !== normalized.prefix
     ) {
         fs.writeFileSync(file, JSON.stringify(normalized, null, 2));
@@ -643,6 +650,7 @@ class Mantra {
                 }, 60000);
 
                 if (isStatusMessage) {
+                    if (!mantra.settings.autostatusview) return;
                     try {
                         const statusMessageId = msg.key?.id;
                         if (!statusMessageId) throw new Error('Missing status message id');
