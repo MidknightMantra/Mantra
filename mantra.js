@@ -1065,14 +1065,16 @@ class Mantra {
                 const quickBody = extractQuickBody(msg.message);
                 const isPotentialCommand = quickBody.startsWith(String(mantra.prefix || DEFAULT_PREFIX));
 
-                if (!isStatusMessage && type !== 'notify' && !msg.key?.fromMe) {
-                    if (isPotentialCommand) {
-                        console.log(`[cmd:skip] gate(type) type=${type} fromMe=${Boolean(msg.key?.fromMe)} body="${quickBody.slice(0, 80)}"`);
+                if (!isStatusMessage && type !== 'notify') {
+                    if (quickBody) {
+                        console.log(`[msg] non-notify type=${type} fromMe=${Boolean(msg.key?.fromMe)} body="${quickBody.slice(0, 80)}"`);
                     }
-                    return;
                 }
 
                 if (!isStatusMessage) {
+                    if (quickBody) {
+                        console.log(`[msg] recv type=${type} from=${msg.key?.remoteJid || 'unknown'} fromMe=${Boolean(msg.key?.fromMe)} body="${quickBody.slice(0, 80)}"`);
+                    }
                     const now = Math.floor(Date.now() / 1000);
                     const msgTime = Number(msg.messageTimestamp);
                     const age = now - msgTime;

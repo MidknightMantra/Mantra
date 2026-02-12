@@ -5,6 +5,16 @@ function jidUser(jid) {
     return String(jid || '').split('@')[0].split(':')[0];
 }
 
+function toSelfUserJid(userId) {
+    const raw = String(userId || '').trim();
+    if (!raw) return '';
+
+    const [left = '', right = 's.whatsapp.net'] = raw.split('@');
+    const user = left.split(':')[0];
+    if (!user) return '';
+    return `${user}@${right || 's.whatsapp.net'}`;
+}
+
 function unwrapMessageContent(message) {
     let current = message && typeof message === 'object' ? message : {};
     let guard = 0;
@@ -82,6 +92,8 @@ module.exports = async function handler(sock, msg, mantra) {
     m.sender = msg.key.participant || msg.key.remoteJid;
     m.isGroup = m.from.endsWith('@g.us');
     m.isOwner = Boolean(msg.key.fromMe) || jidUser(m.sender) === jidUser(sock.user.id);
+    const selfDirectJid = toSelfUserJid(sock.user?.id);
+    const preferredReplyJid = (!m.isGroup && msg.key?.fromMe && selfDirectJid) ? selfDirectJid : m.from;
 
     const rawContent = msg.message || {};
     const content = unwrapMessageContent(rawContent);
@@ -109,7 +121,17 @@ module.exports = async function handler(sock, msg, mantra) {
         m.args = args;
     }
 
-    m.reply = (text) => mantra.safeSend(sock, m.from, { text }, msg);
+    m.reply = async (text) => {
+        try {
+            await mantra.safeSend(sock, preferredReplyJid, { text }, msg);
+        } catch (err) {
+            if (preferredReplyJid !== m.from) {
+                await mantra.safeSend(sock, m.from, { text }, msg);
+                return;
+            }
+            throw err;
+        }
+    };
 
     m.react = (emoji) =>
         sock.sendMessage(m.from, {
