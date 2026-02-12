@@ -32,6 +32,7 @@ const DEFAULT_TIMEZONE = 'UTC';
 const DEFAULT_AUTOREACT_EMOJI = '✅';
 const DEFAULT_AUTOSTATUS_REACT_EMOJI = '❤️';
 const COMMAND_MUTE_UNTIL_KEY = 'COMMAND_MUTE_UNTIL';
+const STALE_MESSAGE_MAX_AGE_SECONDS = 45;
 const SESSION_ENV_KEYS = [
     'MANTRA_SESSION',
     'SESSION_ID',
@@ -75,6 +76,40 @@ function getContentType(message) {
 
     const keys = Object.keys(payload);
     return keys[0] || 'unknown';
+}
+
+function readQuickButtonCommand(content) {
+    const legacyId = content?.buttonsResponseMessage?.selectedButtonId;
+    if (legacyId) return String(legacyId);
+
+    const templateId = content?.templateButtonReplyMessage?.selectedId;
+    if (templateId) return String(templateId);
+
+    const interactiveJson = content?.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+    if (interactiveJson) {
+        try {
+            const parsed = JSON.parse(interactiveJson);
+            if (parsed?.id) return String(parsed.id);
+            if (parsed?.selectedId) return String(parsed.selectedId);
+        } catch {}
+    }
+
+    return '';
+}
+
+function extractQuickBody(message) {
+    const content = message && typeof message === 'object' ? message : {};
+    const text =
+        readQuickButtonCommand(content) ||
+        content.conversation ||
+        content.extendedTextMessage?.text ||
+        content.buttonsResponseMessage?.selectedDisplayText ||
+        content.templateButtonReplyMessage?.selectedDisplayText ||
+        content.interactiveResponseMessage?.nativeFlowResponseMessage?.name ||
+        content.imageMessage?.caption ||
+        content.videoMessage?.caption ||
+        '';
+    return String(text || '').trim();
 }
 
 function normalizeStoredMessage(entry) {
@@ -837,6 +872,7 @@ class Mantra {
 
         const settings = loadSettings(folder);
         this.prefix = settings.prefix || this.prefix;
+        console.log(`[boot] Active prefix: "${this.prefix}"`);
         const persistedMessageStore = loadMessageStoreFromDisk(MESSAGE_DB_PATH, MESSAGE_RETENTION_MS);
         let messageStoreFlushTimer = null;
 
@@ -992,12 +1028,26 @@ class Mantra {
                 if (!hasMessage && !hasStub) return;
 
                 const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
-                if (!isStatusMessage && type !== 'notify' && !msg.key?.fromMe) return;
+                const quickBody = extractQuickBody(msg.message);
+                const isPotentialCommand = quickBody.startsWith(String(mantra.prefix || DEFAULT_PREFIX));
+
+                if (!isStatusMessage && type !== 'notify' && !msg.key?.fromMe) {
+                    if (isPotentialCommand) {
+                        console.log(`[cmd:skip] gate(type) type=${type} fromMe=${Boolean(msg.key?.fromMe)} body="${quickBody.slice(0, 80)}"`);
+                    }
+                    return;
+                }
 
                 if (!isStatusMessage) {
                     const now = Math.floor(Date.now() / 1000);
                     const msgTime = Number(msg.messageTimestamp);
-                    if (now - msgTime > 5) return;
+                    const age = now - msgTime;
+                    if (!msg.key?.fromMe && age > STALE_MESSAGE_MAX_AGE_SECONDS) {
+                        if (isPotentialCommand) {
+                            console.log(`[cmd:skip] stale age=${age}s limit=${STALE_MESSAGE_MAX_AGE_SECONDS}s body="${quickBody.slice(0, 80)}"`);
+                        }
+                        return;
+                    }
                 }
 
                 if (mantra.processedMessages.has(msg.key.id)) return;
@@ -1142,6 +1192,7 @@ class Mantra {
                 mantra.scheduleMessageStoreFlush();
 
                 if (m.command) {
+                    console.log(`[cmd] recv command=${m.command} from=${m.sender} chat=${m.from} fromMe=${Boolean(msg.key?.fromMe)} type=${type}`);
                     if (m.isGroup) {
                         const muteUntil = Number(getGroupSetting(m.from, COMMAND_MUTE_UNTIL_KEY, 0) || 0);
                         if (Number.isFinite(muteUntil) && muteUntil > Date.now()) {
@@ -1165,9 +1216,17 @@ class Mantra {
                                 } catch {}
                             }
                             await plugin.execute(sock, m, mantra);
+                            console.log(`[cmd] ok command=${m.command} durationMs=${Date.now() - commandStartedAt}`);
+                        } catch (err) {
+                            console.error(`[cmd] error command=${m.command}:`, err?.message || err);
+                            try {
+                                await m.reply('Command failed unexpectedly.');
+                            } catch {}
                         } finally {
                             mantra.recordCommandMetric(Date.now() - commandStartedAt);
                         }
+                    } else {
+                        console.log(`[cmd] unknown command=${m.command} prefix=${m.prefix}`);
                     }
                 }
 
