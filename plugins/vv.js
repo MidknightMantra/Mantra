@@ -9,6 +9,15 @@ function toSelfJid(userId) {
     return `${user}@${right || "s.whatsapp.net"}`;
 }
 
+function toSelfLid(userId) {
+    const raw = String(userId || "").trim();
+    if (!raw) return "";
+    const [left = ""] = raw.split("@");
+    const user = left.split(":")[0];
+    if (!user) return "";
+    return `${user}@lid`;
+}
+
 function unwrapContainers(message) {
     let current = message && typeof message === "object" ? message : {};
     let wrappedByViewOnce = false;
@@ -98,6 +107,28 @@ function getCandidates(m, mantra) {
         }
     }
 
+    // iPhone/LID sessions sometimes miss quoted payload on self-sent commands.
+    // Fallback to recent media in the same chat to keep vv usable.
+    if (!candidates.length && Boolean(m.key?.fromMe) && mantra?.messageStore instanceof Map) {
+        const now = Date.now();
+        const entries = Array.from(mantra.messageStore.values()).reverse();
+
+        for (const entry of entries) {
+            const timestamp = Number(entry?.timestamp || 0);
+            if (Number.isFinite(timestamp) && now - timestamp > 5 * 60 * 1000) {
+                break;
+            }
+
+            const raw = entry?.raw;
+            if (!raw?.message || !raw?.key) continue;
+            if (String(raw.key.remoteJid || "") !== String(m.from || "")) continue;
+            if (String(raw.key.id || "") === String(m.key?.id || "")) continue;
+
+            addCandidate(raw.key, raw.message);
+            if (candidates.length >= 2) break;
+        }
+    }
+
     return candidates;
 }
 
@@ -158,6 +189,7 @@ function buildSavedTargets(sock, m) {
         targets.push(value);
     };
 
+    add(toSelfLid(sock.user?.id));
     add(toSelfJid(sock.user?.id));
     add(sock.user?.id);
 
@@ -203,7 +235,11 @@ module.exports = {
             const candidates = getCandidates(m, mantra);
             if (!candidates.length) {
                 try { await m.react("❌"); } catch {}
-                await m.reply(`Reply to a view-once image/video.\nUsage: ${m.prefix}vv`);
+                await sock.sendMessage(
+                    m.from,
+                    { text: `Reply to a view-once image/video.\nUsage: ${m.prefix}vv` },
+                    { quoted: m.raw }
+                );
                 return;
             }
 
@@ -221,7 +257,11 @@ module.exports = {
         } catch (err) {
             try { await m.react("❌"); } catch {}
             console.error(`[vv] failed: ${err?.message || err}`);
-            await m.reply(`vv failed: ${err?.message || "unknown error"}`);
+            await sock.sendMessage(
+                m.from,
+                { text: `vv failed: ${err?.message || "unknown error"}` },
+                { quoted: m.raw }
+            );
         }
     }
 };
