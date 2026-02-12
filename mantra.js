@@ -1232,6 +1232,18 @@ class Mantra {
                 }
 
                 const m = await handler(sock, msg, this);
+                if (!m.command && isPotentialCommand) {
+                    const activePrefix = String(mantra.prefix || DEFAULT_PREFIX);
+                    const tail = quickBody.slice(activePrefix.length).trim();
+                    if (tail) {
+                        const parts = tail.split(/\s+/);
+                        m.command = String(parts.shift() || '').toLowerCase();
+                        m.args = parts;
+                        m.body = quickBody;
+                        m.prefix = activePrefix;
+                        console.log(`[cmd:parse-fallback] command=${m.command} from=${m.sender} chat=${m.from}`);
+                    }
+                }
 
                 mantra.messageStore.set(msg.key.id, {
                     body: m.body,
