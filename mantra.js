@@ -97,8 +97,42 @@ function readQuickButtonCommand(content) {
     return '';
 }
 
+function unwrapMessageForText(message) {
+    let current = message && typeof message === 'object' ? message : {};
+    let guard = 0;
+
+    while (current && guard < 12) {
+        guard += 1;
+
+        if (current.ephemeralMessage?.message) {
+            current = current.ephemeralMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessage?.message) {
+            current = current.viewOnceMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2?.message) {
+            current = current.viewOnceMessageV2.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2Extension?.message) {
+            current = current.viewOnceMessageV2Extension.message;
+            continue;
+        }
+        if (current.documentWithCaptionMessage?.message) {
+            current = current.documentWithCaptionMessage.message;
+            continue;
+        }
+
+        break;
+    }
+
+    return current && typeof current === 'object' ? current : {};
+}
+
 function extractQuickBody(message) {
-    const content = message && typeof message === 'object' ? message : {};
+    const content = unwrapMessageForText(message);
     const text =
         readQuickButtonCommand(content) ||
         content.conversation ||

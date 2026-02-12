@@ -5,6 +5,40 @@ function jidUser(jid) {
     return String(jid || '').split('@')[0].split(':')[0];
 }
 
+function unwrapMessageContent(message) {
+    let current = message && typeof message === 'object' ? message : {};
+    let guard = 0;
+
+    while (current && guard < 12) {
+        guard += 1;
+
+        if (current.ephemeralMessage?.message) {
+            current = current.ephemeralMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessage?.message) {
+            current = current.viewOnceMessage.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2?.message) {
+            current = current.viewOnceMessageV2.message;
+            continue;
+        }
+        if (current.viewOnceMessageV2Extension?.message) {
+            current = current.viewOnceMessageV2Extension.message;
+            continue;
+        }
+        if (current.documentWithCaptionMessage?.message) {
+            current = current.documentWithCaptionMessage.message;
+            continue;
+        }
+
+        break;
+    }
+
+    return current && typeof current === 'object' ? current : {};
+}
+
 function readButtonCommand(content) {
     const legacyId = content?.buttonsResponseMessage?.selectedButtonId;
     if (legacyId) return String(legacyId);
@@ -49,9 +83,11 @@ module.exports = async function handler(sock, msg, mantra) {
     m.isGroup = m.from.endsWith('@g.us');
     m.isOwner = Boolean(msg.key.fromMe) || jidUser(m.sender) === jidUser(sock.user.id);
 
-    const content = msg.message || {};
+    const rawContent = msg.message || {};
+    const content = unwrapMessageContent(rawContent);
+    m.messageRaw = rawContent;
     m.message = content;
-    const contextInfo = readContextInfo(content);
+    const contextInfo = readContextInfo(content) || readContextInfo(rawContent);
     const type = Object.keys(content)[0];
     const body =
         readButtonCommand(content) ||
