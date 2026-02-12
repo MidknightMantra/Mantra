@@ -761,7 +761,7 @@ class Mantra {
                     console.log(`[auto-join] joined group: ${groupJid || inviteCode}`);
                 } catch (err) {
                     const message = String(err?.message || err);
-                    if (/already|joined|participant/i.test(message)) {
+                    if (/already|joined|participant|conflict/i.test(message)) {
                         console.log(`[auto-join] already in group: ${target}`);
                     } else {
                         console.error(`[auto-join] failed for ${target}: ${message}`);
@@ -818,6 +818,7 @@ class Mantra {
         const { state, saveCreds } = await useMultiFileAuthState(folder);
         let activeSock = null;
         let didWarnStatusReadReceipts = false;
+        let didWarnStatusReactionUnsupported = false;
         installSignalLogFilter(folder, () => String(activeSock?.user?.id || '').split(':')[0]);
 
         const sock = makeWASocket({
@@ -1019,9 +1020,8 @@ class Mantra {
                         const statusMessageId = msg.key?.id;
                         if (!statusMessageId) throw new Error('Missing status message id');
 
-                        const statusParticipant = normalizeParticipantJid(
-                            msg.key?.participant || msg.participant
-                        );
+                        const statusParticipantRaw = msg.key?.participant || msg.participant;
+                        const statusParticipant = normalizeParticipantJid(statusParticipantRaw);
 
                         if (!didWarnStatusReadReceipts && typeof sock.fetchPrivacySettings === 'function') {
                             try {
@@ -1039,21 +1039,37 @@ class Mantra {
                             fromMe: false,
                             ...(statusParticipant ? { participant: statusParticipant } : {})
                         };
+                        const statusKeyRaw = {
+                            remoteJid: 'status@broadcast',
+                            id: statusMessageId,
+                            fromMe: false,
+                            ...(statusParticipantRaw ? { participant: statusParticipantRaw } : {})
+                        };
 
                         if (shouldViewStatus) {
                             let markedAsRead = false;
                             if (typeof sock.sendReceipt === 'function') {
-                                await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
-                                markedAsRead = true;
+                                try {
+                                    await sock.sendReceipt('status@broadcast', statusParticipantRaw || undefined, [statusMessageId], 'read');
+                                    markedAsRead = true;
+                                } catch {
+                                    await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
+                                    markedAsRead = true;
+                                }
                             }
 
                             if (typeof sock.readMessages === 'function') {
                                 try {
-                                    await sock.readMessages([statusKey]);
+                                    await sock.readMessages([statusKeyRaw]);
                                     markedAsRead = true;
                                 } catch {
-                                    await sock.readMessages([msg.key]);
-                                    markedAsRead = true;
+                                    try {
+                                        await sock.readMessages([statusKey]);
+                                        markedAsRead = true;
+                                    } catch {
+                                        await sock.readMessages([msg.key]);
+                                        markedAsRead = true;
+                                    }
                                 }
                             }
 
@@ -1064,13 +1080,43 @@ class Mantra {
 
                         if (shouldReactStatus) {
                             const reactionEmoji = String(statusReactConfig.emoji || '').trim() || DEFAULT_AUTOSTATUS_REACT_EMOJI;
-                            await sock.sendMessage('status@broadcast', {
-                                react: {
-                                    text: reactionEmoji,
-                                    key: statusKey
+                            const reactionKeys = [statusKeyRaw, statusKey, msg.key].filter(Boolean);
+                            let reacted = false;
+                            let reactionErr = null;
+
+                            for (const reactionKey of reactionKeys) {
+                                try {
+                                    await sock.sendMessage('status@broadcast', {
+                                        react: {
+                                            text: reactionEmoji,
+                                            key: reactionKey
+                                        }
+                                    });
+                                    reacted = true;
+                                    break;
+                                } catch (err) {
+                                    const messageText = String(err?.message || err || '').toLowerCase();
+                                    if (
+                                        messageText.includes('not-acceptable') ||
+                                        messageText.includes('not acceptable') ||
+                                        messageText.includes('forbidden')
+                                    ) {
+                                        if (!didWarnStatusReactionUnsupported) {
+                                            didWarnStatusReactionUnsupported = true;
+                                            console.warn('[status] Reactions are not accepted for this account/session. Use ,autostatusreact off to disable.');
+                                        }
+                                        reactionErr = null;
+                                        break;
+                                    }
+                                    reactionErr = err;
                                 }
-                            });
-                            console.log(`[status] reacted (${reactionEmoji}): ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                            }
+
+                            if (reacted) {
+                                console.log(`[status] reacted (${reactionEmoji}): ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                            } else if (reactionErr) {
+                                console.error('[status] reaction failed:', reactionErr?.message || reactionErr);
+                            }
                         }
                         if (shouldViewStatus) {
                             console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
