@@ -12,7 +12,7 @@
   "success_url": "/",
   "stack": "heroku-22",
   "formation": {
-    "web": {
+    "worker": {
       "quantity": 1,
       "size": "basic"
     }

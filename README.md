@@ -34,10 +34,17 @@ GitHub Repo for deployment:
 
 - `https://github.com/MidknightMantra/Mantra`
 
+## 24/7 Uptime
+
+To keep the bot online continuously:
+
+- Use always-on plans (free tiers may sleep/hibernate).
+- Railway: keep service active and disable any sleep settings.
+- Heroku: run as a `worker` dyno (`Procfile` included) on a paid dyno plan.
+- Render/Koyeb: use plans that do not spin down background services.
+
 ## Notes
 
 - Keep your session string private.
 - If session is invalid/expired, generate a new one from:
   - https://mantra-pair.up.railway.app/
-- Plugin files are in `plugins/`.
-- Group helper utilities are in `lib/`.

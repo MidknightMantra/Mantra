@@ -17,11 +17,14 @@ const COMMAND_METRICS_WINDOW = 50;
 const BAD_MAC_WINDOW_MS = 120000;
 const BAD_MAC_THRESHOLD = 4;
 const SIGNAL_FILTER_KEY = Symbol.for('mantra.signal.filter');
+const PROCESS_GUARD_KEY = Symbol.for('mantra.process.guard');
 const DEFAULT_PREFIX = ',';
 const RESPONSE_FOOTER = '> *Mantra*';
 const MESSAGE_RETENTION_MS = 40 * 60 * 1000;
 const MESSAGE_DB_PATH = path.resolve('./database.json');
 const MESSAGE_DB_FLUSH_DEBOUNCE_MS = 1000;
+const RECONNECT_BASE_DELAY_MS = 2000;
+const RECONNECT_MAX_DELAY_MS = 30000;
 const SESSION_ENV_KEYS = [
     'MANTRA_SESSION',
     'SESSION_ID',
@@ -436,14 +439,58 @@ function installSignalLogFilter(sessionFolder, getOwnJidDigits) {
     globalObj[SIGNAL_FILTER_KEY] = true;
 }
 
+function installProcessGuards() {
+    const globalObj = globalThis;
+    if (globalObj[PROCESS_GUARD_KEY]) return;
+
+    process.on('unhandledRejection', (reason) => {
+        console.error('[process] unhandledRejection:', reason);
+    });
+
+    process.on('uncaughtException', (err) => {
+        console.error('[process] uncaughtException:', err);
+    });
+
+    globalObj[PROCESS_GUARD_KEY] = true;
+}
+
 class Mantra {
     constructor() {
         this.prefix = DEFAULT_PREFIX;
+        this.sessionId = 'default';
+        this.reconnectAttempts = 0;
+        this.reconnectTimer = null;
+        this.sock = null;
+        installProcessGuards();
         this.start();
     }
 
     async start() {
-        await this.createSession('default');
+        await this.createSession(this.sessionId);
+    }
+
+    scheduleReconnect(id, statusCode) {
+        if (statusCode === 401) {
+            console.log('Logged out. Scan QR again.');
+            return;
+        }
+
+        if (this.reconnectTimer) return;
+
+        this.reconnectAttempts += 1;
+        const delay = Math.min(
+            RECONNECT_BASE_DELAY_MS * (2 ** (this.reconnectAttempts - 1)),
+            RECONNECT_MAX_DELAY_MS
+        );
+
+        console.log(`Reconnecting socket in ${Math.round(delay / 1000)}s...`);
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.createSession(id).catch((err) => {
+                console.error('Reconnection attempt failed:', err?.message || err);
+                this.scheduleReconnect(id, 500);
+            });
+        }, delay);
     }
 
     async createSession(id) {
@@ -471,6 +518,7 @@ class Mantra {
             browser: Browsers.ubuntu('Mantra')
         });
         activeSock = sock;
+        this.sock = sock;
 
         const rawSendMessage = sock.sendMessage.bind(sock);
         sock.sendMessage = async (jid, content, options) => {
@@ -554,16 +602,18 @@ class Mantra {
             }
 
             if (connection === 'open') {
+                this.reconnectAttempts = 0;
                 console.log('Connected as:', sock.user.id);
             }
 
             if (connection === 'close') {
-                const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const shouldReconnect = statusCode !== 401;
 
                 console.log('Connection closed.');
 
                 if (shouldReconnect) {
-                    console.log('Reconnecting socket...');
+                    this.scheduleReconnect(id, statusCode);
                 } else {
                     console.log('Logged out. Scan QR again.');
                 }
@@ -571,116 +621,124 @@ class Mantra {
         });
 
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
-            const msg = messages[0];
-            const hasMessage = Boolean(msg?.message);
-            const hasStub = Number.isFinite(Number(msg?.messageStubType)) && Number(msg.messageStubType) > 0;
-            if (!hasMessage && !hasStub) return;
+            try {
+                const msg = messages[0];
+                const hasMessage = Boolean(msg?.message);
+                const hasStub = Number.isFinite(Number(msg?.messageStubType)) && Number(msg.messageStubType) > 0;
+                if (!hasMessage && !hasStub) return;
 
-            const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
-            if (!isStatusMessage && type !== 'notify') return;
+                const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
+                if (!isStatusMessage && type !== 'notify') return;
 
-            if (!isStatusMessage) {
-                const now = Math.floor(Date.now() / 1000);
-                const msgTime = Number(msg.messageTimestamp);
-                if (now - msgTime > 5) return;
-            }
-
-            if (mantra.processedMessages.has(msg.key.id)) return;
-            mantra.processedMessages.add(msg.key.id);
-            setTimeout(() => {
-                mantra.processedMessages.delete(msg.key.id);
-            }, 60000);
-
-            if (isStatusMessage) {
-                try {
-                    const statusMessageId = msg.key?.id;
-                    if (!statusMessageId) throw new Error('Missing status message id');
-
-                    const statusParticipant = normalizeParticipantJid(
-                        msg.key?.participant || msg.participant
-                    );
-
-                    if (!didWarnStatusReadReceipts && typeof sock.fetchPrivacySettings === 'function') {
-                        try {
-                            const privacy = await sock.fetchPrivacySettings();
-                            if (privacy?.readreceipts !== 'all') {
-                                didWarnStatusReadReceipts = true;
-                                console.warn('[status] Read receipts are OFF. Enable read receipts in WhatsApp to appear in status viewers.');
-                            }
-                        } catch {}
-                    }
-
-                    const statusKey = {
-                        remoteJid: 'status@broadcast',
-                        id: statusMessageId,
-                        fromMe: false,
-                        ...(statusParticipant ? { participant: statusParticipant } : {})
-                    };
-
-                    let markedAsRead = false;
-                    if (typeof sock.sendReceipt === 'function') {
-                        await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
-                        markedAsRead = true;
-                    }
-
-                    if (typeof sock.readMessages === 'function') {
-                        try {
-                            await sock.readMessages([statusKey]);
-                            markedAsRead = true;
-                        } catch {
-                            await sock.readMessages([msg.key]);
-                            markedAsRead = true;
-                        }
-                    }
-
-                    if (!markedAsRead) {
-                        throw new Error('No status read method available');
-                    }
-
-                    console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
-                } catch (err) {
-                    console.error('[status] auto-view failed:', err?.message || err);
+                if (!isStatusMessage) {
+                    const now = Math.floor(Date.now() / 1000);
+                    const msgTime = Number(msg.messageTimestamp);
+                    if (now - msgTime > 5) return;
                 }
-                return;
-            }
 
-            const m = await handler(sock, msg, this);
+                if (mantra.processedMessages.has(msg.key.id)) return;
+                mantra.processedMessages.add(msg.key.id);
+                setTimeout(() => {
+                    mantra.processedMessages.delete(msg.key.id);
+                }, 60000);
 
-            mantra.messageStore.set(msg.key.id, {
-                body: m.body,
-                sender: m.sender,
-                from: m.from,
-                time: new Date().toLocaleString(),
-                raw: msg,
-                timestamp: Date.now(),
-                contentType: getContentType(msg.message),
-                fromMe: Boolean(msg.key?.fromMe)
-            });
-            mantra.scheduleMessageStoreFlush();
-
-            if (m.command) {
-                const plugin = pluginManager.getCommand(m.command);
-                if (plugin?.execute) {
-                    const commandStartedAt = Date.now();
+                if (isStatusMessage) {
                     try {
-                        const pluginReact = String(plugin.react || '').trim();
-                        if (pluginReact) {
+                        const statusMessageId = msg.key?.id;
+                        if (!statusMessageId) throw new Error('Missing status message id');
+
+                        const statusParticipant = normalizeParticipantJid(
+                            msg.key?.participant || msg.participant
+                        );
+
+                        if (!didWarnStatusReadReceipts && typeof sock.fetchPrivacySettings === 'function') {
                             try {
-                                await m.react(pluginReact);
+                                const privacy = await sock.fetchPrivacySettings();
+                                if (privacy?.readreceipts !== 'all') {
+                                    didWarnStatusReadReceipts = true;
+                                    console.warn('[status] Read receipts are OFF. Enable read receipts in WhatsApp to appear in status viewers.');
+                                }
                             } catch {}
                         }
-                        await plugin.execute(sock, m, mantra);
-                    } finally {
-                        mantra.recordCommandMetric(Date.now() - commandStartedAt);
+
+                        const statusKey = {
+                            remoteJid: 'status@broadcast',
+                            id: statusMessageId,
+                            fromMe: false,
+                            ...(statusParticipant ? { participant: statusParticipant } : {})
+                        };
+
+                        let markedAsRead = false;
+                        if (typeof sock.sendReceipt === 'function') {
+                            await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
+                            markedAsRead = true;
+                        }
+
+                        if (typeof sock.readMessages === 'function') {
+                            try {
+                                await sock.readMessages([statusKey]);
+                                markedAsRead = true;
+                            } catch {
+                                await sock.readMessages([msg.key]);
+                                markedAsRead = true;
+                            }
+                        }
+
+                        if (!markedAsRead) {
+                            throw new Error('No status read method available');
+                        }
+
+                        console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                    } catch (err) {
+                        console.error('[status] auto-view failed:', err?.message || err);
+                    }
+                    return;
+                }
+
+                const m = await handler(sock, msg, this);
+
+                mantra.messageStore.set(msg.key.id, {
+                    body: m.body,
+                    sender: m.sender,
+                    from: m.from,
+                    time: new Date().toLocaleString(),
+                    raw: msg,
+                    timestamp: Date.now(),
+                    contentType: getContentType(msg.message),
+                    fromMe: Boolean(msg.key?.fromMe)
+                });
+                mantra.scheduleMessageStoreFlush();
+
+                if (m.command) {
+                    const plugin = pluginManager.getCommand(m.command);
+                    if (plugin?.execute) {
+                        const commandStartedAt = Date.now();
+                        try {
+                            const pluginReact = String(plugin.react || '').trim();
+                            if (pluginReact) {
+                                try {
+                                    await m.react(pluginReact);
+                                } catch {}
+                            }
+                            await plugin.execute(sock, m, mantra);
+                        } finally {
+                            mantra.recordCommandMetric(Date.now() - commandStartedAt);
+                        }
                     }
                 }
-            }
 
-            await pluginManager.runOnMessage(sock, m, mantra);
+                await pluginManager.runOnMessage(sock, m, mantra);
+            } catch (err) {
+                console.error('[messages.upsert] handler failed:', err?.message || err);
+            }
         });
 
         sock.ev.on('messages.update', async (updates) => {
-            await pluginManager.runOnUpdate(sock, updates, mantra);
+            try {
+                await pluginManager.runOnUpdate(sock, updates, mantra);
+            } catch (err) {
+                console.error('[messages.update] handler failed:', err?.message || err);
+            }
         });
 
         this.safeSend = async (safeSock, jid, content, quoted) => {
