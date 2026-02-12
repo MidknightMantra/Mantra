@@ -146,6 +146,22 @@ function extractQuickBody(message) {
     return String(text || '').trim();
 }
 
+function buildMessageDedupKey(msg, bodyPreview = '') {
+    const key = msg?.key || {};
+    const id = String(key.id || '').trim();
+    if (id) return `id:${id}`;
+
+    const remote = String(key.remoteJid || '').trim();
+    const participant = String(key.participant || '').trim();
+    const fromMe = key.fromMe ? '1' : '0';
+    const timestamp = Number(msg?.messageTimestamp || 0);
+    const type = getContentType(msg?.message);
+    const body = String(bodyPreview || '').trim().slice(0, 120);
+
+    if (!remote && !participant && !timestamp && !body && !type) return '';
+    return `fallback:${remote}|${participant}|${fromMe}|${timestamp}|${type}|${body}`;
+}
+
 function normalizeStoredMessage(entry) {
     const id = String(entry?.id || '').trim();
     if (!id) return null;
@@ -1104,11 +1120,19 @@ class Mantra {
                     }
                 }
 
-                if (mantra.processedMessages.has(msg.key.id)) return;
-                mantra.processedMessages.add(msg.key.id);
-                setTimeout(() => {
-                    mantra.processedMessages.delete(msg.key.id);
-                }, 60000);
+                const dedupeKey = buildMessageDedupKey(msg, quickBody);
+                if (dedupeKey) {
+                    if (mantra.processedMessages.has(dedupeKey)) {
+                        if (isPotentialCommand) {
+                            console.log(`[cmd:skip] duplicate key=${dedupeKey.slice(0, 140)}`);
+                        }
+                        return;
+                    }
+                    mantra.processedMessages.add(dedupeKey);
+                    setTimeout(() => {
+                        mantra.processedMessages.delete(dedupeKey);
+                    }, 60000);
+                }
 
                 if (isStatusMessage) {
                     const statusReactConfig = normalizeReactionSetting(

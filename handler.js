@@ -91,7 +91,10 @@ module.exports = async function handler(sock, msg, mantra) {
     m.from = msg.key.remoteJid;
     m.sender = msg.key.participant || msg.key.remoteJid;
     m.isGroup = m.from.endsWith('@g.us');
-    m.isOwner = Boolean(msg.key.fromMe) || jidUser(m.sender) === jidUser(sock.user.id);
+    const selfUser = jidUser(sock.user?.id);
+    m.isOwner =
+        Boolean(msg.key.fromMe) ||
+        (Boolean(selfUser) && (jidUser(m.sender) === selfUser || jidUser(m.from) === selfUser));
     const selfDirectJid = toSelfUserJid(sock.user?.id);
     const preferredReplyJid = (!m.isGroup && msg.key?.fromMe && selfDirectJid) ? selfDirectJid : m.from;
 
