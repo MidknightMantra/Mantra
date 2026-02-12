@@ -1,4 +1,5 @@
 const { getGroupAdminState } = require("../lib/groupTools");
+const { setGroupSetting } = require("../lib/groupSettings");
 
 const DEFAULT_ALIVE_IMAGE = "https://files.catbox.moe/2evo2f.jpg";
 
@@ -19,10 +20,12 @@ module.exports = {
 
             const goodbye = String(m.args?.join(" ") || "").trim();
             if (!goodbye) return m.reply("Please provide a goodbye message.");
+            setGroupSetting(m.from, "GOODBYE_TEXT", goodbye);
+            setGroupSetting(m.from, "GOODBYE_ENABLED", true);
 
             const aliveImg = String(process.env.ALIVE_IMG || "").trim() || DEFAULT_ALIVE_IMAGE;
             await sock.sendMessage(m.from, { image: { url: aliveImg }, caption: goodbye });
-            await m.reply("Goodbye message has been set.");
+            await m.reply("Goodbye message saved and enabled.");
         } catch (e) {
             console.error("setgoodbye error:", e?.message || e);
             await m.reply(`${e?.message || e}`);

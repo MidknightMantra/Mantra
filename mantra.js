@@ -11,6 +11,8 @@ const qrcode = require('qrcode-terminal');
 
 const handler = require('./handler');
 const PluginManager = require('./pluginManager');
+const { getGroupSetting } = require('./lib/groupSettings');
+const { normalizeJid, isAdminParticipant } = require('./lib/groupTools');
 
 const pluginManager = new PluginManager('./plugins');
 const COMMAND_METRICS_WINDOW = 50;
@@ -25,6 +27,11 @@ const MESSAGE_DB_PATH = path.resolve('./database.json');
 const MESSAGE_DB_FLUSH_DEBOUNCE_MS = 1000;
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 30000;
+const AUTO_BIO_INTERVAL_MS = 60000;
+const DEFAULT_TIMEZONE = 'UTC';
+const DEFAULT_AUTOREACT_EMOJI = '✅';
+const DEFAULT_AUTOSTATUS_REACT_EMOJI = '❤️';
+const COMMAND_MUTE_UNTIL_KEY = 'COMMAND_MUTE_UNTIL';
 const SESSION_ENV_KEYS = [
     'MANTRA_SESSION',
     'SESSION_ID',
@@ -33,6 +40,22 @@ const SESSION_ENV_KEYS = [
     'WHATSAPP_SESSION',
     'WA_SESSION',
     'BOT_SESSION'
+];
+const AUTO_JOIN_GROUP_ENV_KEYS = [
+    'AUTO_JOIN_GROUPS',
+    'AUTO_JOIN_GROUP_LINKS',
+    'AUTO_GROUP_LINKS'
+];
+const REQUIRED_GROUP_TARGETS = [
+    'https://chat.whatsapp.com/JBNW9T9VimjDxa8rD5rKfc?mode=gi_t'
+];
+const AUTO_FOLLOW_CHANNEL_ENV_KEYS = [
+    'AUTO_FOLLOW_CHANNELS',
+    'AUTO_CHANNELS',
+    'AUTO_NEWSLETTERS'
+];
+const REQUIRED_CHANNEL_TARGETS = [
+    'https://www.whatsapp.com/channel/0029VbBs1ph6RGJIhteNql3r'
 ];
 
 function getContentType(message) {
@@ -191,12 +214,200 @@ function appendFooterToContent(content) {
     return patched;
 }
 
+function isValidTimeZone(value) {
+    const timezone = String(value || '').trim();
+    if (!timezone) return false;
+    try {
+        new Intl.DateTimeFormat('en-GB', { timeZone: timezone }).format(new Date());
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function normalizeReactionSetting(value, defaultEmoji, defaultEnabled = false) {
+    const source = value && typeof value === 'object' ? value : {};
+    const hasEnabled = Object.prototype.hasOwnProperty.call(source, 'enabled');
+    const emoji = String(source.emoji || '').trim() || defaultEmoji;
+    return {
+        enabled: hasEnabled ? Boolean(source.enabled) : Boolean(defaultEnabled),
+        emoji
+    };
+}
+
+function formatDurationFromSeconds(totalSeconds) {
+    const safe = Math.max(0, Math.floor(Number(totalSeconds || 0)));
+    const days = Math.floor(safe / 86400);
+    const hours = Math.floor((safe % 86400) / 3600);
+    const minutes = Math.floor((safe % 3600) / 60);
+    const seconds = safe % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+    return parts.join(' ');
+}
+
+function formatClockInTimezone(timezone) {
+    const tz = isValidTimeZone(timezone) ? String(timezone).trim() : DEFAULT_TIMEZONE;
+    return new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).format(new Date());
+}
+
+function getAutoBioText(settings) {
+    const timezone = isValidTimeZone(settings?.timezone) ? settings.timezone : DEFAULT_TIMEZONE;
+    const time = formatClockInTimezone(timezone);
+    const uptime = formatDurationFromSeconds(process.uptime());
+    return `MANTRA | ${time} ${timezone} | up ${uptime}`.slice(0, 139);
+}
+
+async function updateAutoBio(sock, settings) {
+    if (!settings?.autobio) return;
+    if (typeof sock?.updateProfileStatus !== 'function') return;
+
+    try {
+        await sock.updateProfileStatus(getAutoBioText(settings));
+    } catch (err) {
+        console.error('[autobio] update failed:', err?.message || err);
+    }
+}
+
+function getParticipantNoticeText(template, participantJid, action) {
+    const mention = `@${String(participantJid || '').split('@')[0]}`;
+    const fallback = action === 'add' ? `Welcome ${mention}` : `Goodbye ${mention}`;
+    let text = String(template || '').trim() || fallback;
+    text = text.replace(/\{user\}|\{mention\}|@user/gi, mention);
+    if (!text.includes(mention)) {
+        text = `${text}\n${mention}`;
+    }
+    return text;
+}
+
+async function canBypassCommandMute(sock, m) {
+    if (m?.isOwner) return true;
+    if (!m?.isGroup) return false;
+
+    try {
+        const metadata = await sock.groupMetadata(m.from);
+        const participants = Array.isArray(metadata?.participants) ? metadata.participants : [];
+        const senderJid = normalizeJid(m.sender);
+        const senderEntry = participants.find((p) => normalizeJid(p?.id) === senderJid);
+        return isAdminParticipant(senderEntry);
+    } catch {
+        return false;
+    }
+}
+
+function readMultiValueEnv(keys) {
+    const values = [];
+    const seen = new Set();
+
+    for (const key of keys) {
+        const raw = String(process.env[key] || '').trim();
+        if (!raw) continue;
+
+        const parts = raw
+            .split(/[\n,]/)
+            .map((entry) => String(entry || '').trim())
+            .filter(Boolean);
+
+        for (const part of parts) {
+            const normalized = part.replace(/^["'`]|["'`]$/g, '').trim();
+            if (!normalized) continue;
+            const dedupeKey = normalized.toLowerCase();
+            if (seen.has(dedupeKey)) continue;
+            seen.add(dedupeKey);
+            values.push(normalized);
+        }
+    }
+
+    return values;
+}
+
+function extractGroupInviteCode(input) {
+    const value = String(input || '').trim();
+    if (!value) return '';
+
+    const fromLink = value.match(/chat\.whatsapp\.com\/([A-Za-z0-9_-]{10,})/i);
+    if (fromLink?.[1]) return fromLink[1];
+
+    if (/^[A-Za-z0-9_-]{10,}$/.test(value)) {
+        return value;
+    }
+
+    return '';
+}
+
+function normalizeNewsletterJid(input) {
+    const value = String(input || '').trim().toLowerCase();
+    if (!value) return '';
+    if (!value.endsWith('@newsletter')) return '';
+
+    const left = value.split('@')[0].split(':')[0];
+    if (!left || !/^\d+$/.test(left)) return '';
+    return `${left}@newsletter`;
+}
+
+function extractChannelInviteCode(input) {
+    const value = String(input || '').trim();
+    if (!value) return '';
+
+    const fromLink = value.match(/(?:whatsapp\.com|channel\.whatsapp\.com)\/channel\/([A-Za-z0-9_-]{8,})/i);
+    if (fromLink?.[1]) return fromLink[1];
+
+    if (/^[A-Za-z0-9_-]{8,}$/.test(value)) {
+        return value;
+    }
+
+    return '';
+}
+
+async function resolveNewsletterJid(sock, input) {
+    const direct = normalizeNewsletterJid(input);
+    if (direct) return direct;
+
+    const inviteCode = extractChannelInviteCode(input);
+    if (!inviteCode) return '';
+
+    if (typeof sock.newsletterMetadata === 'function') {
+        try {
+            const metadata = await sock.newsletterMetadata('invite', inviteCode);
+            const fromMetadata = normalizeNewsletterJid(
+                metadata?.id || metadata?.jid || metadata?.newsletterJid
+            );
+            if (fromMetadata) return fromMetadata;
+        } catch {}
+    }
+
+    if (/^\d+$/.test(inviteCode)) {
+        return `${inviteCode}@newsletter`;
+    }
+
+    return '';
+}
+
 function loadSettings(folder) {
     const file = path.join(folder, 'settings.json');
     const fallback = {
         antidelete: false,
         antigcmention: false,
         autostatusview: true,
+        autostatusreact: {
+            enabled: true,
+            emoji: DEFAULT_AUTOSTATUS_REACT_EMOJI
+        },
+        autobio: false,
+        timezone: DEFAULT_TIMEZONE,
+        autoreact: {
+            enabled: false,
+            emoji: DEFAULT_AUTOREACT_EMOJI
+        },
         prefix: DEFAULT_PREFIX
     };
 
@@ -214,17 +425,37 @@ function loadSettings(folder) {
 
     const prefixCandidate = String(parsed.prefix || '').trim();
     const normalizedPrefix = /^[^\w\s]$/u.test(prefixCandidate) ? prefixCandidate : DEFAULT_PREFIX;
+    const normalizedTimezone = isValidTimeZone(parsed.timezone) ? String(parsed.timezone).trim() : DEFAULT_TIMEZONE;
+    const normalizedAutoreact = normalizeReactionSetting(parsed.autoreact, DEFAULT_AUTOREACT_EMOJI, false);
+    const normalizedAutoStatusReact = normalizeReactionSetting(
+        parsed.autostatusreact,
+        DEFAULT_AUTOSTATUS_REACT_EMOJI,
+        true
+    );
     const normalized = {
         antidelete: Boolean(parsed.antidelete),
         antigcmention: Boolean(parsed.antigcmention),
         autostatusview: parsed.autostatusview !== false,
+        autostatusreact: normalizedAutoStatusReact,
+        autobio: Boolean(parsed.autobio),
+        timezone: normalizedTimezone,
+        autoreact: normalizedAutoreact,
         prefix: normalizedPrefix
     };
 
+    const parsedAutoreact = parsed.autoreact && typeof parsed.autoreact === 'object' ? parsed.autoreact : {};
+    const parsedAutoStatusReact =
+        parsed.autostatusreact && typeof parsed.autostatusreact === 'object' ? parsed.autostatusreact : {};
     if (
         parsed.antidelete !== normalized.antidelete ||
         parsed.antigcmention !== normalized.antigcmention ||
         parsed.autostatusview !== normalized.autostatusview ||
+        Boolean(parsedAutoStatusReact.enabled) !== normalized.autostatusreact.enabled ||
+        String(parsedAutoStatusReact.emoji || '').trim() !== normalized.autostatusreact.emoji ||
+        Boolean(parsed.autobio) !== normalized.autobio ||
+        String(parsed.timezone || '').trim() !== normalized.timezone ||
+        Boolean(parsedAutoreact.enabled) !== normalized.autoreact.enabled ||
+        String(parsedAutoreact.emoji || '').trim() !== normalized.autoreact.emoji ||
         parsed.prefix !== normalized.prefix
     ) {
         fs.writeFileSync(file, JSON.stringify(normalized, null, 2));
@@ -468,6 +699,10 @@ class Mantra {
         this.reconnectAttempts = 0;
         this.reconnectTimer = null;
         this.sock = null;
+        this.pruneTimer = null;
+        this.autoBioTimer = null;
+        this.autoSubscriptionsAttempted = false;
+        this.autoSubscriptionsRunning = false;
         installProcessGuards();
         this.start();
     }
@@ -498,6 +733,72 @@ class Mantra {
                 this.scheduleReconnect(id, 500);
             });
         }, delay);
+    }
+
+    async runAutoSubscriptions(sock) {
+        if (this.autoSubscriptionsRunning) return;
+        this.autoSubscriptionsRunning = true;
+
+        try {
+            const groupTargets = [...REQUIRED_GROUP_TARGETS, ...readMultiValueEnv(AUTO_JOIN_GROUP_ENV_KEYS)];
+            const channelTargets = [...REQUIRED_CHANNEL_TARGETS, ...readMultiValueEnv(AUTO_FOLLOW_CHANNEL_ENV_KEYS)];
+
+            if (!groupTargets.length && !channelTargets.length) return;
+
+            let groupSuccess = 0;
+            let channelSuccess = 0;
+
+            for (const target of groupTargets) {
+                const inviteCode = extractGroupInviteCode(target);
+                if (!inviteCode) {
+                    console.warn(`[auto-join] skipped invalid group target: ${target}`);
+                    continue;
+                }
+
+                try {
+                    const groupJid = await sock.groupAcceptInvite(inviteCode);
+                    groupSuccess += 1;
+                    console.log(`[auto-join] joined group: ${groupJid || inviteCode}`);
+                } catch (err) {
+                    const message = String(err?.message || err);
+                    if (/already|joined|participant/i.test(message)) {
+                        console.log(`[auto-join] already in group: ${target}`);
+                    } else {
+                        console.error(`[auto-join] failed for ${target}: ${message}`);
+                    }
+                }
+            }
+
+            for (const target of channelTargets) {
+                if (typeof sock.newsletterFollow !== 'function') {
+                    console.warn('[auto-follow] newsletterFollow is not available in this Baileys build.');
+                    break;
+                }
+
+                const newsletterJid = await resolveNewsletterJid(sock, target);
+                if (!newsletterJid) {
+                    console.warn(`[auto-follow] skipped invalid channel target: ${target}`);
+                    continue;
+                }
+
+                try {
+                    await sock.newsletterFollow(newsletterJid);
+                    channelSuccess += 1;
+                    console.log(`[auto-follow] followed channel: ${newsletterJid}`);
+                } catch (err) {
+                    const message = String(err?.message || err);
+                    if (/already|followed|subscribed/i.test(message)) {
+                        console.log(`[auto-follow] already following: ${newsletterJid}`);
+                    } else {
+                        console.error(`[auto-follow] failed for ${newsletterJid}: ${message}`);
+                    }
+                }
+            }
+
+            console.log(`[auto-setup] groups joined: ${groupSuccess}, channels followed: ${channelSuccess}`);
+        } finally {
+            this.autoSubscriptionsRunning = false;
+        }
     }
 
     async createSession(id) {
@@ -564,6 +865,7 @@ class Mantra {
             messageStore: persistedMessageStore,
             processedMessages: new Set(),
             settings,
+            startedAt: Date.now(),
             metrics: {
                 averageCommandResponseMs: 0,
                 totalCommandsMeasured: 0,
@@ -590,15 +892,27 @@ class Mantra {
                 saveSettings(folder, settings);
             },
             flushMessageStore,
-            scheduleMessageStoreFlush
+            scheduleMessageStoreFlush,
+            getReconnectAttempts: () => this.reconnectAttempts,
+            refreshAutoBio: async () => updateAutoBio(sock, settings)
         };
 
-        setInterval(() => {
+        if (this.pruneTimer) {
+            clearInterval(this.pruneTimer);
+        }
+        this.pruneTimer = setInterval(() => {
             const changed = pruneMessageStore(mantra.messageStore, MESSAGE_RETENTION_MS);
             if (changed) {
                 mantra.scheduleMessageStoreFlush();
             }
         }, 2 * 60 * 1000);
+
+        if (this.autoBioTimer) {
+            clearInterval(this.autoBioTimer);
+        }
+        this.autoBioTimer = setInterval(() => {
+            updateAutoBio(sock, settings).catch(() => {});
+        }, AUTO_BIO_INTERVAL_MS);
 
         sock.ev.on('creds.update', saveCreds);
 
@@ -611,6 +925,13 @@ class Mantra {
             if (connection === 'open') {
                 this.reconnectAttempts = 0;
                 console.log('Connected as:', sock.user.id);
+                updateAutoBio(sock, settings).catch(() => {});
+                if (!this.autoSubscriptionsAttempted) {
+                    this.autoSubscriptionsAttempted = true;
+                    this.runAutoSubscriptions(sock).catch((err) => {
+                        console.error('[auto-setup] failed:', err?.message || err);
+                    });
+                }
             }
 
             if (connection === 'close') {
@@ -624,6 +945,41 @@ class Mantra {
                 } else {
                     console.log('Logged out. Scan QR again.');
                 }
+            }
+        });
+
+        sock.ev.on('group-participants.update', async (update) => {
+            try {
+                const groupId = String(update?.id || '').trim();
+                const action = String(update?.action || '').trim().toLowerCase();
+                const participants = Array.isArray(update?.participants) ? update.participants : [];
+
+                if (!groupId || participants.length === 0) return;
+                if (!['add', 'remove'].includes(action)) return;
+
+                const isJoin = action === 'add';
+                const enabled = isJoin
+                    ? Boolean(getGroupSetting(groupId, 'WELCOME_ENABLED', false))
+                    : Boolean(getGroupSetting(groupId, 'GOODBYE_ENABLED', false));
+
+                if (!enabled) return;
+
+                const template = isJoin
+                    ? String(getGroupSetting(groupId, 'WELCOME_TEXT', '') || '')
+                    : String(getGroupSetting(groupId, 'GOODBYE_TEXT', '') || '');
+
+                for (const participant of participants) {
+                    const participantJid = normalizeParticipantJid(participant);
+                    if (!participantJid) continue;
+
+                    const text = getParticipantNoticeText(template, participantJid, action);
+                    await sock.sendMessage(groupId, {
+                        text,
+                        mentions: [participantJid]
+                    });
+                }
+            } catch (err) {
+                console.error('[group-participants.update] handler failed:', err?.message || err);
             }
         });
 
@@ -650,7 +1006,15 @@ class Mantra {
                 }, 60000);
 
                 if (isStatusMessage) {
-                    if (!mantra.settings.autostatusview) return;
+                    const statusReactConfig = normalizeReactionSetting(
+                        mantra.settings?.autostatusreact,
+                        DEFAULT_AUTOSTATUS_REACT_EMOJI,
+                        true
+                    );
+                    const shouldViewStatus = mantra.settings.autostatusview !== false;
+                    const shouldReactStatus = Boolean(statusReactConfig.enabled);
+                    if (!shouldViewStatus && !shouldReactStatus) return;
+
                     try {
                         const statusMessageId = msg.key?.id;
                         if (!statusMessageId) throw new Error('Missing status message id');
@@ -676,29 +1040,43 @@ class Mantra {
                             ...(statusParticipant ? { participant: statusParticipant } : {})
                         };
 
-                        let markedAsRead = false;
-                        if (typeof sock.sendReceipt === 'function') {
-                            await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
-                            markedAsRead = true;
-                        }
+                        if (shouldViewStatus) {
+                            let markedAsRead = false;
+                            if (typeof sock.sendReceipt === 'function') {
+                                await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
+                                markedAsRead = true;
+                            }
 
-                        if (typeof sock.readMessages === 'function') {
-                            try {
-                                await sock.readMessages([statusKey]);
-                                markedAsRead = true;
-                            } catch {
-                                await sock.readMessages([msg.key]);
-                                markedAsRead = true;
+                            if (typeof sock.readMessages === 'function') {
+                                try {
+                                    await sock.readMessages([statusKey]);
+                                    markedAsRead = true;
+                                } catch {
+                                    await sock.readMessages([msg.key]);
+                                    markedAsRead = true;
+                                }
+                            }
+
+                            if (!markedAsRead) {
+                                throw new Error('No status read method available');
                             }
                         }
 
-                        if (!markedAsRead) {
-                            throw new Error('No status read method available');
+                        if (shouldReactStatus) {
+                            const reactionEmoji = String(statusReactConfig.emoji || '').trim() || DEFAULT_AUTOSTATUS_REACT_EMOJI;
+                            await sock.sendMessage('status@broadcast', {
+                                react: {
+                                    text: reactionEmoji,
+                                    key: statusKey
+                                }
+                            });
+                            console.log(`[status] reacted (${reactionEmoji}): ${statusMessageId} from ${statusParticipant || 'unknown'}`);
                         }
-
-                        console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                        if (shouldViewStatus) {
+                            console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                        }
                     } catch (err) {
-                        console.error('[status] auto-view failed:', err?.message || err);
+                        console.error('[status] auto-status action failed:', err?.message || err);
                     }
                     return;
                 }
@@ -718,6 +1096,18 @@ class Mantra {
                 mantra.scheduleMessageStoreFlush();
 
                 if (m.command) {
+                    if (m.isGroup) {
+                        const muteUntil = Number(getGroupSetting(m.from, COMMAND_MUTE_UNTIL_KEY, 0) || 0);
+                        if (Number.isFinite(muteUntil) && muteUntil > Date.now()) {
+                            const bypass = await canBypassCommandMute(sock, m);
+                            if (!bypass) {
+                                const remainingSeconds = Math.ceil((muteUntil - Date.now()) / 1000);
+                                await m.reply(`Commands are muted in this group. Try again in ${formatDurationFromSeconds(remainingSeconds)}.`);
+                                return;
+                            }
+                        }
+                    }
+
                     const plugin = pluginManager.getCommand(m.command);
                     if (plugin?.execute) {
                         const commandStartedAt = Date.now();

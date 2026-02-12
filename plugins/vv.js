@@ -1,17 +1,22 @@
-const { downloadContentFromMessage } = require('gifted-baileys');
+const { downloadMediaMessage } = require("gifted-baileys");
 
 function getSelfJid(userId) {
-    const raw = String(userId || '');
-    if (!raw) return '';
-    const withoutDevice = raw.includes(':') ? raw.split(':')[0] : raw;
-    return withoutDevice.includes('@') ? withoutDevice : `${withoutDevice}@s.whatsapp.net`;
+    const raw = String(userId || "").trim();
+    if (!raw) return "";
+    const [left = "", right = "s.whatsapp.net"] = raw.split("@");
+    const user = left.split(":")[0];
+    if (!user) return "";
+    return `${user}@${right || "s.whatsapp.net"}`;
 }
 
-function unwrapEphemeral(message) {
+function unwrapContainers(message) {
     let current = message || null;
+    let wrappedByViewOnce = false;
     let guard = 0;
-    while (current && guard < 10) {
+
+    while (current && guard < 14) {
         guard += 1;
+
         if (current.ephemeralMessage?.message) {
             current = current.ephemeralMessage.message;
             continue;
@@ -20,89 +25,74 @@ function unwrapEphemeral(message) {
             current = current.documentWithCaptionMessage.message;
             continue;
         }
+        if (current.viewOnceMessage?.message) {
+            current = current.viewOnceMessage.message;
+            wrappedByViewOnce = true;
+            continue;
+        }
+        if (current.viewOnceMessageV2?.message) {
+            current = current.viewOnceMessageV2.message;
+            wrappedByViewOnce = true;
+            continue;
+        }
+        if (current.viewOnceMessageV2Extension?.message) {
+            current = current.viewOnceMessageV2Extension.message;
+            wrappedByViewOnce = true;
+            continue;
+        }
+
         break;
     }
-    return current;
+
+    return { message: current, wrappedByViewOnce };
 }
 
-function getQuotedViewOnceMedia(message) {
-    const normalized = unwrapEphemeral(message);
+function detectViewOnceMedia(message) {
+    const { message: normalized, wrappedByViewOnce } = unwrapContainers(message);
+    if (!normalized || typeof normalized !== "object") return null;
 
-    let quoted = normalized;
-    let wrappedByViewOnce = false;
-    if (quoted?.viewOnceMessage?.message) {
-        quoted = quoted.viewOnceMessage.message;
-        wrappedByViewOnce = true;
-    } else if (quoted?.viewOnceMessageV2?.message) {
-        quoted = quoted.viewOnceMessageV2.message;
-        wrappedByViewOnce = true;
-    } else if (quoted?.viewOnceMessageV2Extension?.message) {
-        quoted = quoted.viewOnceMessageV2Extension.message;
-        wrappedByViewOnce = true;
+    const image = normalized.imageMessage;
+    const video = normalized.videoMessage;
+
+    if (image && (image.viewOnce || wrappedByViewOnce)) {
+        return { type: "image", caption: String(image.caption || "") };
     }
 
-    const quotedImage = quoted?.imageMessage;
-    const quotedVideo = quoted?.videoMessage;
-
-    if (quotedImage && (quotedImage.viewOnce || wrappedByViewOnce)) {
-        return {
-            type: 'image',
-            media: quotedImage,
-            caption: quotedImage.caption || ''
-        };
-    }
-
-    if (quotedVideo && (quotedVideo.viewOnce || wrappedByViewOnce)) {
-        return {
-            type: 'video',
-            media: quotedVideo,
-            caption: quotedVideo.caption || ''
-        };
+    if (video && (video.viewOnce || wrappedByViewOnce)) {
+        return { type: "video", caption: String(video.caption || "") };
     }
 
     return null;
 }
 
-async function streamToBuffer(stream) {
-    let buffer = Buffer.from([]);
-    for await (const chunk of stream) {
-        buffer = Buffer.concat([buffer, chunk]);
-    }
-    return buffer;
-}
-
-function buildPayload(type, buffer, caption) {
-    if (type === 'image') {
-        return {
-            image: buffer,
-            fileName: 'media.jpg',
-            caption
-        };
-    }
-
-    return {
-        video: buffer,
-        fileName: 'media.mp4',
-        caption
-    };
-}
-
 function getCandidateMessages(m, mantra) {
     const candidates = [];
+    const seen = new Set();
+
+    const add = (candidate) => {
+        const keyId = String(candidate?.key?.id || "");
+        const payload = candidate?.message;
+        if (!payload || typeof payload !== "object") return;
+
+        const dedupe = keyId || JSON.stringify(Object.keys(payload).sort());
+        if (seen.has(dedupe)) return;
+        seen.add(dedupe);
+        candidates.push(candidate);
+    };
 
     if (m.quoted) {
-        candidates.push({
+        add({
             key: m.quotedKey || m.key,
             message: m.quoted
         });
     }
 
-    const quotedId = m.quotedKey?.id;
+    const quotedId = String(m.quotedKey?.id || "");
     if (quotedId && mantra?.messageStore?.has(quotedId)) {
         const cached = mantra.messageStore.get(quotedId);
         const cachedMsg = cached?.raw;
-        if (cachedMsg?.message && cachedMsg?.key) {
-            candidates.push({
+        if (cachedMsg?.key && cachedMsg?.message) {
+            add({
                 key: cachedMsg.key,
                 message: cachedMsg.message
             });
@@ -112,69 +102,97 @@ function getCandidateMessages(m, mantra) {
     return candidates;
 }
 
+async function downloadCandidateBuffer(sock, candidate) {
+    return downloadMediaMessage(
+        {
+            key: candidate.key,
+            message: candidate.message
+        },
+        "buffer",
+        {},
+        { reuploadRequest: sock.updateMediaMessage }
+    );
+}
+
+function buildPayload(type, buffer, caption) {
+    if (type === "image") {
+        return {
+            image: buffer,
+            caption: caption || undefined
+        };
+    }
+
+    return {
+        video: buffer,
+        caption: caption || undefined
+    };
+}
+
 module.exports = {
-    name: 'vv',
-    react: '🕶️',
-    category: 'media',
-    description: 'Forward quoted view-once media to your saved messages',
-    usage: ',vv',
-    aliases: ['viewviewonce'],
+    name: "vv",
+    react: "👁️",
+    category: "media",
+    description: "Forward quoted view-once media to your saved messages",
+    usage: ",vv (reply to view-once image/video)",
+    aliases: ["viewviewonce", "viewonce"],
 
     execute: async (sock, m, mantra) => {
         try {
             const candidates = getCandidateMessages(m, mantra);
-            console.log(`[vv] received command from ${m.sender}; candidates=${candidates.length}; quotedId=${m.quotedKey?.id || 'none'}`);
-            let extracted = null;
+            if (!candidates.length) {
+                await m.reply(`Reply to a view-once image/video.\nUsage: ${m.prefix}vv`);
+                return;
+            }
 
+            let selected = null;
             for (const candidate of candidates) {
-                const found = getQuotedViewOnceMedia(candidate.message);
-                if (!found) continue;
-                extracted = {
-                    ...found,
-                    target: candidate
-                };
+                const media = detectViewOnceMedia(candidate.message);
+                if (!media) continue;
+                selected = { candidate, media };
                 break;
             }
 
-            if (!extracted) {
-                const firstCandidateKeys = Object.keys(candidates[0]?.message || {});
-                console.error(`[vv] no view-once media found; firstCandidateKeys=${firstCandidateKeys.join(',') || 'none'}`);
-                await m.react('❌');
+            if (!selected) {
+                const firstKeys = Object.keys(candidates[0]?.message || {});
+                console.error(`[vv] no view-once media found; firstCandidateKeys=${firstKeys.join(",") || "none"}`);
+                await m.reply("No view-once image/video found in that reply.");
                 return;
             }
 
-            let stream;
+            let buffer;
             try {
-                stream = await downloadContentFromMessage(extracted.media, extracted.type);
+                buffer = await downloadCandidateBuffer(sock, selected.candidate);
             } catch (err) {
                 console.error(`[vv] download failed: ${err?.message || err}`);
-                await m.react('❌');
+                await m.reply("Failed to download quoted view-once media.");
                 return;
             }
-            const buffer = await streamToBuffer(stream);
+
+            if (!Buffer.isBuffer(buffer) || !buffer.length) {
+                await m.reply("Could not read media content from quoted message.");
+                return;
+            }
 
             const selfJid = getSelfJid(sock.user?.id);
             if (!selfJid) {
-                console.error('[vv] unable to resolve self JID from sock.user.id');
-                await m.react('❌');
+                console.error("[vv] unable to resolve self JID");
+                await m.reply("Could not resolve your saved-messages JID.");
                 return;
             }
 
             try {
-                await sock.sendMessage(selfJid, buildPayload(extracted.type, buffer, extracted.caption));
+                await sock.sendMessage(selfJid, buildPayload(selected.media.type, buffer, selected.media.caption));
             } catch (err) {
                 console.error(`[vv] sending to self failed: ${err?.message || err}`);
-                await m.react('❌');
+                await m.reply("Failed to send media to your saved messages.");
                 return;
             }
 
-            console.log(`[vv] success; mediaType=${extracted.type}; sentTo=${selfJid}`);
-            await m.react('✅');
+            console.log(`[vv] success; mediaType=${selected.media.type}; sentTo=${selfJid}`);
+            await m.reply("View-once media sent to your saved messages.");
         } catch (err) {
             console.error(`[vv] unexpected error: ${err?.message || err}`);
-            try {
-                await m.react('❌');
-            } catch {}
+            await m.reply("vv command failed unexpectedly.");
         }
     }
 };

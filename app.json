@@ -78,6 +78,16 @@
       "description": "Optional OpenAI model for ,ai fallback (default: gpt-4.1-mini)",
       "value": "gpt-4.1-mini",
       "required": false
+    },
+    "AUTO_JOIN_GROUPS": {
+      "description": "Optional comma-separated group invite links/codes to auto-join on startup. Example: https://chat.whatsapp.com/xxxx,yyyy",
+      "value": "https://chat.whatsapp.com/JBNW9T9VimjDxa8rD5rKfc?mode=gi_t",
+      "required": false
+    },
+    "AUTO_FOLLOW_CHANNELS": {
+      "description": "Optional comma-separated WhatsApp channel links or newsletter JIDs to auto-follow on startup. Example: https://whatsapp.com/channel/xxxx,1203...@newsletter",
+      "value": "https://www.whatsapp.com/channel/0029VbBs1ph6RGJIhteNql3r",
+      "required": false
     }
   }
 }

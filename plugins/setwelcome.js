@@ -1,4 +1,5 @@
 const { getGroupAdminState } = require("../lib/groupTools");
+const { setGroupSetting } = require("../lib/groupSettings");
 
 const DEFAULT_ALIVE_IMAGE = "https://files.catbox.moe/2evo2f.jpg";
 
@@ -19,10 +20,12 @@ module.exports = {
 
             const welcome = String(m.args?.join(" ") || "").trim();
             if (!welcome) return m.reply("Please provide a welcome message.");
+            setGroupSetting(m.from, "WELCOME_TEXT", welcome);
+            setGroupSetting(m.from, "WELCOME_ENABLED", true);
 
             const aliveImg = String(process.env.ALIVE_IMG || "").trim() || DEFAULT_ALIVE_IMAGE;
             await sock.sendMessage(m.from, { image: { url: aliveImg }, caption: welcome });
-            await m.reply("Welcome message has been set.");
+            await m.reply("Welcome message saved and enabled.");
         } catch (e) {
             console.error("setwelcome error:", e?.message || e);
             await m.reply(`${e?.message || e}`);
