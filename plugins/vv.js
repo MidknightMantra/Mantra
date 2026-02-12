@@ -215,7 +215,6 @@ module.exports = {
 
             const sentTo = await sendToSavedMessages(sock, m, buildSendPayload(selected.media, buffer));
             try { await m.react("✅"); } catch {}
-            await m.reply("Sent to saved messages.");
             console.log(
                 `[vv] success mediaType=${selected.media.type} viewOnce=${selected.media.isViewOnce} bytes=${buffer.length} sentTo=${sentTo}`
             );
