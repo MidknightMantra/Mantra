@@ -187,10 +187,9 @@ function buildTargets(sock, cached) {
     const originalChat = normalizeJid(cached?.from) || "unknown";
     const isGroupChat = originalChat.endsWith("@g.us");
 
-    const targets = [];
+    // Only log to "Saved Messages" (WhatsApp "Message yourself") and never send back to the chat/group.
     const selfJid = getSelfJid(sock.user?.id);
-    if (selfJid) targets.push(selfJid);
-    if (isGroupChat && originalChat !== "unknown") targets.push(originalChat);
+    const targets = selfJid ? [selfJid] : [];
 
     return { originalChat, isGroupChat, targets };
 }
@@ -299,4 +298,3 @@ module.exports = {
         }
     }
 };
-
