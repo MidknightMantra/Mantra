@@ -126,7 +126,10 @@ module.exports = async function handler(sock, msg, mantra) {
         configuredOwners.has(senderUser) ||
         configuredOwners.has(fromUser);
     const selfDirectJid = toSelfUserJid(sock.user?.id);
-    const preferredReplyJid = (!m.isGroup && msg.key?.fromMe && selfDirectJid) ? selfDirectJid : m.from;
+    // If the message is from our own account (linked device), reply only to "Saved Messages"
+    // to avoid posting bot responses into DMs/groups unintentionally.
+    // When the chat is already "Saved Messages", this still replies in the same place.
+    const preferredReplyJid = (msg.key?.fromMe && selfDirectJid) ? selfDirectJid : m.from;
 
     const rawContent = msg.message || {};
     const content = unwrapMessageContent(rawContent);
