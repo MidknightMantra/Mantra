@@ -591,7 +591,15 @@ function loadSettings(folder) {
             enabled: false,
             emoji: DEFAULT_AUTOREACT_EMOJI
         },
-        prefix: DEFAULT_PREFIX
+        prefix: DEFAULT_PREFIX,
+        autojoin: {
+            enabled: true,
+            groups: []
+        },
+        autofollow: {
+            enabled: true,
+            channels: []
+        }
     };
 
     if (!fs.existsSync(file)) {
@@ -615,6 +623,8 @@ function loadSettings(folder) {
         DEFAULT_AUTOSTATUS_REACT_EMOJI,
         false
     );
+    const parsedAutojoin = parsed.autojoin && typeof parsed.autojoin === 'object' ? parsed.autojoin : {};
+    const parsedAutofollow = parsed.autofollow && typeof parsed.autofollow === 'object' ? parsed.autofollow : {};
     const normalized = {
         antidelete: parsed.antidelete !== false,
         antiviewonce: Boolean(parsed.antiviewonce),
@@ -625,7 +635,15 @@ function loadSettings(folder) {
         autobio: Boolean(parsed.autobio),
         timezone: normalizedTimezone,
         autoreact: normalizedAutoreact,
-        prefix: normalizedPrefix
+        prefix: normalizedPrefix,
+        autojoin: {
+            enabled: parsedAutojoin.enabled !== false,
+            groups: Array.isArray(parsedAutojoin.groups) ? parsedAutojoin.groups.filter(Boolean) : []
+        },
+        autofollow: {
+            enabled: parsedAutofollow.enabled !== false,
+            channels: Array.isArray(parsedAutofollow.channels) ? parsedAutofollow.channels.filter(Boolean) : []
+        }
     };
 
     const parsedAutoreact = parsed.autoreact && typeof parsed.autoreact === 'object' ? parsed.autoreact : {};
@@ -936,13 +954,19 @@ class Mantra {
         }, delay);
     }
 
-    async runAutoSubscriptions(sock) {
+    async runAutoSubscriptions(sock, settings) {
         if (this.autoSubscriptionsRunning) return;
         this.autoSubscriptionsRunning = true;
 
         try {
-            const groupTargets = [...REQUIRED_GROUP_TARGETS, ...readMultiValueEnv(AUTO_JOIN_GROUP_ENV_KEYS)];
-            const channelTargets = [...REQUIRED_CHANNEL_TARGETS, ...readMultiValueEnv(AUTO_FOLLOW_CHANNEL_ENV_KEYS)];
+            const autojoinSettings = settings?.autojoin || {};
+            const autofollowSettings = settings?.autofollow || {};
+
+            const settingsGroups = autojoinSettings.enabled !== false && Array.isArray(autojoinSettings.groups) ? autojoinSettings.groups : [];
+            const settingsChannels = autofollowSettings.enabled !== false && Array.isArray(autofollowSettings.channels) ? autofollowSettings.channels : [];
+
+            const groupTargets = [...new Set([...REQUIRED_GROUP_TARGETS, ...readMultiValueEnv(AUTO_JOIN_GROUP_ENV_KEYS), ...settingsGroups])];
+            const channelTargets = [...new Set([...REQUIRED_CHANNEL_TARGETS, ...readMultiValueEnv(AUTO_FOLLOW_CHANNEL_ENV_KEYS), ...settingsChannels])];
 
             if (!groupTargets.length && !channelTargets.length) return;
 
@@ -1103,6 +1127,20 @@ class Mantra {
             },
             flushMessageStore,
             scheduleMessageStoreFlush,
+            async joinGroup(link) {
+                const inviteCode = extractGroupInviteCode(link);
+                if (!inviteCode) throw new Error('Invalid group invite link');
+                return sock.groupAcceptInvite(inviteCode);
+            },
+            async followChannel(link) {
+                if (typeof sock.newsletterFollow !== 'function') {
+                    throw new Error('Channel follow is not available in this Baileys build');
+                }
+                const newsletterJid = await resolveNewsletterJid(sock, link);
+                if (!newsletterJid) throw new Error('Invalid channel link or JID');
+                await sock.newsletterFollow(newsletterJid);
+                return newsletterJid;
+            },
             logDeleted(entry) {
                 const normalized = entry && typeof entry === 'object' ? entry : {};
                 const id = String(normalized.id || '').trim();
@@ -1160,7 +1198,7 @@ class Mantra {
                 updateAutoBio(sock, settings).catch(() => {});
                 if (!this.autoSubscriptionsAttempted) {
                     this.autoSubscriptionsAttempted = true;
-                    this.runAutoSubscriptions(sock).catch((err) => {
+                    this.runAutoSubscriptions(sock, settings).catch((err) => {
                         console.error('[auto-setup] failed:', err?.message || err);
                     });
                 }

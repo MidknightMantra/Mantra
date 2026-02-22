@@ -1,6 +1,6 @@
 {
   "retentionMs": 2400000,
-  "updatedAt": "2026-02-22T12:45:16.544Z",
+  "updatedAt": "2026-02-22T12:49:33.034Z",
   "messages": [
     {
       "id": "A59970640A2721CDFCD68CF18CF37939",
@@ -271,6 +271,136 @@
       "timestamp": 1771764313696,
       "contentType": "extendedTextMessage",
       "fromMe": false
+    },
+    {
+      "id": "A5D65D4EBC69A7DBF80476EFB066ED3C",
+      "body": "",
+      "sender": "61620516597944@lid",
+      "from": "61620516597944@lid",
+      "time": "2/22/2026, 12:46:38 PM",
+      "timestamp": 1771764398085,
+      "contentType": "unknown",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-A8BECD3007E9CF8D66",
+      "body": "",
+      "sender": "61620516597944@lid",
+      "from": "61620516597944@lid",
+      "time": "2/22/2026, 12:46:38 PM",
+      "timestamp": 1771764398704,
+      "contentType": "reactionMessage",
+      "fromMe": false
+    },
+    {
+      "id": "GIFTED-0CCB8076F1335E53DD",
+      "body": "Latency: 442ms\n> Mantra",
+      "sender": "61620516597944@lid",
+      "from": "61620516597944@lid",
+      "time": "2/22/2026, 12:46:39 PM",
+      "timestamp": 1771764399976,
+      "contentType": "extendedTextMessage",
+      "fromMe": false
+    },
+    {
+      "id": "A55DA0FDAA3C0D8DCE2113E7622E0374",
+      "body": "",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:46:43 PM",
+      "timestamp": 1771764403577,
+      "contentType": "protocolMessage",
+      "fromMe": true
+    },
+    {
+      "id": "A5197750D7523789AF0E29A144344F1F",
+      "body": ", ping",
+      "sender": "116987040661634@lid",
+      "from": "116987040661634@lid",
+      "time": "2/22/2026, 12:47:05 PM",
+      "timestamp": 1771764425747,
+      "contentType": "extendedTextMessage",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-D1F8D9E93A0ACC4C2B",
+      "body": "",
+      "sender": "116987040661634@lid",
+      "from": "116987040661634@lid",
+      "time": "2/22/2026, 12:47:05 PM",
+      "timestamp": 1771764425942,
+      "contentType": "reactionMessage",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-93802E2EC4D47AB869",
+      "body": "Pong!\n\n> *Mantra*",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:47:06 PM",
+      "timestamp": 1771764426514,
+      "contentType": "extendedTextMessage",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-4FF4531F191A67DBE5",
+      "body": "⚡ Latency: 572ms\n> Mantra",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:47:07 PM",
+      "timestamp": 1771764427083,
+      "contentType": "extendedTextMessage",
+      "fromMe": true
+    },
+    {
+      "id": "A51924AFDAD620C0DDCDEAEBCD8C7734",
+      "body": "",
+      "sender": "116987040661634@lid",
+      "from": "116987040661634@lid",
+      "time": "2/22/2026, 12:48:36 PM",
+      "timestamp": 1771764516553,
+      "contentType": "unknown",
+      "fromMe": true
+    },
+    {
+      "id": "A5B908DB54B001D42A52E3229FDA3919",
+      "body": "",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:48:42 PM",
+      "timestamp": 1771764522038,
+      "contentType": "protocolMessage",
+      "fromMe": true
+    },
+    {
+      "id": "A582B5DCF42023614FCEFD33D528DF66",
+      "body": ",menu",
+      "sender": "116987040661634@lid",
+      "from": "116987040661634@lid",
+      "time": "2/22/2026, 12:48:46 PM",
+      "timestamp": 1771764526418,
+      "contentType": "extendedTextMessage",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-E0A07E10460D64A000",
+      "body": "",
+      "sender": "116987040661634@lid",
+      "from": "116987040661634@lid",
+      "time": "2/22/2026, 12:48:46 PM",
+      "timestamp": 1771764526497,
+      "contentType": "reactionMessage",
+      "fromMe": true
+    },
+    {
+      "id": "GIFTED-F9A43F1A1884FA79AF",
+      "body": "🛸👑 MANTRA 👑🛸\n\n      🙌 HELLO, @116987040661634!\n\n✨ Welcome to MANTRA! ✨\n\n📡 *Bot Information:*\n────────────────────\n⏱️ *Runtime:* 0d 0h 3m 30s\n🧑‍💼 *Owner Name:* MidknightMantra\n📲 *Owner Number:* 254710407153\n🖥️ *Platform:* Linux\n🧩 *Prefix:* ,\n────────────────────\n────────────────────\n📦 *Download Menu:*\n\n,fb\n,ig\n,song\n,tt\n,video\n\n────────────────────\n🧭 *Main Menu:*\n\n,about\n,alive\n,health\n,help\n,onwa\n,ping\n,prefixes\n,schedule\n,system\n,uptime\n\n────────────────────\n🎲 *Fun Menu:*\n\n,animegirl\n,dare\n,fact\n,flirt\n,hack\n,joke\n,quote\n,reactions\n\n────────────────────\n🫂 *Group Menu:*\n\n,accept\n,acceptall\n,add\n,admins\n,antibot\n,antidemote\n,antigcmention\n,antilink\n,antipromote\n,closegc\n,demote\n,getpic\n,goodbye\n,groupinfo\n,grouplink\n,hidetag\n,killgc\n,left\n,listrequests\n,mute\n,newgroup\n,online\n,opengc\n,poll\n,promote\n,reject\n,rejectall\n,remove\n,revoke\n,setantigcmentionwarnlimit\n,setdesc\n,setgoodbye\n,setsubject\n,setwelcome\n,tagadmins\n,tagall\n,togroupstatus\n,vcf\n,warn\n,welcome\n\n────────────────────\n🛡️ *Owner Menu:*\n\n,autobio\n,autoreact\n,autostatusreact\n,autostatusview\n,backup\n,block\n,broadcast\n,clearchats\n,gjid\n,jid\n,restart\n,restore\n,setpp\n,setprefix\n,setself\n,settimezone\n,shutdown\n,unblock\n\n────────────────────\n🧪 *Convert Menu:*\n\n,sticker\n,take\n,vocalremover\n,vv\n\n────────────────────\n🔎 *Search Menu:*\n\n,githubstalk\n\n────────────────────\n🛠️ *Other Menu:*\n\n,ai\n,antidelete\n,antiviewonce\n,bible\n,deepimg\n,define\n,gpass\n,muslimai\n,news\n,srepo\n,transcript\n,trt\n,weather\n\n────────────────────\n*© MANTRA*\n\n> *Mantra*",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:48:47 PM",
+      "timestamp": 1771764527068,
+      "contentType": "extendedTextMessage",
+      "fromMe": true
     }
   ],
   "deleted": []

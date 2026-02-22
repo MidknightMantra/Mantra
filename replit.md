@@ -4,6 +4,7 @@
 MANTRA is a plugin-based WhatsApp bot built on `gifted-baileys`. It features command hot-reload, group tools, downloader tools, fun commands, and owner utilities. This is a console-only application (no web frontend).
 
 ## Recent Changes
+- 2026-02-22: Implemented autojoin.js and autofollow.js plugins with full management commands (on/off, add, remove, list, run). Updated mantra.js to persist autojoin/autofollow settings and expose joinGroup/followChannel methods to plugins.
 - 2026-02-22: Comprehensive codebase audit - fixed alias conflicts (alive.js "online" vs online.js), broken emojis (uptime.js), PM2 restart (now uses process.exit for Replit), hack command spam (consolidated to single message), ping artificial delay (now measures real latency)
 - 2026-02-22: Created antiviewonce plugin with toggle command and onMessage handler
 - 2026-02-22: Fixed mute/unmute alias conflicts in closegc.js and opengc.js
@@ -24,7 +25,7 @@ MANTRA is a plugin-based WhatsApp bot built on `gifted-baileys`. It features com
 - **main**: help, about, alive, ping, uptime, system, health, prefixes, scheduler
 - **download**: song, video, fb, insta, tiktok
 - **group**: add, remove, promote, demote, admins, tagall, tagadmins, hidetag, poll, welcome, goodbye, setwelcome, setgoodbye, groupinfo, grouplink, revoke, setdesc, setsubject, getpic, closegc, opengc, killgc, left, newgroup, online, listrequests, accept, acceptall, reject, rejectall, warn, togroupstatus, setantigcmentionwarnlimit, vcf
-- **owner**: setprefix, setself, settimezone, autobio, autoreact, autostatusview, autostatusreact, block, unblock, broadcast, clearchats, restart, shutdown, backup, restore, setpp, gjid, jid
+- **owner**: setprefix, setself, settimezone, autobio, autoreact, autostatusview, autostatusreact, autojoin, autofollow, block, unblock, broadcast, clearchats, restart, shutdown, backup, restore, setpp, gjid, jid
 - **convert**: sticker, take, vv, vocalremover
 - **search**: githubstalk, srepo
 - **fun**: joke, fact, quote, flirt, dare, reactions, animegirl, hack
