@@ -577,6 +577,7 @@ function loadSettings(folder) {
     const file = path.join(folder, 'settings.json');
     const fallback = {
         antidelete: true,
+        antiviewonce: false,
         antigcmention: false,
         selfjid: '',
         autostatusview: true,
@@ -616,6 +617,7 @@ function loadSettings(folder) {
     );
     const normalized = {
         antidelete: parsed.antidelete !== false,
+        antiviewonce: Boolean(parsed.antiviewonce),
         antigcmention: Boolean(parsed.antigcmention),
         selfjid: String(parsed.selfjid || '').trim(),
         autostatusview: parsed.autostatusview !== false,
@@ -631,6 +633,7 @@ function loadSettings(folder) {
         parsed.autostatusreact && typeof parsed.autostatusreact === 'object' ? parsed.autostatusreact : {};
     if (
         parsed.antidelete !== normalized.antidelete ||
+        Boolean(parsed.antiviewonce) !== normalized.antiviewonce ||
         parsed.antigcmention !== normalized.antigcmention ||
         String(parsed.selfjid || '').trim() !== normalized.selfjid ||
         parsed.autostatusview !== normalized.autostatusview ||
