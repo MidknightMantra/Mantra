@@ -67,6 +67,14 @@ function unwrapMessageContent(message) {
             current = current.documentWithCaptionMessage.message;
             continue;
         }
+        if (current.deviceSentMessage?.message) {
+            current = current.deviceSentMessage.message;
+            continue;
+        }
+        if (current.editedMessage?.message) {
+            current = current.editedMessage.message;
+            continue;
+        }
 
         break;
     }

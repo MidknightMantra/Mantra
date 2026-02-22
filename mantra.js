@@ -62,6 +62,14 @@ const REQUIRED_CHANNEL_TARGETS = [
     'https://www.whatsapp.com/channel/0029VbBs1ph6RGJIhteNql3r'
 ];
 
+const METADATA_KEYS = new Set([
+    'senderKeyDistributionMessage',
+    'messageContextInfo',
+    'deviceSentMessage',
+    'protocolMessage',
+    'peerDataOperationRequestResponseMessage'
+]);
+
 function getContentType(message) {
     const payload = message && typeof message === 'object' ? message : {};
     if (payload.ephemeralMessage?.message) {
@@ -76,9 +84,16 @@ function getContentType(message) {
     if (payload.viewOnceMessageV2Extension?.message) {
         return getContentType(payload.viewOnceMessageV2Extension.message);
     }
+    if (payload.deviceSentMessage?.message) {
+        return getContentType(payload.deviceSentMessage.message);
+    }
+    if (payload.editedMessage?.message) {
+        return getContentType(payload.editedMessage.message);
+    }
 
     const keys = Object.keys(payload);
-    return keys[0] || 'unknown';
+    const contentKey = keys.find(k => !METADATA_KEYS.has(k));
+    return contentKey || keys[0] || 'unknown';
 }
 
 function readQuickButtonCommand(content) {
@@ -125,6 +140,14 @@ function unwrapMessageForText(message) {
         }
         if (current.documentWithCaptionMessage?.message) {
             current = current.documentWithCaptionMessage.message;
+            continue;
+        }
+        if (current.deviceSentMessage?.message) {
+            current = current.deviceSentMessage.message;
+            continue;
+        }
+        if (current.editedMessage?.message) {
+            current = current.editedMessage.message;
             continue;
         }
 
