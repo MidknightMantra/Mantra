@@ -1,22 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const { runtime } = require("../lib/helper");
 
 const DEFAULT_ALIVE_IMAGE = "https://files.catbox.moe/2evo2f.jpg";
 const DEFAULT_ALIVE_AUDIO = "https://files.catbox.moe/9h4ttf.mp3";
-
-function runtime(seconds) {
-    const total = Math.max(0, Math.floor(Number(seconds) || 0));
-    const d = Math.floor(total / 86400);
-    const h = Math.floor((total % 86400) / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    const parts = [];
-    if (d) parts.push(`${d}d`);
-    if (h) parts.push(`${h}h`);
-    if (m) parts.push(`${m}m`);
-    parts.push(`${s}s`);
-    return parts.join(" ");
-}
 
 module.exports = {
     name: "alive",

@@ -1,4 +1,4 @@
-const { getPlatform } = require("../lib/helper");
+const { getPlatform, runtime } = require("../lib/helper");
 
 const CATEGORIES = {
     main: { icon: "🧭", label: "Main" },
@@ -12,20 +12,6 @@ const CATEGORIES = {
 };
 
 const CATEGORY_KEYS = Object.keys(CATEGORIES);
-
-function runtime(seconds) {
-    const total = Math.max(0, Math.floor(Number(seconds) || 0));
-    const d = Math.floor(total / 86400);
-    const h = Math.floor((total % 86400) / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    const parts = [];
-    if (d) parts.push(`${d}d`);
-    if (h) parts.push(`${h}h`);
-    if (m) parts.push(`${m}m`);
-    parts.push(`${s}s`);
-    return parts.join(" ");
-}
 
 function normalizeCategory(value) {
     const raw = String(value || "").trim().toLowerCase();

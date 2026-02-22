@@ -136,6 +136,18 @@ class PluginManager {
         return this.plugins.get(name.toLowerCase());
     }
 
+    async runOnInit(sock, mantra) {
+        for (const plugin of new Set(this.plugins.values())) {
+            if (typeof plugin.onInit === 'function') {
+                try {
+                    await plugin.onInit(sock, mantra);
+                } catch (err) {
+                    console.error(`Plugin onInit error (${plugin.name}):`, err?.message || err);
+                }
+            }
+        }
+    }
+
     async runOnMessage(sock, m, mantra) {
         for (const plugin of new Set(this.plugins.values())) {
             if (plugin.onMessage) {

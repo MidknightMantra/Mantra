@@ -1,22 +1,5 @@
 const os = require("os");
-
-function formatUptime(seconds) {
-    const total = Math.max(0, Math.floor(Number(seconds || 0)));
-    const d = Math.floor(total / 86400);
-    const h = Math.floor((total % 86400) / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    const parts = [];
-    if (d) parts.push(`${d}d`);
-    if (h) parts.push(`${h}h`);
-    if (m) parts.push(`${m}m`);
-    parts.push(`${s}s`);
-    return parts.join(" ");
-}
-
-function formatMb(bytes) {
-    return `${(Number(bytes || 0) / 1024 / 1024).toFixed(1)} MB`;
-}
+const { runtime, formatMb } = require("../lib/helper");
 
 module.exports = {
     name: "health",
@@ -41,7 +24,7 @@ module.exports = {
         const text = [
             `╭─ 🩺 *Health Check* ─`,
             `│`,
-            `│  ⏱ Uptime: *${formatUptime(process.uptime())}*`,
+            `│  ⏱ Uptime: *${runtime(process.uptime())}*`,
             `│  📦 Node: ${process.version}`,
             `│  🖥 Platform: ${os.platform()} ${os.release()}`,
             `│  🏷 Host: ${os.hostname()}`,

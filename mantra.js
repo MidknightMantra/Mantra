@@ -33,6 +33,9 @@ const DEFAULT_AUTOREACT_EMOJI = '✅';
 const DEFAULT_AUTOSTATUS_REACT_EMOJI = '❤️';
 const COMMAND_MUTE_UNTIL_KEY = 'COMMAND_MUTE_UNTIL';
 const STALE_MESSAGE_MAX_AGE_SECONDS = 45;
+const RATE_LIMIT_WINDOW_MS = 10000;
+const RATE_LIMIT_MAX_COMMANDS = 5;
+const rateLimitMap = new Map();
 const SESSION_ENV_KEYS = [
     'MANTRA_SESSION',
     'SESSION_ID',
@@ -1175,6 +1178,12 @@ class Mantra {
             if (deletedChanged) {
                 mantra.scheduleMessageStoreFlush();
             }
+            const now = Date.now();
+            for (const [key, timestamps] of rateLimitMap) {
+                const active = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+                if (active.length === 0) rateLimitMap.delete(key);
+                else rateLimitMap.set(key, active);
+            }
         }, 2 * 60 * 1000);
 
         if (this.autoBioTimer) {
@@ -1200,6 +1209,9 @@ class Mantra {
                     this.autoSubscriptionsAttempted = true;
                     this.runAutoSubscriptions(sock, settings).catch((err) => {
                         console.error('[auto-setup] failed:', err?.message || err);
+                    });
+                    pluginManager.runOnInit(sock, mantra).catch((err) => {
+                        console.error('[plugin-init] failed:', err?.message || err);
                     });
                 }
             }
@@ -1481,6 +1493,19 @@ class Mantra {
 
                     const plugin = pluginManager.getCommand(m.command);
                     if (plugin?.execute) {
+                        if (!m.isOwner) {
+                            const now = Date.now();
+                            const senderKey = m.sender;
+                            const timestamps = rateLimitMap.get(senderKey) || [];
+                            const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+                            if (recent.length >= RATE_LIMIT_MAX_COMMANDS) {
+                                console.log(`[cmd] rate-limited sender=${senderKey}`);
+                                try { await m.reply('Slow down. Try again in a few seconds.'); } catch {}
+                                return;
+                            }
+                            recent.push(now);
+                            rateLimitMap.set(senderKey, recent);
+                        }
                         const commandStartedAt = Date.now();
                         try {
                             const pluginReact = String(plugin.react || '').trim();

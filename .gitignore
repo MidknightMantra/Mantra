@@ -9,6 +9,9 @@ node_modules/
 # Runtime/session auth data (contains WhatsApp creds/keys)
 sessions/
 
+# Runtime data files
+scheduled-tasks.json
+
 # Logs
 logs/
 *.log

@@ -5,17 +5,25 @@ module.exports = {
     react: "📰",
     category: "other",
     description: "Get the latest news headlines",
-    usage: ",news",
+    usage: ",news [country code]",
     aliases: ["headlines"],
 
     execute: async (sock, m) => {
         try {
-            const apiKey = String(process.env.NEWS_API_KEY || "0f2c43ab11324578a7b1709651736382").trim();
+            const apiKey = String(process.env.NEWS_API_KEY || "").trim();
+            if (!apiKey) {
+                await m.reply(
+                    "News API key not configured.\n" +
+                    "Ask the bot owner to set the *NEWS_API_KEY* environment variable."
+                );
+                return;
+            }
+
+            const country = String(m.args?.[0] || "us").trim().toLowerCase().slice(0, 2);
+            const botName = process.env.BOT_NAME || "MANTRA";
+
             const response = await axios.get("https://newsapi.org/v2/top-headlines", {
-                params: {
-                    country: "us",
-                    apiKey
-                },
+                params: { country, apiKey },
                 timeout: 20000
             });
 
@@ -25,32 +33,25 @@ module.exports = {
                 return;
             }
 
-            const botName = process.env.BOT_NAME || "MANTRA";
-            const github = process.env.BOT_GITHUB || "https://github.com/MidknightMantra/Mantra";
+            const top = articles.slice(0, 5);
+            const lines = [`╭─ 📰 *Top Headlines* (${country.toUpperCase()}) ─`, `│`];
 
-            for (const article of articles.slice(0, 5)) {
-                const title = article?.title || "Untitled";
-                const description = article?.description || "No description available.";
-                const url = article?.url || "";
-                const imageUrl = article?.urlToImage || "";
-
-                const message = `
-📰 *${title}*
-⚠️ _${description}_
-${url ? `🔗 _${url}_` : ""}
-
-*© ${botName}*
-`;
-
-                if (imageUrl) {
-                    await sock.sendMessage(m.from, {
-                        image: { url: imageUrl },
-                        caption: message.trim()
-                    });
-                } else {
-                    await sock.sendMessage(m.from, { text: message.trim() });
-                }
+            for (let i = 0; i < top.length; i++) {
+                const a = top[i];
+                const title = a?.title || "Untitled";
+                const desc = a?.description || "";
+                const url = a?.url || "";
+                lines.push(`│  *${i + 1}. ${title}*`);
+                if (desc) lines.push(`│  _${desc.slice(0, 120)}${desc.length > 120 ? "..." : ""}_`);
+                if (url) lines.push(`│  🔗 ${url}`);
+                lines.push(`│`);
             }
+
+            lines.push(`╰──────────────`);
+            lines.push(``);
+            lines.push(`> *${botName}*`);
+
+            await m.reply(lines.join("\n"));
         } catch (e) {
             console.error("news error:", e?.response?.data || e?.message || e);
             await m.reply("Could not fetch news. Please try again later.");

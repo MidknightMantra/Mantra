@@ -5,52 +5,92 @@ module.exports = {
     react: "🌐",
     category: "other",
     description: "Translate text between languages",
-    usage: ",trt <language_code> <text>",
+    usage: ",trt <target lang> <text> OR ,trt <source>|<target> <text>",
     aliases: ["translate", "trans"],
 
     execute: async (_sock, m) => {
         try {
             const args = m.args || [];
+            const botName = process.env.BOT_NAME || "MANTRA";
+
             if (args.length < 2) {
-                await m.reply(`Please provide a language code and text. Usage: ${m.prefix}trt <language code> <text>`);
+                await m.reply(
+                    `╭─ 🌐 *Translate* ─\n` +
+                    `│\n` +
+                    `│  Usage:\n` +
+                    `│  ${m.prefix}trt <lang> <text>\n` +
+                    `│  ${m.prefix}trt en|sw <text>\n` +
+                    `│\n` +
+                    `│  Auto-detects source language.\n` +
+                    `│  Use source|target format to\n` +
+                    `│  specify both languages.\n` +
+                    `│\n` +
+                    `│  Examples:\n` +
+                    `│  ${m.prefix}trt sw Hello world\n` +
+                    `│  ${m.prefix}trt en|fr Good morning\n` +
+                    `│\n` +
+                    `╰──────────────\n\n` +
+                    `> *${botName}*`
+                );
                 return;
             }
 
-            const targetLang = String(args[0]).trim().toLowerCase();
+            const langArg = String(args[0]).trim().toLowerCase();
             const textToTranslate = args.slice(1).join(" ").trim();
 
-            if (!/^[a-z]{2,5}$/i.test(targetLang)) {
-                await m.reply("Invalid language code. Example: en, sw, fr, es, hi");
+            let sourceLang = "auto";
+            let targetLang = langArg;
+
+            if (langArg.includes("|")) {
+                const parts = langArg.split("|");
+                sourceLang = parts[0].trim() || "auto";
+                targetLang = parts[1].trim();
+            }
+
+            if (!targetLang || !/^[a-z]{2,5}$/i.test(targetLang)) {
+                await m.reply("Invalid language code. Examples: en, sw, fr, es, hi, ar, zh");
                 return;
             }
 
             if (!textToTranslate) {
-                await m.reply(`Please provide text to translate. Usage: ${m.prefix}trt <language code> <text>`);
+                await m.reply(`Provide text to translate.\nUsage: ${m.prefix}trt <lang> <text>`);
                 return;
             }
 
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=en|${targetLang}`;
+            const langpair = sourceLang === "auto"
+                ? `autodetect|${targetLang}`
+                : `${sourceLang}|${targetLang}`;
+
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=${langpair}`;
             const response = await axios.get(url, { timeout: 12000 });
             const translation = response?.data?.responseData?.translatedText;
+            const detectedLang = response?.data?.responseData?.detectedLanguage;
 
             if (!translation) {
                 await m.reply("Translation service returned no result. Try again.");
                 return;
             }
 
-            const translationMessage = `
-Translation
+            const sourceLabel = detectedLang ? detectedLang.toUpperCase() : (sourceLang === "auto" ? "Auto" : sourceLang.toUpperCase());
 
-Original: ${textToTranslate}
-Translated: ${translation}
-Language: ${targetLang.toUpperCase()}
-> *Mantra*
-`;
+            const text = [
+                `╭─ 🌐 *Translation* ─`,
+                `│`,
+                `│  *Original* _(${sourceLabel})_:`,
+                `│  ${textToTranslate}`,
+                `│`,
+                `│  *Translated* _(${targetLang.toUpperCase()})_:`,
+                `│  ${translation}`,
+                `│`,
+                `╰──────────────`,
+                ``,
+                `> *${botName}*`
+            ].join("\n");
 
-            await m.reply(translationMessage.trim());
+            await m.reply(text);
         } catch (e) {
             console.error("translate error:", e?.response?.data || e?.message || e);
-            await m.reply("An error occurred while translating the text. Please try again later.");
+            await m.reply("Translation failed. Please try again later.");
         }
     }
 };
