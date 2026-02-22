@@ -81,7 +81,7 @@
     },
     "AUTO_JOIN_GROUPS": {
       "description": "Optional comma-separated group invite links/codes to auto-join on startup. Example: https://chat.whatsapp.com/xxxx,yyyy",
-      "value": "https://chat.whatsapp.com/JBNW9T9VimjDxa8rD5rKfc?mode=gi_t",
+      "value": "",
       "required": false
     },
     "AUTO_FOLLOW_CHANNELS": {
