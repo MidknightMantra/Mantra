@@ -470,7 +470,7 @@ function formatClockInTimezone(timezone) {
 
 let cachedQuote = '';
 let lastQuoteFetchMs = 0;
-const QUOTE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const QUOTE_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 async function fetchRandomQuote() {
     const providers = [
