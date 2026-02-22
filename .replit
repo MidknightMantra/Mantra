@@ -1,0 +1,39 @@
+modules = ["nodejs-20"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+BOT_NAME = "MANTRA"
+BOT_OWNER = "MidknightMantra"
+BOT_GITHUB = "https://github.com/MidknightMantra/Mantra"
+ALIVE_IMG = "https://files.catbox.moe/2evo2f.jpg"
+ALIVE_AUDIO = "https://files.catbox.moe/9h4ttf.mp3"
+AI_MODEL = "gpt-4.1-mini"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "MANTRA Bot"
+
+[[workflows.workflow]]
+name = "MANTRA Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+
+[workflows.workflow.metadata]
+outputType = "console"
