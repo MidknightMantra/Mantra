@@ -6,7 +6,7 @@ module.exports = {
     category: "group",
     description: "Close group so only admins can send messages",
     usage: ",closegc",
-    aliases: ["close", "groupclose", "mutegc", "mute", "groupmute", "gcmute", "gcclose"],
+    aliases: ["close", "groupclose", "mutegc", "groupmute", "gcmute", "gcclose"],
 
     execute: async (sock, m) => {
         try {

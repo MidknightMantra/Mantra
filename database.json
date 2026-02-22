@@ -1,6 +1,27 @@
 {
   "retentionMs": 2400000,
-  "updatedAt": "2026-02-22T12:34:14.733Z",
-  "messages": [],
+  "updatedAt": "2026-02-22T12:39:09.385Z",
+  "messages": [
+    {
+      "id": "A59970640A2721CDFCD68CF18CF37939",
+      "body": "",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:38:30 PM",
+      "timestamp": 1771763910739,
+      "contentType": "protocolMessage",
+      "fromMe": true
+    },
+    {
+      "id": "A579BA60A0BE723743BD7308FE5E818A",
+      "body": "",
+      "sender": "254732722385@s.whatsapp.net",
+      "from": "254732722385@s.whatsapp.net",
+      "time": "2/22/2026, 12:38:31 PM",
+      "timestamp": 1771763911586,
+      "contentType": "protocolMessage",
+      "fromMe": true
+    }
+  ],
   "deleted": []
 }

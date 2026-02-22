@@ -6,7 +6,7 @@ module.exports = {
     category: "group",
     description: "Open group so all members can send messages",
     usage: ",opengc",
-    aliases: ["open", "groupopen", "unmutegc", "unmute", "gcopen", "adminonly", "adminsonly"],
+    aliases: ["open", "groupopen", "unmutegc", "gcopen", "adminonly", "adminsonly"],
 
     execute: async (sock, m) => {
         try {
