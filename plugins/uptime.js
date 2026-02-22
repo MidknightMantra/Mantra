@@ -1,6 +1,6 @@
 module.exports = {
     name: "uptime",
-    react: "?",
+    react: "⏱️",
     category: "main",
     description: "Check bot uptime status",
     usage: ",uptime",
@@ -13,6 +13,6 @@ module.exports = {
         const hours = Math.floor((uptimeMs / (1000 * 60 * 60)) % 24);
         const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
 
-        await m.reply(`?? : ${days}d ${hours}h ${minutes}m ${seconds}s\n> Mantra`);
+        await m.reply(`⏱️ Uptime: ${days}d ${hours}h ${minutes}m ${seconds}s\n> Mantra`);
     }
 };

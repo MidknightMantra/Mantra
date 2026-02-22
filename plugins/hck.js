@@ -1,18 +1,14 @@
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 module.exports = {
     name: "hack",
     react: "💻",
     category: "fun",
-    description: "Displays a dynamic playful hacking sequence for fun",
+    description: "Displays a playful hacking sequence for fun",
     usage: ",hack",
     aliases: ["hck"],
 
     execute: async (sock, m) => {
         try {
-            const steps = [
+            const output = [
                 "💻 *HACK STARTING...* 💻",
                 "",
                 "*Initializing hacking tools...* 🛠️",
@@ -40,12 +36,9 @@ module.exports = {
                 "⚠️ *Reminder:* Ethical hacking is the only way to ensure security.",
                 "",
                 "> *MIDKNIGHTMANTRA-HACKING-COMPLETE ☣*"
-            ];
+            ].join("\n");
 
-            for (const line of steps) {
-                await sock.sendMessage(m.from, { text: line });
-                await sleep(1000);
-            }
+            await m.reply(output);
         } catch (e) {
             console.error("hack error:", e?.message || e);
             await m.reply(`Error: ${e?.message || e}`);

@@ -19,7 +19,7 @@ module.exports = {
     category: "main",
     description: "Check whether the bot is online",
     usage: ",alive",
-    aliases: ["online", "botstatus"],
+    aliases: ["botstatus"],
 
     execute: async (sock, m) => {
         try {
