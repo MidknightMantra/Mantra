@@ -10,12 +10,17 @@ function runtime(seconds) {
     const h = Math.floor((total % 86400) / 3600);
     const m = Math.floor((total % 3600) / 60);
     const s = total % 60;
-    return `${d}d ${h}h ${m}m ${s}s`;
+    const parts = [];
+    if (d) parts.push(`${d}d`);
+    if (h) parts.push(`${h}h`);
+    if (m) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(" ");
 }
 
 module.exports = {
     name: "alive",
-    react: "🛠️",
+    react: "🟢",
     category: "main",
     description: "Check whether the bot is online",
     usage: ",alive",
@@ -27,26 +32,23 @@ module.exports = {
             const ownerName = process.env.BOT_OWNER || "MidknightMantra";
             const github = process.env.BOT_GITHUB || "https://github.com/MidknightMantra/Mantra";
 
-            const aliveMessage = `
-⫷⦁[ * '-'_꩜ ${botName} ꩜_'-' * ]⦁⫸
-
-*Hey there!*
-
-> 🟢 *${botName}* is up and running!
-> ⏱️ *Runtime:* ${runtime(process.uptime())}
-> 🛠️ *Created by:* ${ownerName}
-
-*Here's what I can do:*
-💿 *Download Songs & Videos*
-📰 *Fetch Latest News*
-🎭 *Entertain with Fun Commands*
-🔧 *Manage Groups*
-
-> *Stay connected and enjoy the services!*
-
-*© ${botName} - MD*
-*💻 GitHub:* ${github}
-`;
+            const caption = [
+                `╭─── *${botName}* ───`,
+                `│`,
+                `│  🟢 *Online & Running*`,
+                `│  ⏱ Uptime: ${runtime(process.uptime())}`,
+                `│  👤 Owner: ${ownerName}`,
+                `│`,
+                `├── *Features*`,
+                `│  📥 Download songs & videos`,
+                `│  📰 Fetch latest news`,
+                `│  🎮 Fun commands`,
+                `│  👥 Group management`,
+                `│`,
+                `╰── 🔗 ${github}`,
+                ``,
+                `> *${botName}*`
+            ].join("\n");
 
             const voicePath = path.join(__dirname, "..", "media", "media_alive.mp3");
             const aliveAudio = String(process.env.ALIVE_AUDIO || "").trim() || DEFAULT_ALIVE_AUDIO;
@@ -64,7 +66,7 @@ module.exports = {
 
             await sock.sendMessage(m.from, {
                 image: { url: aliveImg },
-                caption: aliveMessage.trim()
+                caption
             });
         } catch (e) {
             console.error("alive error:", e?.message || e);

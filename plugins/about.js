@@ -16,19 +16,24 @@ module.exports = {
             const github = process.env.BOT_GITHUB || "https://github.com/MidknightMantra/Mantra";
             const aboutImg = String(process.env.ALIVE_IMG || "").trim() || DEFAULT_ABOUT_IMAGE;
 
-            const about = `
-HELLO THERE ${senderNumber}, I AM ${botName} WHATSAPP BOT
-CREATED BY ${ownerName}.
-
-> *© ${botName} - MD*
-> *GITHUB:* ${github}
-
-THANKS FOR USING ${botName}
-`;
+            const caption = [
+                `╭─── *About ${botName}* ───`,
+                `│`,
+                `│  Hey *${senderNumber}*, I'm *${botName}*`,
+                `│  A multi-feature WhatsApp bot`,
+                `│  built with gifted-baileys.`,
+                `│`,
+                `│  👤 Creator: *${ownerName}*`,
+                `│  🔗 GitHub: ${github}`,
+                `│`,
+                `╰──────────────`,
+                ``,
+                `> Thanks for using *${botName}*`
+            ].join("\n");
 
             await sock.sendMessage(m.from, {
                 image: { url: aboutImg },
-                caption: about.trim()
+                caption
             });
         } catch (e) {
             console.error("about error:", e?.message || e);

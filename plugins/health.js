@@ -6,11 +6,16 @@ function formatUptime(seconds) {
     const h = Math.floor((total % 86400) / 3600);
     const m = Math.floor((total % 3600) / 60);
     const s = total % 60;
-    return `${d}d ${h}h ${m}m ${s}s`;
+    const parts = [];
+    if (d) parts.push(`${d}d`);
+    if (h) parts.push(`${h}h`);
+    if (m) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(" ");
 }
 
 function formatMb(bytes) {
-    return `${(Number(bytes || 0) / 1024 / 1024).toFixed(2)}MB`;
+    return `${(Number(bytes || 0) / 1024 / 1024).toFixed(1)} MB`;
 }
 
 module.exports = {
@@ -28,27 +33,38 @@ module.exports = {
         const avgMs = Number(mantra?.metrics?.averageCommandResponseMs || 0).toFixed(1);
         const totalMeasured = Number(mantra?.metrics?.totalCommandsMeasured || 0);
         const msgCacheSize = Number(mantra?.messageStore?.size || 0);
+        const botName = process.env.BOT_NAME || "MANTRA";
 
         const autoreact = mantra?.settings?.autoreact || { enabled: false, emoji: "✅" };
         const autostatusreact = mantra?.settings?.autostatusreact || { enabled: false, emoji: "❤️" };
+
         const text = [
-            "*Health Check*",
-            "",
-            `Uptime: ${formatUptime(process.uptime())}`,
-            `Node: ${process.version}`,
-            `Platform: ${os.platform()} ${os.release()}`,
-            `Host: ${os.hostname()}`,
-            `Heap Used: ${formatMb(mem.heapUsed)} / ${formatMb(mem.heapTotal)}`,
-            `RSS: ${formatMb(mem.rss)}`,
-            `Reconnect Attempts: ${reconnectAttempts}`,
-            `Avg Command Time: ${avgMs}ms (${totalMeasured} samples)`,
-            `Message Cache: ${msgCacheSize}`,
-            "",
-            `AutoStatusView: ${mantra?.settings?.autostatusview ? "ON" : "OFF"}`,
-            `AutoStatusReact: ${autostatusreact?.enabled ? `ON (${autostatusreact.emoji || "❤️"})` : "OFF"}`,
-            `AutoBio: ${mantra?.settings?.autobio ? "ON" : "OFF"}`,
-            `AutoReact: ${autoreact?.enabled ? `ON (${autoreact.emoji || "✅"})` : "OFF"}`,
-            `Timezone: ${String(mantra?.settings?.timezone || "UTC")}`
+            `╭─ 🩺 *Health Check* ─`,
+            `│`,
+            `│  ⏱ Uptime: *${formatUptime(process.uptime())}*`,
+            `│  📦 Node: ${process.version}`,
+            `│  🖥 Platform: ${os.platform()} ${os.release()}`,
+            `│  🏷 Host: ${os.hostname()}`,
+            `│`,
+            `├── *Memory*`,
+            `│  Heap: ${formatMb(mem.heapUsed)} / ${formatMb(mem.heapTotal)}`,
+            `│  RSS: ${formatMb(mem.rss)}`,
+            `│`,
+            `├── *Performance*`,
+            `│  Avg Response: ${avgMs}ms _(${totalMeasured} samples)_`,
+            `│  Reconnects: ${reconnectAttempts}`,
+            `│  Msg Cache: ${msgCacheSize}`,
+            `│`,
+            `├── *Auto Features*`,
+            `│  Status View: ${mantra?.settings?.autostatusview ? "ON" : "OFF"}`,
+            `│  Status React: ${autostatusreact?.enabled ? `ON (${autostatusreact.emoji || "❤️"})` : "OFF"}`,
+            `│  Auto Bio: ${mantra?.settings?.autobio ? "ON" : "OFF"}`,
+            `│  Auto React: ${autoreact?.enabled ? `ON (${autoreact.emoji || "✅"})` : "OFF"}`,
+            `│  Timezone: ${String(mantra?.settings?.timezone || "UTC")}`,
+            `│`,
+            `╰──────────────`,
+            ``,
+            `> *${botName}*`
         ].join("\n");
 
         await m.reply(text);
