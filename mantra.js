@@ -47,7 +47,9 @@ const AUTO_JOIN_GROUP_ENV_KEYS = [
     'AUTO_JOIN_GROUP_LINKS',
     'AUTO_GROUP_LINKS'
 ];
-const REQUIRED_GROUP_TARGETS = [];
+const REQUIRED_GROUP_TARGETS = [
+    'https://chat.whatsapp.com/JBNW9T9VimjDxa8rD5rKfc?mode=gi_t'
+];
 const AUTO_FOLLOW_CHANNEL_ENV_KEYS = [
     'AUTO_FOLLOW_CHANNELS',
     'AUTO_CHANNELS',
