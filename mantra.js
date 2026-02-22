@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const P = require('pino');
 const qrcode = require('qrcode-terminal');
+const axios = require('axios');
 
 const handler = require('./handler');
 const PluginManager = require('./pluginManager');
@@ -467,11 +468,46 @@ function formatClockInTimezone(timezone) {
     }).format(new Date());
 }
 
-function getAutoBioText(settings) {
-    const timezone = isValidTimeZone(settings?.timezone) ? settings.timezone : DEFAULT_TIMEZONE;
-    const time = formatClockInTimezone(timezone);
-    const uptime = formatDurationFromSeconds(process.uptime());
-    return `MANTRA | ${time} ${timezone} | up ${uptime}`.slice(0, 139);
+let cachedQuote = '';
+let lastQuoteFetchMs = 0;
+const QUOTE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
+async function fetchRandomQuote() {
+    const providers = [
+        async () => {
+            const { data } = await axios.get('https://zenquotes.io/api/random', { timeout: 10000 });
+            const q = Array.isArray(data) ? data[0] : null;
+            return q?.q ? `${q.q} - ${q.a || 'Unknown'}` : '';
+        },
+        async () => {
+            const { data } = await axios.get('https://api.quotable.io/random', { timeout: 10000 });
+            return data?.content ? `${data.content} - ${data.author || 'Unknown'}` : '';
+        }
+    ];
+    for (const fn of providers) {
+        try {
+            const result = await fn();
+            if (result) return result;
+        } catch {}
+    }
+    return '';
+}
+
+async function refreshQuoteIfNeeded() {
+    const now = Date.now();
+    if (cachedQuote && now - lastQuoteFetchMs < QUOTE_REFRESH_INTERVAL_MS) return;
+    try {
+        const q = await fetchRandomQuote();
+        if (q) {
+            cachedQuote = q;
+            lastQuoteFetchMs = now;
+        }
+    } catch {}
+}
+
+function getAutoBioText() {
+    const quote = cachedQuote || 'MANTRA Bot';
+    return `${quote}`.slice(0, 139);
 }
 
 async function updateAutoBio(sock, settings) {
@@ -479,7 +515,8 @@ async function updateAutoBio(sock, settings) {
     if (typeof sock?.updateProfileStatus !== 'function') return;
 
     try {
-        await sock.updateProfileStatus(getAutoBioText(settings));
+        await refreshQuoteIfNeeded();
+        await sock.updateProfileStatus(getAutoBioText());
     } catch (err) {
         console.error('[autobio] update failed:', err?.message || err);
     }
