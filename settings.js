@@ -6,7 +6,7 @@ const settings = {
 
   packname: process.env.PACKNAME || 'Mantra',
   author: process.env.AUTHOR || 'MidknightMantra',
-  timeZone: process.env.TIMEZONE || 'Asia/Karachi',
+  timeZone: process.env.TIMEZONE || 'Africa/Nairobi',
   botName: process.env.BOT_NAME || "Mantra",
   botOwner: process.env.BOT_OWNER || 'Midknight Mantra',
   ownerNumber: process.env.OWNER_NUMBER || '254743032398',

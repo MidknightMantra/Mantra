@@ -28,7 +28,7 @@
     "254732722385@s.whatsapp.net": {
       "id": "254732722385@s.whatsapp.net",
       "name": "",
-      "conversationTimestamp": 1772698084
+      "conversationTimestamp": 1772698618
     },
     "116987040661634@lid": {
       "id": "116987040661634@lid",
@@ -67,180 +67,6 @@
   "botMode": "public",
   "messages": {
     "254732722385@s.whatsapp.net": [
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB08CFF0E5CA0353EC4B8"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:05:57 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697957,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB04FFCB21F8C64BB5459"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:01 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697961,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB0880DA3899D9FBBE807"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:06 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697966,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB0A5FA85590D91594FE8"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:09 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697969,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB0B43D9DC996F65567E7"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:17 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697977,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
-      {
-        "key": {
-          "remoteJid": "254732722385@s.whatsapp.net",
-          "fromMe": true,
-          "id": "3EB0771F5C326740D0FBDD"
-        },
-        "message": {
-          "extendedTextMessage": {
-            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:24 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
-            "contextInfo": {
-              "forwardingScore": 1,
-              "isForwarded": true,
-              "forwardedNewsletterMessageInfo": {
-                "newsletterJid": "120363422328492522@newsletter",
-                "serverMessageId": -1,
-                "newsletterName": "Mantra"
-              }
-            }
-          }
-        },
-        "messageTimestamp": {
-          "low": 1772697984,
-          "high": 0,
-          "unsigned": true
-        },
-        "participant": null,
-        "pushName": null,
-        "broadcast": null
-      },
       {
         "key": {
           "remoteJid": "254732722385@s.whatsapp.net",
@@ -645,6 +471,176 @@
         },
         "messageTimestamp": 1772698236,
         "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": false,
+          "id": "A5CBC86BEAAF93E708916BDC06F72171",
+          "participant": "",
+          "addressingMode": "pn"
+        },
+        "message": {
+          "protocolMessage": {
+            "type": "PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE",
+            "peerDataOperationRequestResponseMessage": {
+              "peerDataOperationRequestType": "PLACEHOLDER_MESSAGE_RESEND",
+              "stanzaId": "3EB0FB905C8D38A945DCB3",
+              "peerDataOperationResult": [
+                {
+                  "mediaUploadResult": "GENERAL_ERROR"
+                }
+              ]
+            }
+          }
+        },
+        "messageTimestamp": 1772698583,
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB078F7FF0468FB569C4E"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:16:25 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698585,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0011222C0217491FF1D"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:16:33 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698593,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB024424F47E0EAB91CC6"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:16:41 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698601,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB057297890CCB1E9984B"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:16:49 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698609,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0644E61D9F8DFB19798"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:16:58 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698618,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
       }
     ],
     "116987040661634@lid": [
@@ -1561,6 +1557,21 @@
           "conversation": "Ni miaka mingi jooo"
         },
         "messageTimestamp": 1772697463,
+        "broadcast": false
+      }
+    ],
+    "61620516597944@lid": [
+      {
+        "key": {
+          "remoteJid": "61620516597944@lid",
+          "remoteJidAlt": "254743032398@s.whatsapp.net",
+          "fromMe": false,
+          "id": "3EB004512A10E1A4949FE8",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772698572,
+        "pushName": "J.a.b.e.z.",
         "broadcast": false
       }
     ]

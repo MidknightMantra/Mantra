@@ -27,10 +27,10 @@
       "required": false,
       "value": ""
     },
-    "PREFIXES=": {
+    "PREFIXES": {
       "description": "One or more prefixes splited by comma",
       "required": false,
-      "value": "."
+      "value": ".,!,/,#"
     },
     "PACKNAME": {
       "description": "Your sticker pack name",
@@ -45,7 +45,7 @@
     "OWNER_NUMBER": {
       "description": "Your WhatsApp number",
       "required": false,
-      "value": "923000000000"
+      "value": "254743032398"
     },
     "COMMAND_MODE": {
       "description": "Bot mode",
@@ -55,12 +55,12 @@
     "BOT_OWNER": {
       "description": "Owner name",
       "required": false,
-      "value": "MidknightMantra"
+      "value": "Midknight Mantra"
     },
     "TIMEZONE": {
       "description": "Your time zone",
       "required": false,
-      "value": "Asia/Karachi"
+      "value": "Africa/Nairobi"
     },
     "REMOVEBG_KEY": {
       "description": "Put your Remove background api key",
