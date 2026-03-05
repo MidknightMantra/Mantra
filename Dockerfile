@@ -1,5 +1,5 @@
-# Start with Node.js 18
-FROM node:18-bullseye-slim
+# Start with Node.js 20
+FROM node:20-bullseye-slim
 
 # Install system dependencies for better-sqlite3 and other potential native modules
 RUN apt-get update && apt-get install -y \

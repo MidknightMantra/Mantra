@@ -10,7 +10,7 @@
     "check": "node --check mantra.js && node --check handler.js && node --check pluginManager.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
