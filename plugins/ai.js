@@ -171,7 +171,7 @@ async function queryCustomEndpoint(endpoint, model, messages) {
             const text = extractTextFromPayload(getData);
             if (text) return text;
         }
-    } catch {}
+    } catch { }
 
     const payload = {
         model,
@@ -289,6 +289,39 @@ module.exports = {
     usage: ",ai <message>",
     aliases: ["chat", "ask", "gpt", "resetai"],
 
+    onMessage: async (sock, m, mantra) => {
+        // Auto-reply chatbot mode
+        const chatbotConfig = mantra.settings?.chatbot || {};
+        if (!chatbotConfig.enabled) return;
+        if (m.command) return; // skip commands
+        if (!m.body || m.body.length < 2) return;
+        if (m.key?.fromMe) return;
+
+        const mode = String(chatbotConfig.mode || "dm").toLowerCase();
+        // "dm" = DMs only, "group" = groups only, "all" = everywhere
+        if (mode === "dm" && m.isGroup) return;
+        if (mode === "group" && !m.isGroup) return;
+
+        const userId = getUserId(m.sender);
+        const text = String(m.body || "").trim();
+        if (!text) return;
+
+        try {
+            if (typeof sock.sendPresenceUpdate === "function") {
+                await sock.sendPresenceUpdate("composing", m.from);
+            }
+
+            const model = getModel();
+            const messages = buildMessages(userId, text);
+            const aiResponse = await queryWithFallbacks(model, messages);
+
+            remember(userId, text, aiResponse);
+            await m.reply(`${aiResponse}\n\n> *Mantra*`);
+        } catch (error) {
+            console.error("[chatbot] auto-reply error:", error?.message || error);
+        }
+    },
+
     execute: async (sock, m) => {
         const command = String(m.command || "").toLowerCase();
         const userId = getUserId(m.sender);
@@ -325,7 +358,7 @@ module.exports = {
             console.error("AI Chat Error:", error?.message || error);
             try {
                 await m.react("\u274C");
-            } catch {}
+            } catch { }
             await m.reply("\u274E AI is currently unavailable. Set AI endpoint/API key and try again.");
         }
     }

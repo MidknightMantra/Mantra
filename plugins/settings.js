@@ -24,6 +24,8 @@ module.exports = {
         const antibadword = s.antibadword || { enabled: false, words: [], action: "warn" };
         const presence = s.presence || { mode: "online", auto: false };
 
+        const chatbot = s.chatbot || { enabled: false, mode: "dm" };
+
         const on = (v) => v ? "✅ ON" : "❌ OFF";
 
         const text = [
@@ -37,6 +39,7 @@ module.exports = {
             `│  Auto Bio: ${on(s.autobio)}`,
             `│  Auto React: ${on(autoreact.enabled)}${autoreact.enabled ? ` (${autoreact.emoji})` : ""}`,
             `│  Presence: ${presence.mode}${presence.auto ? " (auto)" : ""}`,
+            `│  Chatbot: ${on(chatbot.enabled)}${chatbot.enabled ? ` (${chatbot.mode})` : ""}`,
             `│`,
             `├── 👁️ *Status*`,
             `│  Status View: ${on(s.autostatusview !== false)}  [${mantra.statusViewCount || 0} viewed]`,
