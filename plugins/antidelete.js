@@ -1,4 +1,4 @@
-const { WAProto, downloadMediaMessage } = require("gifted-baileys");
+const { WAProto, downloadMediaMessage } = require("../lib/baileys").getBaileys();
 const fs = require("fs");
 const path = require("path");
 
@@ -169,7 +169,7 @@ function saveDeletedMediaFile(deletedMessageId, media, buffer) {
     const dir = path.resolve("deleted_media");
     try {
         fs.mkdirSync(dir, { recursive: true });
-    } catch {}
+    } catch { }
 
     const ext = extFromMedia(media.type, media.meta);
     const safeId = String(deletedMessageId).replace(/[^A-Za-z0-9_-]/g, "_");
@@ -263,7 +263,7 @@ module.exports = {
                         mimetype,
                         filePath
                     });
-                } catch {}
+                } catch { }
             }
 
             const notice = [

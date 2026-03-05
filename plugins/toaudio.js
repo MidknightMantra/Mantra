@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require("gifted-baileys");
+const { downloadMediaMessage } = require("../lib/baileys").getBaileys();
 const { ytmp3 } = require("ruhend-scraper");
 const axios = require("axios");
 

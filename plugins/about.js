@@ -21,7 +21,7 @@ module.exports = {
                 `│`,
                 `│  Hey *${senderNumber}*, I'm *${botName}*`,
                 `│  A multi-feature WhatsApp bot`,
-                `│  built with gifted-baileys.`,
+                `│  built with @whiskeysockets/baileys.`,
                 `│`,
                 `│  👤 Creator: *${ownerName}*`,
                 `│  🔗 GitHub: ${github}`,

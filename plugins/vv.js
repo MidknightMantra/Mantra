@@ -1,4 +1,4 @@
-const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
+const { downloadMediaMessage, downloadContentFromMessage } = require("../lib/baileys").getBaileys();
 
 function toSelfJid(userId) {
     const raw = String(userId || "").trim();
@@ -160,7 +160,7 @@ async function downloadFromCandidate(sock, m, candidate) {
     if (m.quoted && typeof m.downloadQuoted === "function") {
         try {
             return await m.downloadQuoted();
-        } catch {}
+        } catch { }
     }
 
     try {
@@ -170,7 +170,7 @@ async function downloadFromCandidate(sock, m, candidate) {
             {},
             { reuploadRequest: sock.updateMediaMessage }
         );
-    } catch {}
+    } catch { }
 
     if (candidate?.media?.mediaNode) {
         const stream = await downloadContentFromMessage(candidate.media.mediaNode, candidate.media.type);
@@ -265,7 +265,7 @@ module.exports = {
 
             const candidates = getCandidates(m, mantra);
             if (!candidates.length) {
-                try { await m.react("❌"); } catch {}
+                try { await m.react("❌"); } catch { }
                 await sock.sendMessage(
                     m.from,
                     { text: `Reply to a view-once image/video.\nUsage: ${m.prefix}vv` },
@@ -281,12 +281,12 @@ module.exports = {
             }
 
             const sentTo = await sendToSavedMessages(sock, m, buildSendPayload(selected.media, buffer));
-            try { await m.react("✅"); } catch {}
+            try { await m.react("✅"); } catch { }
             console.log(
                 `[vv] success mediaType=${selected.media.type} viewOnce=${selected.media.isViewOnce} bytes=${buffer.length} sentTo=${sentTo}`
             );
         } catch (err) {
-            try { await m.react("❌"); } catch {}
+            try { await m.react("❌"); } catch { }
             console.error(`[vv] failed: ${err?.message || err}`);
             await sock.sendMessage(
                 m.from,

@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { downloadMediaMessage } = require("gifted-baileys");
+const { downloadMediaMessage } = require("../lib/baileys").getBaileys();
 
 const GIFTED_API_KEY = process.env.GIFTED_API_KEY || "gifted";
 

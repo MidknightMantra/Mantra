@@ -4,10 +4,12 @@ const {
     Browsers,
     isJidStatusBroadcast,
     STORIES_JID,
-    jidNormalizedUser
-} = require('gifted-baileys');
+    jidNormalizedUser,
+    fetchLatestWaWebVersion
+} = require('./lib/baileys').getBaileys();
 
 const fs = require('fs');
+const pino = require('pino');
 const path = require('path');
 const P = require('pino');
 const qrcode = require('qrcode-terminal');
@@ -1131,10 +1133,15 @@ class Mantra {
         let didWarnStatusReactionUnsupported = false;
         installSignalLogFilter(folder, () => String(activeSock?.user?.id || '').split(':')[0]);
 
+        const { version, isLatest } = await fetchLatestWaWebVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: false }));
+        console.log(`[boot] Using WA v${version.join('.')} (isLatest: ${isLatest})`);
+
         const sock = makeWASocket({
+            version,
             auth: state,
             logger: P({ level: 'silent' }),
-            browser: Browsers.ubuntu('Mantra')
+            browser: Browsers.macOS('Desktop'),
+            syncFullHistory: false
         });
         activeSock = sock;
         this.sock = sock;
@@ -1295,10 +1302,11 @@ class Mantra {
             }
 
             if (connection === 'close') {
-                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const error = lastDisconnect?.error;
+                const statusCode = error?.output?.statusCode;
                 const shouldReconnect = statusCode !== 401;
 
-                console.log('Connection closed.');
+                console.error('[baileys] Connection closed:', error?.message || error, 'Status:', statusCode);
 
                 if (shouldReconnect) {
                     this.scheduleReconnect(id, statusCode);
@@ -1367,6 +1375,33 @@ class Mantra {
                 for (const participant of participants) {
                     const participantJid = normalizeParticipantJid(participant);
                     if (!participantJid) continue;
+
+                    // --- AUTOKICK LOGIC ---
+                    if (isJoin) {
+                        try {
+                            const { getSettings } = require('./lib/groupSettings');
+                            const settings = getSettings(groupId) || {};
+                            const autokick = settings.autokick || {};
+                            if (autokick.enabled && Array.isArray(autokick.bannedPrefixes) && autokick.bannedPrefixes.length > 0) {
+                                // JID format: 212xxxxxx@s.whatsapp.net
+                                const phone = participantJid.split('@')[0];
+                                const hasBannedPrefix = autokick.bannedPrefixes.some(prefix => {
+                                    const cleanPrefix = prefix.startsWith('+') ? prefix.slice(1) : prefix;
+                                    return phone.startsWith(cleanPrefix);
+                                });
+
+                                if (hasBannedPrefix) {
+                                    // Attempt to kick
+                                    await sock.groupParticipantsUpdate(groupId, [participantJid], 'remove');
+                                    await sock.sendMessage(groupId, { text: `🚷 Auto-kicked @${phone} due to a banned country prefix.`, mentions: [participantJid] });
+                                    continue; // Skip welcome message
+                                }
+                            }
+                        } catch (e) {
+                            console.error('[autokick] Error:', e?.message || e);
+                        }
+                    }
+                    // --- END AUTOKICK ---
 
                     const text = getParticipantNoticeText(template, participantJid, action);
                     await sock.sendMessage(groupId, {
@@ -1653,6 +1688,11 @@ class Mantra {
 
                         const plugin = pluginManager.getCommand(m.command);
                         if (plugin?.execute) {
+                            // Private mode: block non-owner users
+                            if (!m.isOwner && mantra.settings.mode === 'private') {
+                                try { await m.reply('🔒 Bot is in private mode. Only the owner can use commands.'); } catch { }
+                                return;
+                            }
                             if (!m.isOwner) {
                                 const now = Date.now();
                                 const senderKey = m.sender;

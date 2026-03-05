@@ -1,4 +1,4 @@
-const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
+const { downloadMediaMessage, downloadContentFromMessage } = require("../lib/baileys").getBaileys();
 
 function toSelfJid(userId) {
     const raw = String(userId || "").trim();
@@ -108,7 +108,7 @@ async function downloadMedia(sock, msg, media) {
             {},
             { reuploadRequest: sock.updateMediaMessage }
         );
-    } catch {}
+    } catch { }
 
     if (media?.mediaNode) {
         const stream = await downloadContentFromMessage(media.mediaNode, media.type);

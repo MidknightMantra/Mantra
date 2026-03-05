@@ -1,4 +1,4 @@
-const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
+const { downloadMediaMessage, downloadContentFromMessage } = require("../lib/baileys").getBaileys();
 
 function unwrapViewOnce(message) {
     let current = message && typeof message === "object" ? message : {};

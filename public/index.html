@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mantra Bot Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #25d366;
+            --accent: #5eff99;
+            --bg: #050510;
+            --card: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(142, 69%, 52%, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(142, 69%, 52%, 0.05) 0px, transparent 50%);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(37, 211, 102, 0.1);
+            border: 1px solid rgba(37, 211, 102, 0.2);
+            padding: 6px 16px;
+            border-radius: 100px;
+            color: var(--primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(37, 211, 102, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-container {
+            background: #0a0a15;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        .terminal-content {
+            font-family: 'JetBrains Mono', monospace;
+            color: #d1d1d1;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            min-height: 200px;
+        }
+
+        .line { margin-bottom: 5px; }
+        .prompt { color: var(--primary); margin-right: 10px; }
+
+        footer {
+            padding: 40px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .logo { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" id="bot-name">MANTRA</div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            System Operational
+        </div>
+    </header>
+
+    <main>
+        <div class="grid">
+            <div class="stat-card">
+                <span class="stat-label">Uptime</span>
+                <div class="stat-value" id="uptime">--</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Users</span>
+                <div class="stat-value" id="user-count">--</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Economy Flow</span>
+                <div class="stat-value" id="total-wealth">$0</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Active Bans/Warns</span>
+                <div class="stat-value" id="warn-count">0</div>
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+                <span style="margin-left: 10px; font-size: 0.8rem; color: #666;">system_logs.sh</span>
+            </div>
+            <div class="terminal-content" id="log-content">
+                <div class="line"><span class="prompt">$</span> initializing socket connection...</div>
+                <div class="line"><span class="prompt">$</span> loading plugins into memory... (118 total)</div>
+                <div class="line"><span class="prompt">$</span> better-sqlite3 engine active</div>
+                <div class="line"><span class="prompt">$</span> wa-web v2.3000.1018292419 detected</div>
+                <div class="line"><span class="prompt">$</span> bot is ready to receive commands</div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2026 MANTRA Bot Ecosystem • Built by Antigravity
+    </footer>
+
+    <script>
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                document.getElementById('bot-name').innerText = data.botName;
+                document.getElementById('uptime').innerText = data.uptime;
+                document.getElementById('user-count').innerText = data.userCount;
+                document.getElementById('total-wealth').innerText = '$' + data.totalWealth;
+                document.getElementById('warn-count').innerText = data.warnCount;
+
+            } catch (err) {
+                console.error('Failed to update stats');
+            }
+        }
+
+        setInterval(updateStats, 5000);
+        updateStats();
+
+        // Add dynamic log line
+        function addLog() {
+            const container = document.getElementById('log-content');
+            const events = [
+                'heartbeat sent to whatsapp server',
+                'paged 10 messages from store',
+                'vacuuming sqlite database...',
+                'session integrity check passed',
+                'syncing group metadata...'
+            ];
+            const event = events[Math.floor(Math.random() * events.length)];
+            const div = document.createElement('div');
+            div.className = 'line';
+            div.innerHTML = `<span class="prompt">$</span> ${event}`;
+            container.appendChild(div);
+            if (container.children.length > 8) container.removeChild(container.firstChild);
+        }
+        setInterval(addLog, 15000);
+    </script>
+</body>
+</html>

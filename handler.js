@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require('gifted-baileys');
+const { downloadMediaMessage } = require('./lib/baileys').getBaileys();
 const { sendButtons, sendInteractiveMessage } = require('gifted-btns');
 
 function jidUser(jid) {
@@ -95,7 +95,7 @@ function readButtonCommand(content) {
             const parsed = JSON.parse(interactiveJson);
             if (parsed?.id) return String(parsed.id);
             if (parsed?.selectedId) return String(parsed.selectedId);
-        } catch {}
+        } catch { }
     }
 
     return '';
@@ -133,6 +133,14 @@ module.exports = async function handler(sock, msg, mantra) {
         (Boolean(selfUser) && (senderUser === selfUser || fromUser === selfUser)) ||
         configuredOwners.has(senderUser) ||
         configuredOwners.has(fromUser);
+
+    // Sudo users also count as owners
+    if (!m.isOwner && Array.isArray(mantra?.settings?.sudo)) {
+        const sudoUsers = mantra.settings.sudo.map(j => String(j || '').split('@')[0].split(':')[0]).filter(Boolean);
+        if (sudoUsers.includes(senderUser) || sudoUsers.includes(fromUser)) {
+            m.isOwner = true;
+        }
+    }
     const selfDirectJid = toSelfUserJid(sock.user?.id);
     // If the message is from our own account (linked device), reply only to "Saved Messages"
     // to avoid posting bot responses into DMs/groups unintentionally.

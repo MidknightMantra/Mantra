@@ -3,7 +3,7 @@ const os = require("os");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 const Jimp = require("jimp");
-const { downloadMediaMessage, downloadContentFromMessage } = require("gifted-baileys");
+const { downloadMediaMessage, downloadContentFromMessage } = require("../lib/baileys").getBaileys();
 
 let ffmpegReady;
 
@@ -140,13 +140,13 @@ async function downloadFromSource(sock, m, source) {
     if (source.name === "quoted" && typeof m.downloadQuoted === "function") {
         try {
             return await m.downloadQuoted();
-        } catch {}
+        } catch { }
     }
 
     if (source.name === "current" && typeof m.download === "function") {
         try {
             return await m.download();
-        } catch {}
+        } catch { }
     }
 
     try {
@@ -156,7 +156,7 @@ async function downloadFromSource(sock, m, source) {
             {},
             { reuploadRequest: sock.updateMediaMessage }
         );
-    } catch {}
+    } catch { }
 
     if (source.mediaNode && source.downloadType) {
         const stream = await downloadContentFromMessage(source.mediaNode, source.downloadType);
@@ -280,10 +280,10 @@ async function convertToSticker(buffer, source) {
         } finally {
             try {
                 fs.unlinkSync(inputPath);
-            } catch {}
+            } catch { }
             try {
                 fs.unlinkSync(outputPath);
-            } catch {}
+            } catch { }
         }
     }
 
