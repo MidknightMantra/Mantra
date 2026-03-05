@@ -1,4 +1,4 @@
-FROM quay.io/qasimtech/mega-bot:latest
+FROM quay.io/midknightmantra/mantra-bot:latest
 
 WORKDIR /root/mantra
 

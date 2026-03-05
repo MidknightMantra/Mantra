@@ -109,7 +109,7 @@ module.exports = {
       );
 
       // Fetch file information
-      const apiUrl = `https://api.qasimdev.dpdns.org/api/terabox/download?apiKey=qasim-dev&url=${encodeURIComponent(url)}`;
+      const apiUrl = `https://api.mantradev.dpdns.org/api/terabox/download?apiKey=mantra-dev&url=${encodeURIComponent(url)}`;
       const apiResponse = await apiCallWithRetry(apiUrl, 3, 3000);
 
       if (!apiResponse.data?.success || !apiResponse.data?.data?.files || apiResponse.data.data.files.length === 0) {

@@ -1,4 +1,4 @@
-const Qasim = require('api-qasim');
+const Mantra = require('api-mantra');
 const { channelInfo } = require('../lib/messageConfig');
 
 module.exports = {
@@ -21,7 +21,7 @@ module.exports = {
     }
 
     try {
-      const results = await Qasim.wattpad(query);
+      const results = await Mantra.wattpad(query);
 
       if (!Array.isArray(results) || results.length === 0) {
         throw new Error('No results found for your query.');

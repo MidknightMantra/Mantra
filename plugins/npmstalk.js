@@ -1,4 +1,4 @@
-const Qasim = require('api-qasim');
+const Mantra = require('api-mantra');
 module.exports = {
   command: 'npmstalk',
   aliases: ['npmstlk'],

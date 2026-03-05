@@ -204,7 +204,7 @@ if (!server.listening) {
     });
 }
 
-async function startQasimDev() {
+async function startMantra() {
     try {
         let { version, isLatest } = await fetchLatestBaileysVersion();
 
@@ -224,7 +224,7 @@ async function startQasimDev() {
             printLog('info', '👻 STEALTH MODE IS ACTIVE - Starting in stealth mode');
         }
 
-        const QasimDev = makeWASocket({
+        const Mantra = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
             printQRInTerminal: !pairingCode,
@@ -247,12 +247,12 @@ async function startQasimDev() {
             keepAliveIntervalMs: 10000,
         });
 
-        const originalSendPresenceUpdate = QasimDev.sendPresenceUpdate;
-        const originalReadMessages = QasimDev.readMessages;
-        const originalSendReceipt = QasimDev.sendReceipt;
-        const originalSendReadReceipt = QasimDev.sendReadReceipt;
+        const originalSendPresenceUpdate = Mantra.sendPresenceUpdate;
+        const originalReadMessages = Mantra.readMessages;
+        const originalSendReceipt = Mantra.sendReceipt;
+        const originalSendReadReceipt = Mantra.sendReadReceipt;
 
-        QasimDev.sendPresenceUpdate = async function (...args) {
+        Mantra.sendPresenceUpdate = async function (...args) {
             const ghostMode = await store.getSetting('global', 'stealthMode');
             if (ghostMode && ghostMode.enabled) {
                 printLog('info', '👻 Blocked presence update (stealth mode)');
@@ -261,7 +261,7 @@ async function startQasimDev() {
             return originalSendPresenceUpdate.apply(this, args);
         };
 
-        QasimDev.readMessages = async function (...args) {
+        Mantra.readMessages = async function (...args) {
             const ghostMode = await store.getSetting('global', 'stealthMode');
             if (ghostMode && ghostMode.enabled) {
                 return;
@@ -270,7 +270,7 @@ async function startQasimDev() {
         };
 
         if (originalSendReceipt) {
-            QasimDev.sendReceipt = async function (...args) {
+            Mantra.sendReceipt = async function (...args) {
                 const ghostMode = await store.getSetting('global', 'stealthMode');
                 if (ghostMode && ghostMode.enabled) {
                     return;
@@ -280,7 +280,7 @@ async function startQasimDev() {
         }
 
         if (originalSendReadReceipt) {
-            QasimDev.sendReadReceipt = async function (...args) {
+            Mantra.sendReadReceipt = async function (...args) {
                 const ghostMode = await store.getSetting('global', 'stealthMode');
                 if (ghostMode && ghostMode.enabled) {
                     return;
@@ -289,8 +289,8 @@ async function startQasimDev() {
             };
         }
 
-        const originalQuery = QasimDev.query;
-        QasimDev.query = async function (node, ...args) {
+        const originalQuery = Mantra.query;
+        Mantra.query = async function (node, ...args) {
             const ghostMode = await store.getSetting('global', 'stealthMode');
             if (ghostMode && ghostMode.enabled) {
                 if (node && node.tag === 'receipt') {
@@ -303,15 +303,15 @@ async function startQasimDev() {
             return originalQuery.apply(this, [node, ...args]);
         };
 
-        QasimDev.isGhostMode = async () => {
+        Mantra.isGhostMode = async () => {
             const ghostMode = await store.getSetting('global', 'stealthMode');
             return ghostMode && ghostMode.enabled;
         };
 
-        QasimDev.ev.on('creds.update', saveCreds);
-        store.bind(QasimDev.ev);
+        Mantra.ev.on('creds.update', saveCreds);
+        store.bind(Mantra.ev);
 
-        QasimDev.ev.on('messages.upsert', async (chatUpdate) => {
+        Mantra.ev.on('messages.upsert', async (chatUpdate) => {
             try {
                 const mek = chatUpdate.messages[0];
                 if (!mek.message) return;
@@ -321,27 +321,27 @@ async function startQasimDev() {
                     : mek.message;
 
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                    await handleStatus(QasimDev, chatUpdate);
+                    await handleStatus(Mantra, chatUpdate);
                     return;
                 }
 
-                if (!QasimDev.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
+                if (!Mantra.public && !mek.key.fromMe && chatUpdate.type === 'notify') {
                     const isGroup = mek.key?.remoteJid?.endsWith('@g.us');
                     if (!isGroup) return;
                 }
 
                 if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return;
 
-                if (QasimDev?.msgRetryCounterCache) {
-                    QasimDev.msgRetryCounterCache.clear();
+                if (Mantra?.msgRetryCounterCache) {
+                    Mantra.msgRetryCounterCache.clear();
                 }
 
                 try {
-                    await handleMessages(QasimDev, chatUpdate);
+                    await handleMessages(Mantra, chatUpdate);
                 } catch (err) {
                     printLog('error', `Error in handleMessages: ${err.message}`);
                     if (mek.key && mek.key.remoteJid) {
-                        await QasimDev.sendMessage(mek.key.remoteJid, {
+                        await Mantra.sendMessage(mek.key.remoteJid, {
                             text: '❌ An error occurred while processing your message.',
                             contextInfo: {
                                 forwardingScore: 1,
@@ -360,7 +360,7 @@ async function startQasimDev() {
             }
         });
 
-        QasimDev.decodeJid = (jid) => {
+        Mantra.decodeJid = (jid) => {
             if (!jid) return jid;
             if (/:\d+@/gi.test(jid)) {
                 let decode = jidDecode(jid) || {};
@@ -368,33 +368,33 @@ async function startQasimDev() {
             } else return jid;
         };
 
-        QasimDev.ev.on('contacts.update', update => {
+        Mantra.ev.on('contacts.update', update => {
             for (let contact of update) {
-                let id = QasimDev.decodeJid(contact.id);
+                let id = Mantra.decodeJid(contact.id);
                 if (store && store.contacts) store.contacts[id] = { id, name: contact.notify };
             }
         });
 
-        QasimDev.getName = (jid, withoutContact = false) => {
-            id = QasimDev.decodeJid(jid);
-            withoutContact = QasimDev.withoutContact || withoutContact;
+        Mantra.getName = (jid, withoutContact = false) => {
+            id = Mantra.decodeJid(jid);
+            withoutContact = Mantra.withoutContact || withoutContact;
             let v;
             if (id.endsWith("@g.us")) return new Promise(async (resolve) => {
                 v = store.contacts[id] || {};
-                if (!(v.name || v.subject)) v = QasimDev.groupMetadata(id) || {};
+                if (!(v.name || v.subject)) v = Mantra.groupMetadata(id) || {};
                 resolve(v.name || v.subject || PhoneNumber('+' + id.replace('@s.whatsapp.net', '')).getNumber('international'));
             });
             else v = id === '0@s.whatsapp.net' ? {
                 id,
                 name: 'WhatsApp'
-            } : id === QasimDev.decodeJid(QasimDev.user.id) ?
-                QasimDev.user :
+            } : id === Mantra.decodeJid(Mantra.user.id) ?
+                Mantra.user :
                 (store.contacts[id] || {});
             return (withoutContact ? '' : v.name) || v.subject || v.verifiedName || PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international');
         };
 
-        QasimDev.public = true;
-        QasimDev.serializeM = (m) => smsg(QasimDev, m, store);
+        Mantra.public = true;
+        Mantra.serializeM = (m) => smsg(Mantra, m, store);
 
         const isRegistered = state.creds?.registered === true;
 
@@ -430,7 +430,7 @@ async function startQasimDev() {
 
             setTimeout(async () => {
                 try {
-                    let code = await QasimDev.requestPairingCode(phoneNumberInput);
+                    let code = await Mantra.requestPairingCode(phoneNumberInput);
                     code = code?.match(/.{1,4}/g)?.join("-") || code;
                     console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)));
                     printLog('success', `Pairing code generated: ${code}`);
@@ -456,7 +456,7 @@ async function startQasimDev() {
             }
         }
 
-        QasimDev.ev.on('connection.update', async (s) => {
+        Mantra.ev.on('connection.update', async (s) => {
             const { connection, lastDisconnect, qr } = s;
 
             if (qr) {
@@ -470,7 +470,7 @@ async function startQasimDev() {
             if (connection == "open") {
                 printLog('success', 'Bot connected successfully!');
                 const { startAutoBio } = require('./plugins/setbio');
-                startAutoBio(QasimDev);
+                startAutoBio(Mantra);
                 const ghostMode = await store.getSetting('global', 'stealthMode');
                 if (ghostMode && ghostMode.enabled) {
                     printLog('info', '👻 STEALTH MODE ACTIVE - Bot is in stealth mode');
@@ -478,13 +478,13 @@ async function startQasimDev() {
                     console.log(chalk.gray('• No typing indicators'));
                 }
 
-                console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(QasimDev.user, null, 2)));
+                console.log(chalk.yellow(`🌿Connected to => ` + JSON.stringify(Mantra.user, null, 2)));
 
                 try {
-                    const botNumber = QasimDev.user.id.split(':')[0] + '@s.whatsapp.net';
+                    const botNumber = Mantra.user.id.split(':')[0] + '@s.whatsapp.net';
                     const ghostStatus = (ghostMode && ghostMode.enabled) ? '\n👻 Stealth Mode: ACTIVE' : '';
 
-                    await QasimDev.sendMessage(botNumber, {
+                    await Mantra.sendMessage(botNumber, {
                         text: `🤖 Bot Connected Successfully!\n\n⏰ Time: ${new Date().toLocaleString()}\n✅ Status: Online and Ready!${ghostStatus}\n\n✅Make sure to join below channel`,
                         contextInfo: {
                             forwardingScore: 1,
@@ -538,30 +538,30 @@ async function startQasimDev() {
                         printLog('connection', 'Reconnecting in 5 seconds...');
                         await delay(5000);
                     }
-                    startQasimDev();
+                    startMantra();
                 }
             }
         });
 
-        QasimDev.ev.on('call', async (calls) => {
-            await handleCall(QasimDev, calls);
+        Mantra.ev.on('call', async (calls) => {
+            await handleCall(Mantra, calls);
         });
 
-        QasimDev.ev.on('group-participants.update', async (update) => {
-            await handleGroupParticipantUpdate(QasimDev, update);
+        Mantra.ev.on('group-participants.update', async (update) => {
+            await handleGroupParticipantUpdate(Mantra, update);
         });
 
-        QasimDev.ev.on('status.update', async (status) => {
-            await handleStatus(QasimDev, status);
+        Mantra.ev.on('status.update', async (status) => {
+            await handleStatus(Mantra, status);
         });
 
-        QasimDev.ev.on('messages.reaction', async (reaction) => {
-            await handleStatus(QasimDev, reaction);
+        Mantra.ev.on('messages.reaction', async (reaction) => {
+            await handleStatus(Mantra, reaction);
         });
 
-        return QasimDev;
+        return Mantra;
     } catch (error) {
-        printLog('error', `Error in startQasimDev: ${error.message}`);
+        printLog('error', `Error in startMantra: ${error.message}`);
 
         if (rl && !rl.closed) {
             rl.close();
@@ -569,7 +569,7 @@ async function startQasimDev() {
         }
 
         await delay(5000);
-        startQasimDev();
+        startMantra();
     }
 }
 
@@ -587,7 +587,7 @@ async function main() {
 
     await delay(3000);
 
-    startQasimDev().catch(error => {
+    startMantra().catch(error => {
         printLog('error', `Fatal error: ${error.message}`);
 
         if (rl && !rl.closed) {

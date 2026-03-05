@@ -310,7 +310,7 @@ You:
                 .replace(/crying/g, '😢')
                 .replace(/thinking/g, '🤔')
                 .replace(/sleeping/g, '😴')
-                .replace(/google/gi, 'qasim')
+                .replace(/google/gi, 'Mantra')
                 .replace(/a large language model/gi, 'my bot')
                 .replace(/Remember:.*$/g, '')
                 .replace(/IMPORTANT:.*$/g, '')

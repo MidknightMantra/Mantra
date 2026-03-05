@@ -1,4 +1,4 @@
-const Qasim = require('api-qasim');
+const Mantra = require('api-mantra');
 const axios = require('axios');
 
 module.exports = {
@@ -19,7 +19,7 @@ module.exports = {
 
       await sock.sendMessage(chatId, { text: '🔎 Searching for APKs...' }, { quoted: message });
 
-      const res = await Qasim.apksearch(query);
+      const res = await Mantra.apksearch(query);
 
       if (!res?.data || !Array.isArray(res.data) || res.data.length === 0) {
         return await sock.sendMessage(chatId, { text: '❌ No APKs found.' }, { quoted: message });
