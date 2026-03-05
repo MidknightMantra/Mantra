@@ -689,12 +689,7 @@ server.on('error', (error) => {
     }
 });
 
-let file = require.resolve(__filename);
-fs.watchFile(file, () => {
-    fs.unwatchFile(file);
-    printLog('info', 'index.js updated, reloading...');
-    delete require.cache[file];
-    require(file);
-});
+// Handled by hosting provider for safety and to avoid session conflicts
+
 
 
