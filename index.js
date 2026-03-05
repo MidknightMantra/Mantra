@@ -165,35 +165,37 @@ async function initializeSession() {
     const txt = global.SESSION_ID || process.env.SESSION_ID;
 
     if (!txt) {
-        printLog('warning', 'No SESSION_ID found in environment variables');
         if (hasValidSession()) {
-            printLog('success', 'Existing session found. Using saved credentials');
+            printLog('success', 'Using existing local session credentials');
             return true;
         }
-        printLog('warning', 'No existing session found. Pairing code will be required');
+        printLog('warning', 'No SESSION_ID found and no existing session saved');
         return false;
     }
 
-    if (hasValidSession()) {
-        return true;
-    }
-
+    // If SESSION_ID is provided, we use it (even if local files exist)
+    // To switch sessions, people usually update the environment variable
     try {
         await SaveCreds(txt);
-        await delay(2000);
-
+        await delay(1000);
         if (hasValidSession()) {
-            printLog('success', 'Session file verified and valid');
-            await delay(1000);
+            printLog('success', 'New session successfully initialized from SESSION_ID');
             return true;
-        } else {
-            printLog('error', 'Session file not valid after download');
-            return false;
         }
     } catch (error) {
-        printLog('error', `Error downloading session: ${error.message}`);
-        return false;
+        printLog('error', `Session initialization failed: ${error.message}`);
+        if (hasValidSession()) {
+            printLog('info', 'Falling back to existing valid session');
+            return true;
+        }
     }
+    return false;
+} return false;
+        }
+    } catch (error) {
+    printLog('error', `Error downloading session: ${error.message}`);
+    return false;
+}
 }
 
 if (!server.listening) {
@@ -529,8 +531,13 @@ async function startQasimDev() {
                 }
 
                 if (shouldReconnect) {
-                    printLog('connection', 'Reconnecting in 5 seconds...');
-                    await delay(5000);
+                    if (statusCode === 440) {
+                        printLog('error', 'Session conflict detected (logged in elsewhere). Waiting 30s before retry...');
+                        await delay(30000);
+                    } else {
+                        printLog('connection', 'Reconnecting in 5 seconds...');
+                        await delay(5000);
+                    }
                     startQasimDev();
                 }
             }
