@@ -1,31 +1,10 @@
-# Start with Node.js 20
-FROM node:20-bullseye-slim
+FROM quay.io/qasimtech/mega-bot:latest
 
-# Install system dependencies for better-sqlite3 and other potential native modules
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /root/mantra
 
-# Set working directory
-WORKDIR /app
+RUN git clone https://github.com/MidknightMantra/Mantra . && \
+    npm install
 
-# Copy package files
-COPY package*.json ./
+EXPOSE 5000
 
-# Install dependencies (ignoring peer conflicts for Baileys/Jimp)
-RUN npm install --legacy-peer-deps
-
-# Copy the rest of the application
-COPY . .
-
-# Create database and session directories (ensuring they persist)
-RUN mkdir -p database session
-
-# Expose the dashboard port
-EXPOSE 3000
-
-# Start the application via the bootloader
 CMD ["npm", "start"]

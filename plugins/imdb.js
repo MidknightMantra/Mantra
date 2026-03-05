@@ -1,61 +1,68 @@
-const axios = require('axios');
+const fetch = require('node-fetch');
 
 module.exports = {
-    name: "imdb",
-    react: "🎬",
-    category: "search",
-    description: "Search for movie or TV show information",
-    usage: ",imdb <title>",
-    aliases: ["movie", "tvshow"],
+  command: 'imdb',
+  aliases: ['movie', 'film'],
+  category: 'info',
+  description: 'Get detailed information about a movie or series from IMDB',
+  usage: '.imdb <movie/series title>',
+  async handler(sock, message, args, context = {}) {
+    const chatId = context.chatId || message.key.remoteJid;
+    const text = args.join(' ').trim();
 
-    execute: async (_sock, m) => {
-        try {
-            const query = String(m.args?.join(" ") || "").trim();
-            if (!query) {
-                await m.reply(`Please provide a movie or TV show title.\nUsage: ${m.prefix}imdb <title>`);
-                return;
-            }
-
-            const url = `https://api.popcat.xyz/imdb?q=${encodeURIComponent(query)}`;
-            const response = await axios.get(url, {
-                timeout: 10000,
-                headers: { "User-Agent": "Mantra-Bot" }
-            });
-
-            const data = response.data;
-            if (!data || data.error) {
-                await m.reply("Movie or TV show not found.");
-                return;
-            }
-
-            const text = `
-🎬 *IMDb Search*
-
-🏷️ *Title:* ${data.title || 'N/A'}
-📅 *Year:* ${data.year || 'N/A'}
-⏱️ *Runtime:* ${data.runtime || 'N/A'}
-⭐ *Rating:* ${data.rating || 'N/A'}/10 (${data.votes || '0'} votes)
-🎭 *Genres:* ${data.genres || 'N/A'}
-🎬 *Director:* ${data.director || 'N/A'}
-👥 *Actors:* ${data.actors || 'N/A'}
-🌍 *Country:* ${data.country || 'N/A'}
-
-📝 *Plot:* ${data.plot || 'N/A'}
-
-> *Mantra Movie Scraper*
-`.trim();
-
-            if (data.poster && data.poster !== "N/A") {
-                await _sock.sendMessage(m.from, {
-                    image: { url: data.poster },
-                    caption: text
-                });
-            } else {
-                await m.reply(text);
-            }
-        } catch (e) {
-            console.error("imdb error:", e?.message || e);
-            await m.reply("An error occurred while fetching IMDb data.");
-        }
+    if (!text) {
+      await sock.sendMessage(chatId, { 
+        text: '*Please provide a movie or series title.*\nExample: `.imdb Inception`', 
+        quoted: message 
+      });
+      return;
     }
+    try {
+      const res = await fetch(`https://api.popcat.xyz/imdb?q=${encodeURIComponent(text)}`);
+      if (!res.ok) throw new Error(`API request failed with status ${res.status}`);
+      const json = await res.json();
+      const ratings = (json.ratings || [])
+        .map(r => `⭐ *${r.source}:* ${r.value}`)
+        .join('\n') || 'No ratings available';
+
+      const movieInfo = `
+🎬 *${json.title || 'N/A'}* (${json.year || 'N/A'})
+🎭 *Genres:* ${json.genres || 'N/A'}
+📺 *Type:* ${json.type || 'N/A'}
+📝 *Plot:* ${json.plot || 'N/A'}
+⭐ *IMDB Rating:* ${json.rating || 'N/A'} (${json.votes || 'N/A'} votes)
+🏆 *Awards:* ${json.awards || 'N/A'}
+🎬 *Director:* ${json.director || 'N/A'}
+✍️ *Writer:* ${json.writer || 'N/A'}
+👨‍👩‍👧‍👦 *Actors:* ${json.actors || 'N/A'}
+⏱️ *Runtime:* ${json.runtime || 'N/A'}
+📅 *Released:* ${json.released || 'N/A'}
+🌐 *Country:* ${json.country || 'N/A'}
+🗣️ *Languages:* ${json.languages || 'N/A'}
+💰 *Box Office:* ${json.boxoffice || 'N/A'}
+💽 *DVD Release:* ${json.dvd || 'N/A'}
+🏢 *Production:* ${json.production || 'N/A'}
+🔗 *Website:* ${json.website || 'N/A'}
+
+*Ratings:*
+${ratings}
+      `.trim();
+      if (json.poster) {
+        await sock.sendMessage(chatId, { 
+          image: { url: json.poster }, 
+          caption: movieInfo, 
+          quoted: message 
+        });
+      } else {
+        await sock.sendMessage(chatId, { text: movieInfo, quoted: message });
+      }
+    } catch (error) {
+      console.error('IMDB Command Error:', error);
+      await sock.sendMessage(chatId, { 
+        text: '❌ Failed to fetch movie information. Please try again later.', 
+        quoted: message 
+      });
+    }
+  }
 };
+

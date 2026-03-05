@@ -1,66 +1,106 @@
-module.exports = {
-    name: "sudo",
-    react: "👑",
-    category: "owner",
-    description: "Manage sudo users who can use owner-level commands",
-    usage: ",sudo add|remove|list <number>",
-    aliases: ["addsudo", "delsudo", "sudolist"],
+const settings = require('../settings');
+const { addSudo, removeSudo, getSudoList } = require('../lib/index');
+const isOwnerOrSudo = require('../lib/isOwner');
+const { cleanJid } = require('../lib/isOwner');
 
-    execute: async (_sock, m, mantra) => {
-        if (!m.isOwner) {
-            await m.reply("Owner only command.");
+function extractTargetJid(message, args) {
+    if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0]) {
+        return message.message.extendedTextMessage.contextInfo.mentionedJid[0];
+    }
+    
+    if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+        return message.message.extendedTextMessage.contextInfo.participant;
+    }
+    
+    const text = args.join(' ');
+    const match = text.match(/\b(\d{7,15})\b/);
+    if (match) return match[1] + '@s.whatsapp.net';
+    
+    return null;
+}
+
+module.exports = {
+    command: 'sudo',
+    aliases: [],
+    category: 'owner',
+    description: 'Add or remove sudo users or list them',
+    usage: '.sudo add|del|list <@user|number>',
+    strictOwnerOnly: true,
+    
+    async handler(sock, message, args, context = {}) {
+        const chatId = context.chatId || message.key.remoteJid;
+        const senderJid = message.key.participant || message.key.remoteJid;
+        const isGroup = chatId.endsWith('@g.us');
+        
+        const isOwner = message.key.fromMe || isOwnerOrSudo.isOwnerOnly(senderJid);
+
+        const sub = (args[0] || '').toLowerCase();
+
+        if (!sub || !['add', 'del', 'remove', 'list'].includes(sub)) {
+            await sock.sendMessage(chatId, { 
+                text: '╭━━━〔 *SUDO MANAGER* 〕━━━┈\n┃\n┃ 📝 *Usage:*\n┃ ▢ .sudo add <@tag/reply/num>\n┃ ▢ .sudo del <@tag/reply/num>\n┃ ▢ .sudo list\n┃\n╰━━━━━━━━━━━━━━━━━━┈' 
+            }, { quoted: message });
             return;
         }
 
-        const sub = String(m.args?.[0] || "").trim().toLowerCase();
-        const sudoList = Array.isArray(mantra.settings.sudo) ? mantra.settings.sudo : [];
-
-        if (!sub || sub === "list") {
-            if (!sudoList.length) {
-                return m.reply("👑 No sudo users configured.\nAdd with: " + m.prefix + "sudo add <number>");
+        if (sub === 'list') {
+            const list = await getSudoList();
+            if (list.length === 0) {
+                await sock.sendMessage(chatId, { text: '❌ No sudo users found.' }, { quoted: message });
+                return;
             }
-            const lines = sudoList.map((jid, i) => `${i + 1}. @${jid.split("@")[0]}`);
-            return m.reply(`👑 *Sudo Users* (${sudoList.length})\n\n${lines.join("\n")}`);
+            const textList = list.map((j, i) => `┃ ${i + 1}. @${cleanJid(j)}`).join('\n');
+            await sock.sendMessage(chatId, { 
+                text: `╭━━〔 *SUDO USERS* 〕━━┈\n┃\n${textList}\n┃\n╰━━━━━━━━━━━━━━━┈`,
+                mentions: list
+            }, { quoted: message });
+            return;
         }
 
-        // Parse target: from args, mention, or reply
-        let target = String(m.args?.[1] || "").trim();
-        if (!target && m.mentionedJid?.length) {
-            target = m.mentionedJid[0];
-        }
-        if (!target && m.quoted) {
-            target = String(m.raw?.message?.extendedTextMessage?.contextInfo?.participant || "").trim();
+        if (!isOwner) {
+            await sock.sendMessage(chatId, { text: '❌ *Access Denied:* Only the Main Owner can manage Sudo privileges.' }, { quoted: message });
+            return;
         }
 
-        if (sub === "add") {
-            if (!target) return m.reply(`Usage: ${m.prefix}sudo add <number|@mention>`);
+        const targetJid = extractTargetJid(message, args.slice(1));
+        if (!targetJid) {
+            await sock.sendMessage(chatId, { text: '❌ Please mention a user, reply to a message, or provide a number.' }, { quoted: message });
+            return;
+        }
 
-            const jid = target.includes("@") ? target : `${target.replace(/\D/g, "")}@s.whatsapp.net`;
-            if (sudoList.includes(jid)) {
-                return m.reply(`@${jid.split("@")[0]} is already a sudo user.`);
+        let displayId = cleanJid(targetJid);
+        if (targetJid.includes('@lid') && isGroup) {
+            try {
+                const metadata = await sock.groupMetadata(chatId);
+                const found = metadata.participants.find(p => p.lid === targetJid || p.id === targetJid);
+                if (found && found.id && !found.id.includes('@lid')) {
+                    displayId = cleanJid(found.id);
+                }
+            } catch (e) {}
+        }
+
+        if (sub === 'add') {
+            const ok = await addSudo(targetJid);
+            await sock.sendMessage(chatId, { 
+                text: ok ? `✅ *Success:* @${displayId} has been granted Sudo privileges.` : `❌ *Error:* Failed to add sudo.`,
+                mentions: [targetJid]
+            }, { quoted: message });
+            return;
+        }
+
+        if (sub === 'del' || sub === 'remove') {
+            const ownerNumberClean = cleanJid(settings.ownerNumber);
+            if (displayId === ownerNumberClean) {
+                await sock.sendMessage(chatId, { text: '❌ *Action Denied:* Cannot remove the Main Owner.' }, { quoted: message });
+                return;
             }
-
-            sudoList.push(jid);
-            mantra.settings.sudo = sudoList;
-            mantra.saveSettings();
-            return m.reply(`👑 Added @${jid.split("@")[0]} as sudo user.`);
+            const ok = await removeSudo(targetJid);
+            await sock.sendMessage(chatId, { 
+                text: ok ? `✅ *Success:* Sudo privileges revoked from @${displayId}.` : `❌ *Error:* Failed to remove sudo.`,
+                mentions: [targetJid]
+            }, { quoted: message });
+            return;
         }
-
-        if (sub === "remove" || sub === "del" || sub === "rm") {
-            if (!target) return m.reply(`Usage: ${m.prefix}sudo remove <number|@mention>`);
-
-            const jid = target.includes("@") ? target : `${target.replace(/\D/g, "")}@s.whatsapp.net`;
-            const idx = sudoList.indexOf(jid);
-            if (idx === -1) {
-                return m.reply(`@${jid.split("@")[0]} is not a sudo user.`);
-            }
-
-            sudoList.splice(idx, 1);
-            mantra.settings.sudo = sudoList;
-            mantra.saveSettings();
-            return m.reply(`👑 Removed @${jid.split("@")[0]} from sudo users.`);
-        }
-
-        await m.reply(`Usage: ${m.prefix}sudo add|remove|list <number|@mention>`);
     }
 };
+

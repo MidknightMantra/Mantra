@@ -1,67 +1,95 @@
+const isOwnerOrSudo = require('../lib/isOwner');
+const store = require('../lib/lightweight_store');
+const { cleanJid } = require('../lib/isOwner');
+
 module.exports = {
-    name: "settings",
-    react: "⚙️",
-    category: "owner",
-    description: "View all current bot settings in one place",
-    usage: ",settings",
-    aliases: ["config", "botsettings"],
+    command: 'settings',
+    aliases: ['config', 'setting'],
+    category: 'owner',
+    description: 'Show bot settings and per-group configurations',
+    usage: '.settings',
+    async handler(sock, message, args, context = {}) {
+        const chatId = context.chatId || message.key.remoteJid;
+        const senderId = message.key.participant || message.key.remoteJid;
 
-    execute: async (_sock, m, mantra) => {
-        if (!m.isOwner) {
-            await m.reply("Owner only command.");
-            return;
+        try {
+            const isOwner = await isOwnerOrSudo(senderId, sock, chatId);
+            const isMe = message.key.fromMe;
+
+            if (!isMe && !isOwner) {
+                return await sock.sendMessage(chatId, { 
+                    text: '❌ *Access Denied:* Only Owner/Sudo can view settings.' 
+                }, { quoted: message });
+            }
+            
+            const isGroup = chatId.endsWith('@g.us');
+
+            const botMode = await store.getBotMode();
+            
+            const allSettings = await store.getAllSettings('global');
+            const autoStatus = allSettings.autoStatus || { enabled: false };
+            const autoread = allSettings.autoread || { enabled: false };
+            const autotyping = allSettings.autotyping || { enabled: false };
+            const pmblocker = allSettings.pmblocker || { enabled: false };
+            const anticall = allSettings.anticall || { enabled: false };
+            const autoReaction = allSettings.autoReaction || false;
+
+            const getSt = (val) => val ? '✅' : '❌';
+
+            let menuText = `╭━〔 *MEGA SETTINGS* 〕━┈\n┃\n`;
+            menuText += `┃ 👤 *User:* @${cleanJid(senderId)}\n`;
+            menuText += `┃ 🤖 *Mode:* ${botMode.toUpperCase()}\n`;
+            menuText += `┃\n┣━〔 *GLOBAL CONFIG* 〕━┈\n`;
+            menuText += `┃ ${getSt(autoStatus?.enabled)} *Auto Status*\n`;
+            menuText += `┃ ${getSt(autoread?.enabled)} *Auto Read*\n`;
+            menuText += `┃ ${getSt(autotyping?.enabled)} *Auto Typing*\n`;
+            menuText += `┃ ${getSt(pmblocker?.enabled)} *PM Blocker*\n`;
+            menuText += `┃ ${getSt(anticall?.enabled)} *Anti Call*\n`;
+            menuText += `┃ ${getSt(autoReaction)} *Auto Reaction*\n`;
+            menuText += `┃\n`;
+
+            if (isGroup) {
+                const groupSettings = await store.getAllSettings(chatId);
+                
+                const groupAntilink = groupSettings.antilink || { enabled: false };
+                const groupBadword = groupSettings.antibadword || { enabled: false };
+                const groupAntitag = groupSettings.antitag || { enabled: false };
+                const groupChatbot = groupSettings.chatbot || false;
+                const groupWelcome = groupSettings.welcome || false;
+                const groupGoodbye = groupSettings.goodbye || false;
+
+                menuText += `┣━〔 *GROUP CONFIG* 〕━┈\n`;
+                menuText += `┃ ${getSt(groupAntilink.enabled)} *Antilink*\n`;
+                menuText += `┃ ${getSt(groupBadword.enabled)} *Antibadword*\n`;
+                menuText += `┃ ${getSt(groupAntitag.enabled)} *Antitag*\n`;
+                menuText += `┃ ${getSt(groupChatbot)} *Chatbot*\n`;
+                menuText += `┃ ${getSt(groupWelcome)} *Welcome*\n`;
+                menuText += `┃ ${getSt(groupGoodbye)} *Goodbye*\n`;
+            } else {
+                menuText += `┃ 💡 *Note:* _Use in group for group configs._\n`;
+            }
+
+            menuText += `┃\n╰━━━━━━━━━━━━━━━━┈`;
+
+            await sock.sendMessage(chatId, { 
+                text: menuText,
+                mentions: [senderId],
+                contextInfo: {
+                    externalAdReply: {
+                        title: "SYSTEM SETTINGS PANEL",
+                        body: "Configuration Status",
+                        thumbnailUrl: "https://github.com/MidknightMantra.png",
+                        mediaType: 1,
+                        renderLargerThumbnail: true
+                    }
+                }
+            }, { quoted: message });
+
+        } catch (error) {
+            console.error('Settings Command Error:', error);
+            await sock.sendMessage(chatId, { 
+                text: '❌ Error: Failed to load settings.' 
+            }, { quoted: message });
         }
-
-        const s = mantra?.settings || {};
-        const botName = process.env.BOT_NAME || "MANTRA";
-
-        const autoreact = s.autoreact || { enabled: false, emoji: "✅" };
-        const autostatusreact = s.autostatusreact || { enabled: false, emoji: "❤️", random: false };
-        const autostatusreply = s.autostatusreply || { enabled: false, text: "" };
-        const autojoin = s.autojoin || { enabled: false, groups: [] };
-        const autofollow = s.autofollow || { enabled: false, channels: [] };
-        const anticall = s.anticall || { enabled: false, block: false };
-        const antibadword = s.antibadword || { enabled: false, words: [], action: "warn" };
-        const presence = s.presence || { mode: "online", auto: false };
-
-        const chatbot = s.chatbot || { enabled: false, mode: "dm" };
-
-        const on = (v) => v ? "✅ ON" : "❌ OFF";
-
-        const text = [
-            `╭─ ⚙️ *${botName} Settings* ─`,
-            `│`,
-            `├── 🔧 *General*`,
-            `│  Prefix: *${s.prefix || ","}*`,
-            `│  Timezone: ${s.timezone || "UTC"}`,
-            `│`,
-            `├── 🤖 *Auto Features*`,
-            `│  Auto Bio: ${on(s.autobio)}`,
-            `│  Auto React: ${on(autoreact.enabled)}${autoreact.enabled ? ` (${autoreact.emoji})` : ""}`,
-            `│  Presence: ${presence.mode}${presence.auto ? " (auto)" : ""}`,
-            `│  Chatbot: ${on(chatbot.enabled)}${chatbot.enabled ? ` (${chatbot.mode})` : ""}`,
-            `│`,
-            `├── 👁️ *Status*`,
-            `│  Status View: ${on(s.autostatusview !== false)}  [${mantra.statusViewCount || 0} viewed]`,
-            `│  Status React: ${on(autostatusreact.enabled)}${autostatusreact.enabled ? ` (${autostatusreact.random ? "random" : autostatusreact.emoji})` : ""}`,
-            `│  Status Reply: ${on(autostatusreply.enabled)}${autostatusreply.enabled && autostatusreply.text ? ` "${autostatusreply.text.slice(0, 30)}"` : ""}`,
-            `│`,
-            `├── 🔗 *Auto Join/Follow*`,
-            `│  Auto Join: ${on(autojoin.enabled)} _(${autojoin.groups?.length || 0} groups)_`,
-            `│  Auto Follow: ${on(autofollow.enabled)} _(${autofollow.channels?.length || 0} channels)_`,
-            `│`,
-            `├── 🛡️ *Protection*`,
-            `│  Anti Delete: ${on(s.antidelete !== false)}`,
-            `│  Anti View Once: ${on(s.antiviewonce)}`,
-            `│  Anti GC Mention: ${on(s.antigcmention)}`,
-            `│  Anti Call: ${on(anticall.enabled)}${anticall.enabled ? ` (${anticall.block ? "block" : "reject"})` : ""}`,
-            `│  Anti Badword: ${on(antibadword.enabled)}${antibadword.enabled ? ` [${(antibadword.words || []).length} words, ${antibadword.action}]` : ""}`,
-            `│`,
-            `╰──────────────`,
-            ``,
-            `> *${botName}*`
-        ].join("\n");
-
-        await m.reply(text);
     }
 };

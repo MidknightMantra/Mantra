@@ -1,36 +1,44 @@
-const { getGroupAdminState, mentionTag } = require("../lib/groupTools");
-
 module.exports = {
-    name: "tagall",
-    react: "\u{1F4E3}",
-    category: "group",
-    description: "Mention all group members",
-    usage: ",tagall [optional message]",
-    aliases: ["all", "hidetagall", "everyone", "mentionall", "mention"],
+  command: 'tagall',
+  aliases: ['everyone', 'all'],
+  category: 'admin',
+  description: 'Tag all group members with their usernames',
+  usage: '.tagall',
+  groupOnly: true,
+  adminOnly: true,
+  
+  async handler(sock, message, args, context) {
+    const { chatId, channelInfo } = context;
+    
+    try {
+      const groupMetadata = await sock.groupMetadata(chatId);
+      const participants = groupMetadata.participants;
 
-    execute: async (sock, m) => {
-        try {
-            const state = await getGroupAdminState(sock, m);
-            if (!state.ok) return m.reply(state.error);
-            if (!state.senderIsAdmin) return m.reply("You must be an admin to use this command.");
+      if (!participants || participants.length === 0) {
+        await sock.sendMessage(chatId, { 
+          text: 'No participants found in the group.',
+          ...channelInfo
+        }, { quoted: message });
+        return;
+      }
+      
+      let messageText = '🔊 *Hello Everyone:*\n\n';
+      participants.forEach(participant => {
+        messageText += `@${participant.id.split('@')[0]}\n`;
+      });
+      
+      await sock.sendMessage(chatId, {
+        text: messageText,
+        mentions: participants.map(p => p.id),
+        ...channelInfo
+      });
 
-            const mentions = state.participants.map((p) => p.id).filter(Boolean);
-            if (!mentions.length) {
-                await m.reply("No members found in this group.");
-                return;
-            }
-
-            const customText = String(m.args?.join(" ") || "").trim();
-            const header = customText || "Attention everyone.";
-            const roster = mentions.map((jid, index) => `${index + 1}. ${mentionTag(jid)}`).join("\n");
-
-            await sock.sendMessage(m.from, {
-                text: `\u{1F4E2} *Tag All*\n\n${header}\n\n${roster}`,
-                mentions
-            });
-        } catch (e) {
-            console.error("tagall error:", e?.message || e);
-            await m.reply(`${e?.message || e}`);
-        }
+    } catch (error) {
+      console.error('Error in tagall command:', error);
+      await sock.sendMessage(chatId, { 
+        text: 'Failed to tag all members.',
+        ...channelInfo
+      }, { quoted: message });
     }
+  }
 };

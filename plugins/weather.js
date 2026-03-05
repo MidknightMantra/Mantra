@@ -1,65 +1,51 @@
-const axios = require("axios");
+const axios = require('axios');
+const { channelInfo } = require('../lib/messageConfig');
 
 module.exports = {
-    name: "weather",
-    react: "🌦️",
-    category: "other",
-    description: "Get weather information for a location",
-    usage: ",weather <city>",
-    aliases: ["forecast", "temp"],
+  command: 'weather',
+  aliases: ['forecast', 'climate'],
+  category: 'info',
+  description: 'Get the current weather for a specific city!',
+  usage: '.weather <city>',
 
-    execute: async (_sock, m) => {
-        try {
-            const city = String(m.args?.join(" ") || "").trim();
-            if (!city) {
-                await m.reply(`Provide a city name.\nUsage: ${m.prefix}weather <city>`);
-                return;
-            }
+  async handler(sock, message, args, context = {}) {
+    const chatId = context.chatId || message.key.remoteJid;
+    const city = args.join(' ').trim();
 
-            const apiKey = String(process.env.OPENWEATHER_API_KEY || "").trim();
-            if (!apiKey) {
-                await m.reply(
-                    "Weather API key not configured.\n" +
-                    "Ask the bot owner to set the *OPENWEATHER_API_KEY* environment variable."
-                );
-                return;
-            }
-
-            const botName = process.env.BOT_NAME || "MANTRA";
-            const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric`;
-            const response = await axios.get(url, { timeout: 12000 });
-            const d = response.data;
-
-            const weatherIcon = {
-                Clear: "☀️", Clouds: "☁️", Rain: "🌧️",
-                Drizzle: "🌦️", Thunderstorm: "⛈️", Snow: "🌨️",
-                Mist: "🌫️", Fog: "🌫️", Haze: "🌫️"
-            };
-            const icon = weatherIcon[d.weather?.[0]?.main] || "🌡️";
-
-            const text = [
-                `╭─ ${icon} *${d.name}, ${d.sys?.country}* ─`,
-                `│`,
-                `│  🌡 Temp: *${d.main.temp}°C* _(feels ${d.main.feels_like}°C)_`,
-                `│  ⬇️ Min: ${d.main.temp_min}°C  ⬆️ Max: ${d.main.temp_max}°C`,
-                `│  💧 Humidity: ${d.main.humidity}%`,
-                `│  🌬 Wind: ${d.wind.speed} m/s`,
-                `│  🔽 Pressure: ${d.main.pressure} hPa`,
-                `│  ☁️ ${d.weather[0].main} — _${d.weather[0].description}_`,
-                `│`,
-                `╰──────────────`,
-                ``,
-                `> *${botName}*`
-            ].join("\n");
-
-            await m.reply(text);
-        } catch (e) {
-            console.error("weather error:", e?.response?.data || e?.message || e);
-            if (e?.response?.status === 404) {
-                await m.reply("City not found. Check the spelling and try again.");
-                return;
-            }
-            await m.reply("Could not fetch weather info. Try again later.");
-        }
+    if (!city) {
+      return await sock.sendMessage(chatId, {
+        text: "*Please provide a place to search.*\nExample: .weather Karachi",
+        ...channelInfo
+      }, { quoted: message });
     }
+
+    try {
+      const apiKey = '060a6bcfa19809c2cd4d97a212b19273';
+      const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${apiKey}`);
+      const weather = response.data;
+
+      const weatherText = 
+        `ʜᴇʀᴇ ɪs ʏᴏᴜʀ ᴘʟᴀᴄᴇ ᴡᴇᴀᴛʜᴇʀ\n\n` +
+        `「 🌅 」ᴘʟᴀᴄᴇ: ${weather.name}\n` +
+        `「 🗺️ 」ᴄᴏᴜɴᴛʀʏ: ${weather.sys.country}\n` +
+        `「 🌤️ 」ᴠɪᴇᴡ: ${weather.weather[0].description}\n` +
+        `「 🌡️ 」ᴛᴇᴍᴘᴇʀᴀᴛᴜʀᴇ: ${weather.main.temp}°C\n` +
+        `「 💠 」ᴍɪɴɪᴍᴜᴍ ᴛᴇᴍᴘᴇʀᴀᴛᴜʀᴇ: ${weather.main.temp_min}°C\n` +
+        `「 🔥 」ᴍᴀxɪᴍᴜᴍ ᴛᴇᴍᴘᴇʀᴀᴛᴜʀᴇ: ${weather.main.temp_max}°C\n` +
+        `「 💦 」ʜᴜᴍɪᴅɪᴛʏ: ${weather.main.humidity}%\n` +
+        `「 🌬️ 」ᴡɪɴᴅ sᴘᴇᴇᴅ: ${weather.wind.speed} km/h`;
+
+      await sock.sendMessage(chatId, {
+        text: weatherText,
+        ...channelInfo
+      }, { quoted: message });
+
+    } catch (error) {
+      console.error('Weather plugin error:', error);
+      await sock.sendMessage(chatId, {
+        text: '❌ Sorry, I could not fetch the weather. Make sure the place name is correct.',
+        ...channelInfo
+      }, { quoted: message });
+    }
+  }
 };

@@ -1,96 +1,104 @@
-const axios = require("axios");
+const fetch = require('node-fetch');
 
 module.exports = {
-    name: "trt",
-    react: "🌐",
-    category: "other",
-    description: "Translate text between languages",
-    usage: ",trt <target lang> <text> OR ,trt <source>|<target> <text>",
-    aliases: ["translate", "trans"],
+  command: 'translate',
+  aliases: ['trt'],
+  category: 'tools',
+  description: 'Translate text to the specified language.',
+  usage: '.translate <text> <lang> or reply to a message with .translate <lang>',
+  
+  async handler(sock, message, args, context = {}) {
+    const chatId = context.chatId || message.key.remoteJid;
 
-    execute: async (_sock, m) => {
-        try {
-            const args = m.args || [];
-            const botName = process.env.BOT_NAME || "MANTRA";
+    try {
+      await sock.presenceSubscribe(chatId);
+      await sock.sendPresenceUpdate('composing', chatId);
 
-            if (args.length < 2) {
-                await m.reply(
-                    `╭─ 🌐 *Translate* ─\n` +
-                    `│\n` +
-                    `│  Usage:\n` +
-                    `│  ${m.prefix}trt <lang> <text>\n` +
-                    `│  ${m.prefix}trt en|sw <text>\n` +
-                    `│\n` +
-                    `│  Auto-detects source language.\n` +
-                    `│  Use source|target format to\n` +
-                    `│  specify both languages.\n` +
-                    `│\n` +
-                    `│  Examples:\n` +
-                    `│  ${m.prefix}trt sw Hello world\n` +
-                    `│  ${m.prefix}trt en|fr Good morning\n` +
-                    `│\n` +
-                    `╰──────────────\n\n` +
-                    `> *${botName}*`
-                );
-                return;
-            }
+      let textToTranslate = '';
+      let lang = '';
 
-            const langArg = String(args[0]).trim().toLowerCase();
-            const textToTranslate = args.slice(1).join(" ").trim();
+      const quotedMessage = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+      if (quotedMessage) {
+        textToTranslate = quotedMessage.conversation || 
+                          quotedMessage.extendedTextMessage?.text || 
+                          quotedMessage.imageMessage?.caption || 
+                          quotedMessage.videoMessage?.caption || 
+                          '';
 
-            let sourceLang = "auto";
-            let targetLang = langArg;
-
-            if (langArg.includes("|")) {
-                const parts = langArg.split("|");
-                sourceLang = parts[0].trim() || "auto";
-                targetLang = parts[1].trim();
-            }
-
-            if (!targetLang || !/^[a-z]{2,5}$/i.test(targetLang)) {
-                await m.reply("Invalid language code. Examples: en, sw, fr, es, hi, ar, zh");
-                return;
-            }
-
-            if (!textToTranslate) {
-                await m.reply(`Provide text to translate.\nUsage: ${m.prefix}trt <lang> <text>`);
-                return;
-            }
-
-            const langpair = sourceLang === "auto"
-                ? `autodetect|${targetLang}`
-                : `${sourceLang}|${targetLang}`;
-
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=${langpair}`;
-            const response = await axios.get(url, { timeout: 12000 });
-            const translation = response?.data?.responseData?.translatedText;
-            const detectedLang = response?.data?.responseData?.detectedLanguage;
-
-            if (!translation) {
-                await m.reply("Translation service returned no result. Try again.");
-                return;
-            }
-
-            const sourceLabel = detectedLang ? detectedLang.toUpperCase() : (sourceLang === "auto" ? "Auto" : sourceLang.toUpperCase());
-
-            const text = [
-                `╭─ 🌐 *Translation* ─`,
-                `│`,
-                `│  *Original* _(${sourceLabel})_:`,
-                `│  ${textToTranslate}`,
-                `│`,
-                `│  *Translated* _(${targetLang.toUpperCase()})_:`,
-                `│  ${translation}`,
-                `│`,
-                `╰──────────────`,
-                ``,
-                `> *${botName}*`
-            ].join("\n");
-
-            await m.reply(text);
-        } catch (e) {
-            console.error("translate error:", e?.response?.data || e?.message || e);
-            await m.reply("Translation failed. Please try again later.");
+        lang = args[0]?.trim();
+      } else {
+        if (args.length < 2) {
+          return await sock.sendMessage(chatId, {
+            text: `*TRANSLATOR*\n\nUsage:\n1. Reply to a message with: .translate <lang> or .trt <lang>\n2. Or type: .translate <text> <lang> or .trt <text> <lang>\n\nExample:\n.translate hello fr\n.trt hello fr\n\nLanguage codes:\nfr - French\nes - Spanish\nde - German\nit - Italian\npt - Portuguese\nru - Russian\nja - Japanese\nko - Korean\nzh - Chinese\nar - Arabic\nhi - Hindi`,
+            quoted: message
+          });
         }
+
+        lang = args.pop();
+        textToTranslate = args.join(' ');
+      }
+
+      if (!textToTranslate) {
+        return await sock.sendMessage(chatId, {
+          text: 'No text found to translate. Please provide text or reply to a message.',
+          quoted: message
+        });
+      }
+
+      let translatedText = null;
+      let error = null;
+      try {
+        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${lang}&dt=t&q=${encodeURIComponent(textToTranslate)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data[0] && data[0][0] && data[0][0][0]) {
+            translatedText = data[0][0][0];
+          }
+        }
+      } catch (e) {
+        error = e;
+      }
+      if (!translatedText) {
+        try {
+          const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(textToTranslate)}&langpair=auto|${lang}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.responseData && data.responseData.translatedText) {
+              translatedText = data.responseData.translatedText;
+            }
+          }
+        } catch (e) {
+          error = e;
+        }
+      }
+      if (!translatedText) {
+        try {
+          const response = await fetch(`https://api.dreaded.site/api/translate?text=${encodeURIComponent(textToTranslate)}&lang=${lang}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.translated) {
+              translatedText = data.translated;
+            }
+          }
+        } catch (e) {
+          error = e;
+        }
+      }
+      if (!translatedText) {
+        throw new Error('All translation APIs failed');
+      }
+      await sock.sendMessage(chatId, {
+        text: `${translatedText}`,
+      }, {
+        quoted: message
+      });
+
+    } catch (error) {
+      console.error('❌ Error in translate command:', error);
+      await sock.sendMessage(chatId, {
+        text: '❌ Failed to translate text. Please try again later.\n\nUsage:\n1. Reply to a message with: .translate <lang> or .trt <lang>\n2. Or type: .translate <text> <lang> or .trt <text> <lang>',
+        quoted: message
+      });
     }
+  }
 };

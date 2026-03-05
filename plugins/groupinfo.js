@@ -1,49 +1,60 @@
-const { getGroupAdminState, mentionTag } = require("../lib/groupTools");
-
-function formatCreation(tsSeconds) {
-    const ts = Number(tsSeconds || 0);
-    if (!Number.isFinite(ts) || ts <= 0) return "Unknown";
-    return new Date(ts * 1000).toLocaleString();
-}
-
 module.exports = {
-    name: "groupinfo",
-    react: "\u{1F4CB}",
-    category: "group",
-    description: "Show group metadata and settings",
-    usage: ",groupinfo",
-    aliases: ["ginfo", "gcinfo", "met"],
+  command: 'groupinfo',
+  aliases: ['ginfo', 'gcinfo', 'infogroup'],
+  category: 'group',
+  description: 'Display detailed group information',
+  usage: '.groupinfo',
+  groupOnly: true,
+  
+  async handler(sock, message, args, context) {
+    const { chatId, channelInfo } = context;
+    
+    try {
+      const groupMetadata = await sock.groupMetadata(chatId);
+      
+      let pp;
+      try {
+        pp = await sock.profilePictureUrl(chatId, 'image');
+      } catch {
+        pp = 'https://files.catbox.moe/djgtt1.jpg';
+      }
+      
+      const participants = groupMetadata.participants;
+      const groupAdmins = participants.filter(p => p.admin);
+      const listAdmin = groupAdmins.map((v, i) => `${i + 1}. @${v.id.split('@')[0]}`).join('\n');
+      
+      const owner = groupMetadata.owner || groupAdmins.find(p => p.admin === 'superadmin')?.id || chatId.split('-')[0] + '@s.whatsapp.net';
+      
+      const text = `
+┌──「 *INFO GROUP* 」
+▢ *♻️ID:*
+   • ${groupMetadata.id}
+▢ *🔖NAME* : 
+• ${groupMetadata.subject}
+▢ *👥Members* :
+• ${participants.length}
+▢ *🤿Group Owner:*
+• @${owner.split('@')[0]}
+▢ *🕵🏻‍♂️Admins:*
+${listAdmin}
 
-    execute: async (sock, m) => {
-        try {
-            const state = await getGroupAdminState(sock, m);
-            if (!state.ok) return m.reply(state.error);
+▢ *📌Description* :
+   • ${groupMetadata.desc?.toString() || 'No description'}
+`.trim();
 
-            const meta = state.metadata || {};
-            const adminsCount = state.participants.filter((p) => p?.admin).length;
-            const owner = meta.owner || "";
+      await sock.sendMessage(chatId, {
+        image: { url: pp },
+        caption: text,
+        mentions: [...groupAdmins.map(v => v.id), owner],
+        ...channelInfo
+      });
 
-            const text = [
-                "\u{1F4CB} *Group Information*",
-                "",
-                `*Name:* ${meta.subject || "Unknown"}`,
-                `*JID:* ${meta.id || m.from}`,
-                `*Created:* ${formatCreation(meta.creation)}`,
-                `*Members:* ${state.participants.length}`,
-                `*Admins:* ${adminsCount}`,
-                `*Announcements:* ${meta.announce ? "ON (admins only)" : "OFF (everyone)"}`,
-                `*Edit Group Info:* ${meta.restrict ? "Admins only" : "Everyone"}`,
-                `*Join Approval:* ${meta.joinApprovalMode ? "ON" : "OFF"}`,
-                owner ? `*Owner:* ${mentionTag(owner)}` : "*Owner:* Unknown"
-            ].join("\n");
-
-            await sock.sendMessage(m.from, {
-                text,
-                mentions: owner ? [owner] : []
-            });
-        } catch (e) {
-            console.error("groupinfo error:", e?.message || e);
-            await m.reply(`${e?.message || e}`);
-        }
+    } catch (error) {
+      console.error('Error in groupinfo command:', error);
+      await sock.sendMessage(chatId, { 
+        text: 'Failed to get group info!',
+        ...channelInfo
+      }, { quoted: message });
     }
+  }
 };

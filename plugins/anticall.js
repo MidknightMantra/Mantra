@@ -1,47 +1,98 @@
-module.exports = {
-    name: "anticall",
-    react: "📵",
-    category: "owner",
-    description: "Auto-reject/block incoming voice and video calls",
-    usage: ",anticall on|off|block",
-    aliases: ["blockcall", "rejectcall", "callblock"],
+const store = require('../lib/lightweight_store');
+const fs = require('fs');
 
-    execute: async (_sock, m, mantra) => {
-        if (!m.isOwner) {
-            await m.reply("Owner only command.");
-            return;
-        }
+const MONGO_URL = process.env.MONGO_URL;
+const POSTGRES_URL = process.env.POSTGRES_URL;
+const MYSQL_URL = process.env.MYSQL_URL;
+const SQLITE_URL = process.env.DB_URL;
+const HAS_DB = !!(MONGO_URL || POSTGRES_URL || MYSQL_URL || SQLITE_URL);
 
-        const state = String(m.args?.[0] || "").trim().toLowerCase();
-        const current = mantra.settings.anticall || { enabled: false, block: false };
+const ANTICALL_PATH = './data/anticall.json';
 
-        if (!state) {
-            await m.reply(
-                `📵 *Anti-Call*\n\n` +
-                `• Status: ${current.enabled ? "✅ ON" : "❌ OFF"}\n` +
-                `• Mode: ${current.block ? "🚫 Block caller" : "🔄 Reject only"}\n\n` +
-                `Usage:\n` +
-                `• ${m.prefix}anticall on — reject calls only\n` +
-                `• ${m.prefix}anticall block — reject & block caller\n` +
-                `• ${m.prefix}anticall off — disable`
-            );
-            return;
-        }
-
-        if (state === "block") {
-            mantra.settings.anticall = { enabled: true, block: true };
-            mantra.saveSettings();
-            await m.reply("📵 Anti-Call is now ✅ ON\nMode: 🚫 *Block caller* (callers will be blocked)");
-            return;
-        }
-
-        if (!["on", "off"].includes(state)) {
-            await m.reply(`Usage: ${m.prefix}anticall on|off|block`);
-            return;
-        }
-
-        mantra.settings.anticall = { enabled: state === "on", block: current.block };
-        mantra.saveSettings();
-        await m.reply(`📵 Anti-Call is now ${mantra.settings.anticall.enabled ? "✅ ON" : "❌ OFF"}`);
+async function readState() {
+  try {
+    if (HAS_DB) {
+      const settings = await store.getSetting('global', 'anticall');
+      return settings || { enabled: false };
+    } else {
+      if (!fs.existsSync(ANTICALL_PATH)) return { enabled: false };
+      const raw = fs.readFileSync(ANTICALL_PATH, 'utf8');
+      const data = JSON.parse(raw || '{}');
+      return { enabled: !!data.enabled };
     }
+  } catch {
+    return { enabled: false };
+  }
+}
+
+async function writeState(enabled) {
+  try {
+    if (HAS_DB) {
+      await store.saveSetting('global', 'anticall', { enabled: !!enabled });
+    } else {
+      if (!fs.existsSync('./data')) fs.mkdirSync('./data', { recursive: true });
+      fs.writeFileSync(ANTICALL_PATH, JSON.stringify({ enabled: !!enabled }, null, 2));
+    }
+  } catch (e) {
+    console.error('Error writing anticall state:', e);
+  }
+}
+
+module.exports = {
+  command: 'anticall',
+  aliases: ['acall', 'callblock'],
+  category: 'owner',
+  description: 'Enable or disable auto-blocking of incoming calls',
+  usage: '.anticall <on|off|status>',
+  ownerOnly: true,
+  
+  async handler(sock, message, args, context = {}) {
+    const chatId = context.chatId || message.key.remoteJid;
+    const state = await readState();
+    const sub = args.join(' ').trim().toLowerCase();
+
+    if (!sub || !['on', 'off', 'status'].includes(sub)) {
+      return await sock.sendMessage(
+        chatId,
+        {
+          text: '*ANTICALL SETTINGS*\n\n' +
+                '📵 Auto-block incoming calls\n\n' +
+                '*Usage:*\n' +
+                '• `.anticall on` - Enable\n' +
+                '• `.anticall off` - Disable\n' +
+                '• `.anticall status` - Current status\n\n' +
+                `*Current Status:* ${state.enabled ? '✅ ENABLED' : '❌ DISABLED'}\n` +
+                `*Storage:* ${HAS_DB ? 'Database' : 'File System'}`
+        },
+        { quoted: message }
+      );
+    }
+    if (sub === 'status') {
+      return await sock.sendMessage(
+        chatId,
+        { 
+          text: `📵 *Anticall Status*\n\n` +
+                `Current: ${state.enabled ? '✅ *ENABLED*' : '❌ *DISABLED*'}\n` +
+                `Storage: ${HAS_DB ? 'Database' : 'File System'}\n\n` +
+                `${state.enabled ? 'All incoming calls will be rejected and blocked.' : 'Incoming calls are allowed.'}`
+        },
+        { quoted: message }
+      );
+    }
+
+    const enable = sub === 'on';
+    await writeState(enable);
+
+    await sock.sendMessage(
+      chatId,
+      { 
+        text: `📵 *Anticall ${enable ? 'ENABLED' : 'DISABLED'}*\n\n` +
+              `${enable ? '✅ Incoming calls will now be rejected and blocked automatically.' : '❌ Incoming calls are now allowed.'}`
+      },
+      { quoted: message }
+    );
+  },
+  
+  readState,
+  writeState
 };

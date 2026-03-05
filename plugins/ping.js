@@ -1,20 +1,24 @@
 module.exports = {
-    name: "ping",
-    react: "⚡",
-    category: "general",
-    description: "Check bot response speed",
-    usage: ",ping",
-    aliases: ["pi", "p"],
-
-    execute: async (sock, m) => {
-        const startTime = process.hrtime();
-        await m.reply("Pong!");
-        const elapsed = process.hrtime(startTime);
-        const responseTime = Math.max(
-            1,
-            Math.floor(elapsed[0] * 1000 + elapsed[1] / 1_000_000)
-        );
-
-        await m.reply(`⚡ Latency: ${responseTime}ms\n> Mantra`);
-    }
+  command: 'ping',
+  aliases: ['p', 'pong'],
+  category: 'general',
+  description: 'Check bot response time',
+  usage: '.ping',
+  isPrefixless: true,
+  
+  async handler(sock, message, args) {
+    const start = Date.now();
+    const chatId = message.key.remoteJid;
+    
+    const sent = await sock.sendMessage(chatId, { 
+      text: 'Pinging...' 
+    });
+    
+    const end = Date.now();
+    
+    await sock.sendMessage(chatId, {
+      text: `🏓 Pong!\nLatency: ${end - start}ms`,
+      edit: sent.key
+    });
+  }
 };

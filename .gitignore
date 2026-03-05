@@ -6,11 +6,16 @@ node_modules/
 .env.*
 !.env.example
 
-# Runtime/session auth data (contains WhatsApp creds/keys)
+# Runtime/session auth data
+session/
 sessions/
+auth_info_baileys/
 
 # Runtime data files
+data/*.json
+!data/example.json
 scheduled-tasks.json
+baileys_store.json
 
 # Logs
 logs/

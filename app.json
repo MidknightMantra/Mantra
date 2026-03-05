@@ -1,93 +1,91 @@
 {
   "name": "mantra",
-  "description": "Premium WhatsApp bot built with Baileys v7 and Express Dashboard",
+  "description": " Whatsapp automation",
   "keywords": [
-    "whatsapp",
-    "bot",
-    "baileys",
-    "nodejs"
+    "whatsapp Bot"
   ],
-  "website": "https://github.com/MidknightMantra/",
   "repository": "https://github.com/MidknightMantra/Mantra",
-  "success_url": "/",
-  "stack": "heroku-22",
-  "formation": {
-    "worker": {
-      "quantity": 1,
-      "size": "basic"
-    }
-  },
-  "scripts": {
-    "postdeploy": "npm run check"
-  },
+  "stack": "container",
   "env": {
-    "MANTRA_SESSION": {
-      "description": "Primary session string for restore. Supports raw creds JSON, base64 JSON, or Mantra~<base64> format.",
-      "required": false
-    },
     "SESSION_ID": {
-      "description": "Alternative session variable name used by many hosting dashboards. Same format as MANTRA_SESSION.",
-      "required": false
+      "description": "Put your session id",
+      "required": true,
+      "value": ""
+    },
+    "MONGO_URL": {
+      "description": "Put if you have mongodb database url",
+      "required": false,
+      "value": ""
+    },
+    "MYSQL_URL": {
+      "description": "Put if you have mysql database url",
+      "required": false,
+      "value": ""
+    },
+    "POSTGRES_URL": {
+      "description": "Put if you have postgres database url",
+      "required": false,
+      "value": ""
+    },
+    "PREFIXES=": {
+      "description": "One or more prefixes splited by comma",
+      "required": false,
+      "value": "."
+    },
+    "PACKNAME": {
+      "description": "Your sticker pack name",
+      "required": false,
+      "value": "Mantra-Bot"
     },
     "BOT_NAME": {
-      "description": "Display name used by menu/help messages",
-      "value": "MANTRA",
-      "required": false
-    },
-    "BOT_OWNER": {
-      "description": "Owner display name used by menu/help messages",
-      "value": "MidknightMantra",
-      "required": false
-    },
-    "BOT_GITHUB": {
-      "description": "GitHub repo/link shown in alive command",
-      "value": "https://github.com/MidknightMantra/Mantra",
-      "required": false
-    },
-    "ALIVE_IMG": {
-      "description": "Image URL used by alive command",
-      "value": "https://files.catbox.moe/2evo2f.jpg",
-      "required": false
-    },
-    "ALIVE_AUDIO": {
-      "description": "Audio URL used by alive command",
-      "value": "https://files.catbox.moe/9h4ttf.mp3",
-      "required": false
+      "description": "Your bot name",
+      "required": false,
+      "value": "Mantra"
     },
     "OWNER_NUMBER": {
-      "description": "Owner WhatsApp number in international format (digits only), used for owner-only command checks",
-      "required": false
+      "description": "Your WhatsApp number",
+      "required": false,
+      "value": "923000000000"
     },
-    "BOT_OWNER_NUMBER": {
-      "description": "Alternative owner number variable (digits only)",
-      "required": false
+    "COMMAND_MODE": {
+      "description": "Bot mode",
+      "required": false,
+      "value": "public"
     },
-    "OPENWEATHER_API_KEY": {
-      "description": "OpenWeatherMap API key for weather command",
-      "required": false
+    "BOT_OWNER": {
+      "description": "Owner name",
+      "required": false,
+      "value": "MidknightMantra"
     },
-    "AI_ENDPOINT": {
-      "description": "AI endpoint URL(s) for ,ai command. Multiple endpoints can be comma-separated.",
-      "required": false
+    "TIMEZONE": {
+      "description": "Your time zone",
+      "required": false,
+      "value": "Asia/Karachi"
     },
-    "OPENAI_API_KEY": {
-      "description": "Optional OpenAI API key fallback for ,ai command",
-      "required": false
+    "REMOVEBG_KEY": {
+      "description": "Put your Remove background api key",
+      "required": false,
+      "value": ""
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
     },
-    "AI_MODEL": {
-      "description": "Optional OpenAI model for ,ai fallback (default: gpt-4.1-mini)",
-      "value": "gpt-4.1-mini",
-      "required": false
+    {
+      "url": "https://github.com/DuckyTeam/heroku-buildpack-imagemagick.git"
     },
-    "AUTO_JOIN_GROUPS": {
-      "description": "Optional comma-separated group invite links/codes to auto-join on startup. Example: https://chat.whatsapp.com/xxxx,yyyy",
-      "value": "https://chat.whatsapp.com/JBNW9T9VimjDxa8rD5rKfc?mode=gi_t",
-      "required": false
+    {
+      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest"
     },
-    "AUTO_FOLLOW_CHANNELS": {
-      "description": "Optional comma-separated WhatsApp channel links or newsletter JIDs to auto-follow on startup. Example: https://whatsapp.com/channel/xxxx,1203...@newsletter",
-      "value": "https://www.whatsapp.com/channel/0029VbBs1ph6RGJIhteNql3r",
-      "required": false
+    {
+      "url": "https://github.com/clhuang/heroku-buildpack-webp-binaries.git"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
     }
   }
 }

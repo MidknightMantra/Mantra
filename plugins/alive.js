@@ -1,63 +1,68 @@
-const fs = require("fs");
-const path = require("path");
-const { runtime } = require("../lib/helper");
-
-const DEFAULT_ALIVE_IMAGE = "https://files.catbox.moe/2evo2f.jpg";
-const DEFAULT_ALIVE_AUDIO = "https://files.catbox.moe/9h4ttf.mp3";
+const os = require("os");
+const process = require("process");
+const settings = require("../settings");
 
 module.exports = {
-    name: "alive",
-    react: "🟢",
-    category: "main",
-    description: "Check whether the bot is online",
-    usage: ",alive",
-    aliases: ["botstatus"],
+  command: 'alive',
+  aliases: ['status', 'bot'],
+  category: 'general',
+  description: 'Check bot status and system info',
+  usage: '.alive',
+  isPrefixless: true,
 
-    execute: async (sock, m) => {
-        try {
-            const botName = process.env.BOT_NAME || "MANTRA";
-            const ownerName = process.env.BOT_OWNER || "MidknightMantra";
-            const github = process.env.BOT_GITHUB || "https://github.com/MidknightMantra/Mantra";
+  async handler(sock, message, args, context = {}) {
+    const chatId = context.chatId || message.key.remoteJid;
 
-            const caption = [
-                `╭─── *${botName}* ───`,
-                `│`,
-                `│  🟢 *Online & Running*`,
-                `│  ⏱ Uptime: ${runtime(process.uptime())}`,
-                `│  👤 Owner: ${ownerName}`,
-                `│`,
-                `├── *Features*`,
-                `│  📥 Download songs & videos`,
-                `│  📰 Fetch latest news`,
-                `│  🎮 Fun commands`,
-                `│  👥 Group management`,
-                `│`,
-                `╰── 🔗 ${github}`,
-                ``,
-                `> *${botName}*`
-            ].join("\n");
+    try {
+      let uptime = Math.floor(process.uptime());
 
-            const voicePath = path.join(__dirname, "..", "media", "media_alive.mp3");
-            const aliveAudio = String(process.env.ALIVE_AUDIO || "").trim() || DEFAULT_ALIVE_AUDIO;
-            const aliveImg = String(process.env.ALIVE_IMG || "").trim() || DEFAULT_ALIVE_IMAGE;
+      const days = Math.floor(uptime / 86400);
+      uptime %= 86400;
+      const hours = Math.floor(uptime / 3600);
+      uptime %= 3600;
+      const minutes = Math.floor(uptime / 60);
+      const seconds = uptime % 60;
 
-            try {
-                await sock.sendMessage(m.from, {
-                    audio: fs.existsSync(voicePath) ? { url: voicePath } : { url: aliveAudio },
-                    mimetype: "audio/mp4",
-                    ptt: true
-                });
-            } catch (err) {
-                console.error("alive voice send error:", err?.message || err);
-            }
+      const uptimeParts = [];
+      if (days) uptimeParts.push(`${days}d`);
+      if (hours) uptimeParts.push(`${hours}h`);
+      if (minutes) uptimeParts.push(`${minutes}m`);
+      if (seconds || uptimeParts.length === 0) uptimeParts.push(`${seconds}s`);
 
-            await sock.sendMessage(m.from, {
-                image: { url: aliveImg },
-                caption
-            });
-        } catch (e) {
-            console.error("alive error:", e?.message || e);
-            await m.reply("Failed to send alive message.");
+      const uptimeText = uptimeParts.join(' ');
+      const totalMem = (os.totalmem() / 1024 / 1024).toFixed(2);
+      const freeMem = (os.freemem() / 1024 / 1024).toFixed(2);
+      const usedMem = (totalMem - freeMem).toFixed(2);
+      const cpuLoad = os.loadavg()[0].toFixed(2);
+      const platform = os.platform();
+      const arch = os.arch();
+      const nodeVersion = process.version;
+
+      const text =
+        `*🤖 ${settings.botName} IS ACTIVE!*\n\n` +
+        `*Version:* ${settings.version}\n` +
+        `*Uptime:* ${uptimeText}\n` +
+        `*RAM Usage:* ${usedMem} MB / ${totalMem} MB\n` +
+        `*CPU Load:* ${cpuLoad}\n` +
+        `*Platform:* ${platform} (${arch})\n` +
+        `*Node.js:* ${nodeVersion}\n`;
+
+      await sock.sendMessage(chatId, {
+        text,
+        contextInfo: {
+          forwardingScore: 999,
+          isForwarded: true,
+          forwardedNewsletterMessageInfo: {
+            newsletterJid: '120363422328492522@newsletter',
+            newsletterName: 'Mantra',
+            serverMessageId: -1
+          }
         }
+      }, { quoted: message });
+
+    } catch (error) {
+      console.error('Error in alive command:', error);
+      await sock.sendMessage(chatId, { text: '✅ Bot is alive and running!' }, { quoted: message });
     }
+  }
 };

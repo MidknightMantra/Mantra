@@ -1,36 +1,114 @@
-const { getGroupAdminState } = require("../lib/groupTools");
-const { getGroupSetting, setGroupSetting } = require("../lib/groupSettings");
+const { handleGoodbye } = require('../lib/welcome');
+const { isGoodByeOn, getGoodbye } = require('../lib/index');
+const fetch = require('node-fetch');
+
+async function handleLeaveEvent(sock, id, participants) {
+    const isGoodbyeEnabled = await isGoodByeOn(id);
+    if (!isGoodbyeEnabled) return;
+
+    const customMessage = await getGoodbye(id);
+    const groupMetadata = await sock.groupMetadata(id);
+    const groupName = groupMetadata.subject;
+    
+    for (const participant of participants) {
+        try {
+            const participantString = typeof participant === 'string' ? participant : (participant.id || participant.toString());
+            const user = participantString.split('@')[0];
+            
+            let displayName = user;
+            try {
+                const contact = await sock.getBusinessProfile(participantString);
+                if (contact && contact.name) {
+                    displayName = contact.name;
+                } else {
+                    const groupParticipants = groupMetadata.participants;
+                    const userParticipant = groupParticipants.find(p => p.id === participantString);
+                    if (userParticipant && userParticipant.name) {
+                        displayName = userParticipant.name;
+                    }
+                }
+            } catch (nameError) {
+                console.log('Could not fetch display name, using phone number');
+            }
+            
+            let finalMessage;
+            if (customMessage) {
+                finalMessage = customMessage
+                    .replace(/{user}/g, `@${displayName}`)
+                    .replace(/{group}/g, groupName);
+            } else {
+                finalMessage = `*@${displayName}* we will never miss you!`;
+            }
+            
+            try {
+                let profilePicUrl = `https://files.catbox.moe/djgtt1.jpg`;
+                try {
+                    const profilePic = await sock.profilePictureUrl(participantString, 'image');
+                    if (profilePic) {
+                        profilePicUrl = profilePic;
+                    }
+                } catch (profileError) {
+                    console.log('Could not fetch profile picture, using default');
+                }
+                
+                const apiUrl = `https://api.some-random-api.com/welcome/img/2/gaming1?type=leave&textcolor=red&username=${encodeURIComponent(displayName)}&guildName=${encodeURIComponent(groupName)}&memberCount=${groupMetadata.participants.length}&avatar=${encodeURIComponent(profilePicUrl)}`;
+                
+                const response = await fetch(apiUrl);
+                if (response.ok) {
+                    const imageBuffer = await response.buffer();
+                    
+                    await sock.sendMessage(id, {
+                        image: imageBuffer,
+                        caption: finalMessage,
+                        mentions: [participantString]
+                    });
+                    continue;
+                }
+            } catch (imageError) {
+                console.log('Image generation failed, falling back to text');
+            }
+            
+            await sock.sendMessage(id, {
+                text: finalMessage,
+                mentions: [participantString]
+            });
+        } catch (error) {
+            console.error('Error sending goodbye message:', error);
+            const participantString = typeof participant === 'string' ? participant : (participant.id || participant.toString());
+            const user = participantString.split('@')[0];
+            
+            let fallbackMessage;
+            if (customMessage) {
+                fallbackMessage = customMessage
+                    .replace(/{user}/g, `@${user}`)
+                    .replace(/{group}/g, groupName);
+            } else {
+                fallbackMessage = `Goodbye @${user}! 👋`;
+            }
+            
+            await sock.sendMessage(id, {
+                text: fallbackMessage,
+                mentions: [participantString]
+            });
+        }
+    }
+}
 
 module.exports = {
-    name: "goodbye",
-    react: "👋",
-    category: "group",
-    description: "Toggle goodbye messages for leave events",
-    usage: ",goodbye on|off",
-    aliases: ["goodbyetoggle", "bye"],
+    command: 'goodbye',
+    aliases: ['bye', 'leave'],
+    category: 'admin',
+    description: 'Configure goodbye messages for leaving members',
+    usage: '.goodbye <on|off|set message>',
+    groupOnly: true,
+    adminOnly: true,
 
-    execute: async (sock, m) => {
-        const state = await getGroupAdminState(sock, m);
-        if (!state.ok) return m.reply(state.error);
-        if (!state.senderIsAdmin && !m.isOwner) return m.reply("Admin/owner only command.");
+    async handler(sock, message, args, context = {}) {
+        const chatId = context.chatId || message.key.remoteJid;
+        const matchText = args.join(' ');
 
-        const arg = String(m.args?.[0] || "").trim().toLowerCase();
-        const current = Boolean(getGroupSetting(m.from, "GOODBYE_ENABLED", false));
+        await handleGoodbye(sock, chatId, message, matchText);
+    },
 
-        if (!arg) {
-            await m.reply(
-                `Goodbye is ${current ? "ON" : "OFF"}\n` +
-                `Usage: ${m.prefix}goodbye on|off`
-            );
-            return;
-        }
-
-        if (!["on", "off"].includes(arg)) {
-            await m.reply(`Usage: ${m.prefix}goodbye on|off`);
-            return;
-        }
-
-        setGroupSetting(m.from, "GOODBYE_ENABLED", arg === "on");
-        await m.reply(`Goodbye is now ${arg.toUpperCase()}`);
-    }
+    handleLeaveEvent
 };

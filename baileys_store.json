@@ -1,0 +1,1568 @@
+{
+  "contacts": {
+    "17073031934170@lid": {
+      "id": "17073031934170@lid",
+      "name": "~Mwita 󱢏"
+    },
+    "244542922072084@lid": {
+      "id": "244542922072084@lid",
+      "name": "@Warren10_"
+    },
+    "63926796595386@lid": {
+      "id": "63926796595386@lid",
+      "name": "big machine"
+    },
+    "69196738203759@lid": {
+      "id": "69196738203759@lid"
+    },
+    "61620516597944@lid": {
+      "id": "61620516597944@lid",
+      "name": "J.a.b.e.z."
+    },
+    "146149801504884@lid": {
+      "id": "146149801504884@lid",
+      "name": "Ambrose Groups CEO"
+    }
+  },
+  "chats": {
+    "254732722385@s.whatsapp.net": {
+      "id": "254732722385@s.whatsapp.net",
+      "name": "",
+      "conversationTimestamp": 1772698084
+    },
+    "116987040661634@lid": {
+      "id": "116987040661634@lid",
+      "name": "",
+      "conversationTimestamp": 1772697216
+    },
+    "120363423331467133@g.us": {
+      "id": "120363423331467133@g.us",
+      "name": ""
+    },
+    "120363422284445114@g.us": {
+      "id": "120363422284445114@g.us",
+      "name": "",
+      "conversationTimestamp": 1772698232,
+      "unreadCount": 1
+    },
+    "status@broadcast": {
+      "id": "status@broadcast",
+      "name": "",
+      "conversationTimestamp": 1772697403,
+      "unreadCount": 1
+    },
+    "120363422328492522@newsletter": {
+      "id": "120363422328492522@newsletter",
+      "name": "",
+      "conversationTimestamp": 1772697463,
+      "unreadCount": 1
+    },
+    "120363424861515536@g.us": {
+      "id": "120363424861515536@g.us",
+      "name": "",
+      "conversationTimestamp": 1772698361,
+      "unreadCount": 1
+    }
+  },
+  "botMode": "public",
+  "messages": {
+    "254732722385@s.whatsapp.net": [
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB08CFF0E5CA0353EC4B8"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:05:57 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697957,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB04FFCB21F8C64BB5459"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:01 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697961,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0880DA3899D9FBBE807"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:06 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697966,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0A5FA85590D91594FE8"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:09 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697969,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0B43D9DC996F65567E7"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:17 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697977,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0771F5C326740D0FBDD"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:24 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697984,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB03D6551D77F3DF5F5A5"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:33 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697993,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0253B2457E7AA89F65B"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:41 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698001,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB09D90FB86ABEA99E98D"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:48 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698008,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0A5EFF4C2E0C2E10B87"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:53 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698013,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB094E9F7C69A00D1E0A8"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:06:55 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698015,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB028749856B875077C00"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:00 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698020,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB060668ACA81E5B2A252"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:02 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698022,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB06D6FADB40F76F67337"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:10 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698030,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0FDAF2A5313FFB5EB0F"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:18 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698038,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0323B02AA501E537278"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:26 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698046,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB061E93018429E548ED3"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:33 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698053,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB038493FB3F2AA50715D"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:07:48 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698068,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "3EB0BBFCC1F281998F9B1E"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "🤖 Bot Connected Successfully!\n\n⏰ Time: 3/5/2026, 11:08:04 AM\n✅ Status: Online and Ready!\n\n✅Make sure to join below channel",
+            "contextInfo": {
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363422328492522@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698084,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "254732722385@s.whatsapp.net",
+          "fromMe": false,
+          "id": "A517F9A5D1740646EA43F7072F38ED55",
+          "participant": "",
+          "addressingMode": "pn"
+        },
+        "message": {
+          "protocolMessage": {
+            "type": "PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE",
+            "peerDataOperationRequestResponseMessage": {
+              "peerDataOperationRequestType": "PLACEHOLDER_MESSAGE_RESEND",
+              "stanzaId": "3EB040E0FC279E69550D46",
+              "peerDataOperationResult": [
+                {
+                  "mediaUploadResult": "SUCCESS",
+                  "placeholderMessageResendResponse": {
+                    "webMessageInfoBytes": "Cj0KFzEyMDM2MzQyMjI4NDQ0NTExNEBnLnVzEAAaIEE1NjdEM0JFNjlDQTZCRkQwRDRCRjM4MTNEOUQ5RTc5EkUKHlJlYWR5LW1hZGUgbWVyY2FkbyBsaWJyZSAKQ29tZZoCIhogHdEdJdqQ6wT7u7WegtuD0XupWbRCLOMZynD5haeluAUY8PSkzQYqEjYzOTI2Nzk2NTk1Mzg2QGxpZIoDIB3RHSXakOsE+7u1noLbg9F7qVm0QizjGcpw+YWnpbgF8gMWChQBEM/zdfP59txJU9Yeu6Dj66SVB4gEAA=="
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "messageTimestamp": 1772698236,
+        "broadcast": false
+      }
+    ],
+    "116987040661634@lid": [
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5F241F94CEC3807B4F1A61CAB996B01",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".ping"
+        },
+        "messageTimestamp": 1772696213,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0CCD6A215D920982D7E"
+        },
+        "message": {
+          "editedMessage": {
+            "message": {
+              "extendedTextMessage": {
+                "text": "🏓 Pong!\nLatency: 664ms"
+              }
+            }
+          }
+        },
+        "messageTimestamp": 1772696214,
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0C1B89696515EC5AF21"
+        },
+        "message": {
+          "protocolMessage": {
+            "key": {
+              "remoteJid": "116987040661634@lid",
+              "fromMe": true,
+              "id": "3EB0CCD6A215D920982D7E"
+            },
+            "type": "MESSAGE_EDIT",
+            "editedMessage": {
+              "extendedTextMessage": {
+                "text": "🏓 Pong!\nLatency: 664ms"
+              }
+            },
+            "timestampMs": "1772696214292"
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696214,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5E386C47989551C346000652D28EC4B",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".menu"
+        },
+        "messageTimestamp": 1772696584,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB08A412370B4C2ED1E21"
+        },
+        "message": {
+          "imageMessage": {
+            "url": "https://mmg.whatsapp.net/o1/v/t24/f2/m237/AQMPLLhJeCuGK1fi5sZFo-eMWdQidW211XxoZQn--FIITeVZWXUxU6fdLKvswr4-yvDmjljd2slpeq6oEJF8efL6tatqEK8BJ3wLA-7tzg?ccb=9-4&oh=01_Q5Aa3wHgsHXsgWI5MPjHXcDaxT3Xn4xKCMMdSTAweyHt-P8hnQ&oe=69D0B3F9&_nc_sid=e6ed6c&mms3=true",
+            "mimetype": "image/jpeg",
+            "caption": "◈╭─❍「 *MEGA MENU* 」❍\n◈├• 🌟 *Bot: MEGA-MD*\n◈├• ⚙️ *Prefix: ., !, /, #*\n◈├• 🍫 *Plugins: 231*\n◈├• 💎 *Version: 5.2.0*\n◈├• ⏰ *Time: 12:43*\n◈├─❍「 *AI* 」❍\n◈├• .gpt\n◈├• .imagine\n◈├• .sora\n◈├─❍「 *DOWNLOAD* 」❍\n◈├• .alamy\n◈├• .facebook\n◈├• .getty\n◈├• .gimage\n◈├• .gitclone2\n◈├• .instagram\n◈├• .istock\n◈├• .mediafire\n◈├• .mega\n◈├• .sharechat\n◈├• .snack\n◈├• .snapchat\n◈├• .spotify\n◈├• .dlstatus\n◈├• .terabox\n◈├• .tiktok\n◈├• .twitter\n◈├• .video\n◈├• .vidsplay\n◈├─❍「 *GENERAL* 」❍\n◈├• .alive\n◈├• .channelid\n◈├• .echo\n◈├• .getpp\n◈├• .menu\n◈├• .pair\n◈├• .ping\n◈├• .pingweb\n◈├• .find\n◈├• .smenu\n◈├• .perf\n◈├• .uptime\n◈├• .viewonce\n◈├─❍「 *APKS* 」❍\n◈├• .android\n◈├─❍「 *MENU* 」❍\n◈├• .animes\n◈├• .audiofx\n◈├• .notes\n◈├• .images\n◈├• .stext\n◈├• .ephoto\n◈├─❍「 *ADMIN* 」❍\n◈├• .antibadword\n◈├• .antilink\n◈├• .antitag\n◈├• .chatbot\n◈├• .delete\n◈├• .demote\n◈├• .goodbye\n◈├• .hidetag\n◈├• .kick\n◈├• .mute\n◈├• .promote\n◈├• .resetlink\n◈├• .setgdesc\n◈├• .setgname\n◈├• .setgpp\n◈├• .tag\n◈├• .tagall\n◈├• .tagnotadmin\n◈├• .unban\n◈├• .unmute\n◈├• .warn\n◈├• .welcome\n◈├─❍「 *OWNER* 」❍\n◈├• .anticall\n◈├• .antidelete\n◈├• .autoreact\n◈├• .autoread\n◈├• .autostatus\n◈├• .autotyping\n◈├• .clear\n◈├• .clearsession\n◈├• .cleartmp\n◈├• .creact\n◈├• .delcmd\n◈├• .delplugin\n◈├• .getfile\n◈├• .inspect\n◈├• .gitclone\n◈├• .gitinfo\n◈├• .addplugin\n◈├• .listcmd\n◈├• .listrent\n◈├• .maintenance\n◈├• .manage\n◈├• .mention\n◈├• .mode\n◈├• .pmblocker\n◈├• .gitpull\n◈├• .reload\n◈├• .rentbot\n◈├• .setbio\n◈├• .setcmd\n◈├• .setpp\n◈├• .settings\n◈├• .stealth\n◈├• .stoprent\n◈├• .sudo\n◈├• .update\n◈├─❍「 *STICKERS* 」❍\n◈├• .attp\n◈├• .emojimix\n◈├• .gif\n◈├• .igs\n◈├• .igsc\n◈├• .quoted\n◈├• .s2img\n◈├• .sticker\n◈├• .sticker2\n◈├• .crop\n◈├• .stickers\n◈├• .tgstk\n◈├• .take\n◈├─❍「 *GROUP* 」❍\n◈├• .ban\n◈├• .character\n◈├• .compliment\n◈├• .add\n◈├• .groupinfo\n◈├• .insult\n◈├• .rank\n◈├• .ship\n◈├• .simp\n◈├• .staff\n◈├• .stupid\n◈├• .warnings\n◈├• .wasted\n◈├─❍「 *TOOLS* 」❍\n◈├• .base64\n◈├• .bfdecode\n◈├• .brainfuck\n◈├• .convert\n◈├• .excard\n◈├• .fetch\n◈├• .flip\n◈├• .forwarded\n◈├• .grayscale\n◈├• .handwrite\n◈├• .chhistory\n◈├• .blur\n◈├• .invert\n◈├• .qrcode\n◈├• .customqr\n◈├• .qmaker\n◈├• .readmore\n◈├• .readqr\n◈├• .remini\n◈├• .removebg\n◈├• .length\n◈├• .reverse\n◈├• .seo\n◈├• .sepia\n◈├• .sharpen\n◈├• .getpage\n◈├• .spoof\n◈├• .screenshot\n◈├• .tinyurl\n◈├• .smallcaps\n◈├• .tourl\n◈├• .translate\n◈├• .unshorten\n◈├• .url\n◈├• .vnote\n◈├• .walink\n◈├─❍「 *SEARCH* 」❍\n◈├• .bing\n◈├• .define\n◈├• .element\n◈├• .whoisip\n◈├• .wattpad\n◈├• .wiki\n◈├─❍「 *IMAGES* 」❍\n◈├• .coding\n◈├• .cyberimg\n◈├• .game\n◈├• .islamic\n◈├• .mountain\n◈├• .pies\n◈├• .tech\n◈├─❍「 *GAMES* 」❍\n◈├• .dado\n◈├• .dare\n◈├• .hangman\n◈├• .math\n◈├• .tictactoe\n◈├• .trivia\n◈├• .truth\n◈├─❍「 *FUN* 」❍\n◈├• .8ball\n◈├• .fact\n◈├• .flirt\n◈├• .hack\n◈├• .joke\n◈├• .joke2\n◈├• .meme\n◈├• .teddy\n◈├• .why\n◈├─❍「 *STALK* 」❍\n◈├• .genshin\n◈├• .github\n◈├• .npmstalk\n◈├• .pinstalk\n◈├• .tgstalk\n◈├• .thrstalk\n◈├• .ttstalk\n◈├• .xstalk\n◈├─❍「 *INFO* 」❍\n◈├• .script\n◈├• .imdb\n◈├• .itunes\n◈├• .news\n◈├• .owner\n◈├• .pokedex\n◈├• .shazam\n◈├• .string\n◈├• .trends\n◈├• .weather\n◈├• .whois\n◈├─❍「 *QUOTES* 」❍\n◈├• .goodnight\n◈├• .quote\n◈├• .quote2\n◈├• .roseday\n◈├• .shayari\n◈├• .wyr\n◈├─❍「 *MUSIC* 」❍\n◈├• .lyrics\n◈├• .play\n◈├• .ringtone\n◈├• .scloud\n◈├• .song\n◈├• .ytsearch\n◈├─❍「 *UPLOAD* 」❍\n◈├• .aupload\n◈├• .catbox\n◈├• .freeimage\n◈├• .litterbox\n◈├• .pixhost\n◈├• .pomf\n◈├• .quax\n◈├• .tmpfiles\n◈├• .uguu\n◈├• .xoat\n◈╰──★─☆──♪♪─❍",
+            "fileSha256": "L3VpZ7FYkMpErx531B5ViPFR34aU8HF7Dg6geHNFOdc=",
+            "fileLength": "51496",
+            "height": 736,
+            "width": 736,
+            "mediaKey": "+jYurblY7tfDome5TNzFSk8uAUWCFrPYQj4DQgtp13Q=",
+            "fileEncSha256": "NfZ3EqvaxC6V0PyTbEVpDTofIZ8OV1TGJAUJ+1vg1cM=",
+            "directPath": "/o1/v/t24/f2/m237/AQMPLLhJeCuGK1fi5sZFo-eMWdQidW211XxoZQn--FIITeVZWXUxU6fdLKvswr4-yvDmjljd2slpeq6oEJF8efL6tatqEK8BJ3wLA-7tzg?ccb=9-4&oh=01_Q5Aa3wHgsHXsgWI5MPjHXcDaxT3Xn4xKCMMdSTAweyHt-P8hnQ&oe=69D0B3F9&_nc_sid=e6ed6c",
+            "mediaKeyTimestamp": "1772696586",
+            "jpegThumbnail": "/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAAgACADASIAAhEBAxEB/8QAGgAAAQUBAAAAAAAAAAAAAAAABAABAgMFBv/EACgQAAICAQMDAwQDAAAAAAAAAAECAxEABBIhE0FRIjGRFCNScXKhsf/EABYBAQEBAAAAAAAAAAAAAAAAAAABAv/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8A4iIc5qabVx6JRO6B2ukU9z5zNhUu4UZY0cYkvUSnavGyMWx+eBiswZq9YutPV2KrN77ePkZmSjnLaRZPsGQr3sc1i1CBG9Lh17MBV4hUFfaCFJ3EcVkGLSNZ9+/bCZ4tJCy9GZ5D7kMoFCvPnHvRlDfU3U1eoVe0V/d41cCgMpvn9jLDLalZAd3msIb6NUIQsW8lh+Hj+WKCLRTu3Xnkja7AVQ1iv9xpj//Z",
+            "contextInfo": {
+              "stanzaId": "A5E386C47989551C346000652D28EC4B",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "conversation": ".menu"
+              },
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363319098372999@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "MEGA MD"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696586,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5773FFBA3D88BAE64D3FB079A628EFB",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".sudo"
+        },
+        "messageTimestamp": 1772696646,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0F5A3588E05178D36E6"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "╭━━━〔 *SUDO MANAGER* 〕━━━┈\n┃\n┃ 📝 *Usage:*\n┃ ▢ .sudo add <@tag/reply/num>\n┃ ▢ .sudo del <@tag/reply/num>\n┃ ▢ .sudo list\n┃\n╰━━━━━━━━━━━━━━━━━━┈",
+            "contextInfo": {
+              "stanzaId": "A5773FFBA3D88BAE64D3FB079A628EFB",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "conversation": ".sudo"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696646,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5071649122C62A468B3F743BD3FCBA8",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".coding"
+        },
+        "messageTimestamp": 1772696665,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0A4E8FE432901AA5E17"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "❌ Error while fetching image.",
+            "contextInfo": {
+              "stanzaId": "A5071649122C62A468B3F743BD3FCBA8",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "conversation": ".coding"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696667,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A510760489B76D120218130732D2455C",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": ".qrcode",
+            "previewType": "NONE",
+            "inviteLinkGroupTypeV2": "DEFAULT"
+          }
+        },
+        "messageTimestamp": 1772696699,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0A49C7A1936B1785069"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "*Provide text to generate QR*\nExample: .qrcode Hello World",
+            "contextInfo": {
+              "stanzaId": "A510760489B76D120218130732D2455C",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "extendedTextMessage": {
+                  "text": ".qrcode",
+                  "previewType": "NONE",
+                  "inviteLinkGroupTypeV2": "DEFAULT"
+                }
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696699,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5514D48BC2A32DB2F1A40665EE0F7E5",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".qrcode mantra"
+        },
+        "messageTimestamp": 1772696708,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0224B062CAC9397CF29"
+        },
+        "message": {
+          "imageMessage": {
+            "url": "https://mmg.whatsapp.net/o1/v/t24/f2/m235/AQO67irR2S9a7C1gi0KyiTw-Yq8HEAKI5oH5IgaqPCSig_3VM_aDzWFxJNiC2w5Pxt0_5ouHg5vH1qRceSOS1_jhbs3BfUfhw_vXiGl79A?ccb=9-4&oh=01_Q5Aa3wHF2K0N19XeTD7jeMTCEr_i7KlupzJ9F0asT6agqCx1CQ&oe=69D08A0F&_nc_sid=e6ed6c&mms3=true",
+            "mimetype": "image/jpeg",
+            "caption": "✅ QR Code Generated",
+            "fileSha256": "YYsbyergrWQiZTKEfcZFnTjl6KP3xNMh9S6tOwrzIP4=",
+            "fileLength": "1230",
+            "mediaKey": "8wYvvs27V5B2wLkZHMVuZqguM2HAVir2vhT/boH73rU=",
+            "fileEncSha256": "pdVo4qyf5ui3xGz2I7mxKB76682QlgYgItSre3cUJDY=",
+            "directPath": "/o1/v/t24/f2/m235/AQO67irR2S9a7C1gi0KyiTw-Yq8HEAKI5oH5IgaqPCSig_3VM_aDzWFxJNiC2w5Pxt0_5ouHg5vH1qRceSOS1_jhbs3BfUfhw_vXiGl79A?ccb=9-4&oh=01_Q5Aa3wHF2K0N19XeTD7jeMTCEr_i7KlupzJ9F0asT6agqCx1CQ&oe=69D08A0F&_nc_sid=e6ed6c",
+            "mediaKeyTimestamp": "1772696709",
+            "contextInfo": {
+              "stanzaId": "A5514D48BC2A32DB2F1A40665EE0F7E5",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "conversation": ".qrcode mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772696709,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5C7DE8428F9FFB5E0EEDD988B265E67",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".ping"
+        },
+        "messageTimestamp": 1772697180,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0986D03F2DDF2B2AD11"
+        },
+        "message": {
+          "editedMessage": {
+            "message": {
+              "extendedTextMessage": {
+                "text": "🏓 Pong!\nLatency: 338ms"
+              }
+            }
+          }
+        },
+        "messageTimestamp": 1772697181,
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0BA0565E6C411F5DBD6"
+        },
+        "message": {
+          "protocolMessage": {
+            "key": {
+              "remoteJid": "116987040661634@lid",
+              "fromMe": true,
+              "id": "3EB0986D03F2DDF2B2AD11"
+            },
+            "type": "MESSAGE_EDIT",
+            "editedMessage": {
+              "extendedTextMessage": {
+                "text": "🏓 Pong!\nLatency: 338ms"
+              }
+            },
+            "timestampMs": "1772697181245"
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697181,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5C2F963765E66CC352D2F45353FF667",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".menu"
+        },
+        "messageTimestamp": 1772697189,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB0ACB02DA9E216D90F4D"
+        },
+        "message": {
+          "imageMessage": {
+            "url": "https://mmg.whatsapp.net/o1/v/t24/f2/m239/AQMSOL_FEnGoW0CbVE7EnYQ8TgrC_rvvp0qPq_UJWEw5x7LKHVYyRVWcilGyBW8xX_aQ2vLMslB58FUwWq8o2IiOGMO_qXx3mZ-j8wCGPQ?ccb=9-4&oh=01_Q5Aa3wEzmiu0aZXon-8zg0PLUuoyfkPkM8S-UBIBD5f5XTFyvA&oe=69D0C120&_nc_sid=e6ed6c&mms3=true",
+            "mimetype": "image/jpeg",
+            "caption": "╭───⬣ *MANTRA MENU* ──⬣\n | ● *Bot: Mantra*\n | ● *Prefixes: ., !, /, #*\n | ● *Plugins: 231*\n | ● *Version: 5.2.0*\n | ● *Time: 12:53*\n |───⬣ *AI* ──⬣\n | ● .gpt\n | ● .imagine\n | ● .sora\n |───⬣ *DOWNLOAD* ──⬣\n | ● .alamy\n | ● .facebook\n | ● .getty\n | ● .gimage\n | ● .gitclone2\n | ● .instagram\n | ● .istock\n | ● .mediafire\n | ● .mega\n | ● .sharechat\n | ● .snack\n | ● .snapchat\n | ● .spotify\n | ● .dlstatus\n | ● .terabox\n | ● .tiktok\n | ● .twitter\n | ● .video\n | ● .vidsplay\n |───⬣ *GENERAL* ──⬣\n | ● .alive\n | ● .channelid\n | ● .echo\n | ● .getpp\n | ● .menu\n | ● .pair\n | ● .ping\n | ● .pingweb\n | ● .find\n | ● .smenu\n | ● .perf\n | ● .uptime\n | ● .viewonce\n |───⬣ *APKS* ──⬣\n | ● .android\n |───⬣ *MENU* ──⬣\n | ● .animes\n | ● .audiofx\n | ● .notes\n | ● .images\n | ● .stext\n | ● .ephoto\n |───⬣ *ADMIN* ──⬣\n | ● .antibadword\n | ● .antilink\n | ● .antitag\n | ● .chatbot\n | ● .delete\n | ● .demote\n | ● .goodbye\n | ● .hidetag\n | ● .kick\n | ● .mute\n | ● .promote\n | ● .resetlink\n | ● .setgdesc\n | ● .setgname\n | ● .setgpp\n | ● .tag\n | ● .tagall\n | ● .tagnotadmin\n | ● .unban\n | ● .unmute\n | ● .warn\n | ● .welcome\n |───⬣ *OWNER* ──⬣\n | ● .anticall\n | ● .antidelete\n | ● .autoreact\n | ● .autoread\n | ● .autostatus\n | ● .autotyping\n | ● .clear\n | ● .clearsession\n | ● .cleartmp\n | ● .creact\n | ● .delcmd\n | ● .delplugin\n | ● .getfile\n | ● .inspect\n | ● .gitclone\n | ● .gitinfo\n | ● .addplugin\n | ● .listcmd\n | ● .listrent\n | ● .maintenance\n | ● .manage\n | ● .mention\n | ● .mode\n | ● .pmblocker\n | ● .gitpull\n | ● .reload\n | ● .rentbot\n | ● .setbio\n | ● .setcmd\n | ● .setpp\n | ● .settings\n | ● .stealth\n | ● .stoprent\n | ● .sudo\n | ● .update\n |───⬣ *STICKERS* ──⬣\n | ● .attp\n | ● .emojimix\n | ● .gif\n | ● .igs\n | ● .igsc\n | ● .quoted\n | ● .s2img\n | ● .sticker\n | ● .sticker2\n | ● .crop\n | ● .stickers\n | ● .tgstk\n | ● .take\n |───⬣ *GROUP* ──⬣\n | ● .ban\n | ● .character\n | ● .compliment\n | ● .add\n | ● .groupinfo\n | ● .insult\n | ● .rank\n | ● .ship\n | ● .simp\n | ● .staff\n | ● .stupid\n | ● .warnings\n | ● .wasted\n |───⬣ *TOOLS* ──⬣\n | ● .base64\n | ● .bfdecode\n | ● .brainfuck\n | ● .convert\n | ● .excard\n | ● .fetch\n | ● .flip\n | ● .forwarded\n | ● .grayscale\n | ● .handwrite\n | ● .chhistory\n | ● .blur\n | ● .invert\n | ● .qrcode\n | ● .customqr\n | ● .qmaker\n | ● .readmore\n | ● .readqr\n | ● .remini\n | ● .removebg\n | ● .length\n | ● .reverse\n | ● .seo\n | ● .sepia\n | ● .sharpen\n | ● .getpage\n | ● .spoof\n | ● .screenshot\n | ● .tinyurl\n | ● .smallcaps\n | ● .tourl\n | ● .translate\n | ● .unshorten\n | ● .url\n | ● .vnote\n | ● .walink\n |───⬣ *SEARCH* ──⬣\n | ● .bing\n | ● .define\n | ● .element\n | ● .whoisip\n | ● .wattpad\n | ● .wiki\n |───⬣ *IMAGES* ──⬣\n | ● .coding\n | ● .cyberimg\n | ● .game\n | ● .islamic\n | ● .mountain\n | ● .pies\n | ● .tech\n |───⬣ *GAMES* ──⬣\n | ● .dado\n | ● .dare\n | ● .hangman\n | ● .math\n | ● .tictactoe\n | ● .trivia\n | ● .truth\n |───⬣ *FUN* ──⬣\n | ● .8ball\n | ● .fact\n | ● .flirt\n | ● .hack\n | ● .joke\n | ● .joke2\n | ● .meme\n | ● .teddy\n | ● .why\n |───⬣ *STALK* ──⬣\n | ● .genshin\n | ● .github\n | ● .npmstalk\n | ● .pinstalk\n | ● .tgstalk\n | ● .thrstalk\n | ● .ttstalk\n | ● .xstalk\n |───⬣ *INFO* ──⬣\n | ● .script\n | ● .imdb\n | ● .itunes\n | ● .news\n | ● .owner\n | ● .pokedex\n | ● .shazam\n | ● .string\n | ● .trends\n | ● .weather\n | ● .whois\n |───⬣ *QUOTES* ──⬣\n | ● .goodnight\n | ● .quote\n | ● .quote2\n | ● .roseday\n | ● .shayari\n | ● .wyr\n |───⬣ *MUSIC* ──⬣\n | ● .lyrics\n | ● .play\n | ● .ringtone\n | ● .scloud\n | ● .song\n | ● .ytsearch\n |───⬣ *UPLOAD* ──⬣\n | ● .aupload\n | ● .catbox\n | ● .freeimage\n | ● .litterbox\n | ● .pixhost\n | ● .pomf\n | ● .quax\n | ● .tmpfiles\n | ● .uguu\n | ● .xoat\n╰──────────⬣",
+            "fileSha256": "Q4QICs88pW6G8EbtGEhhCw+0ls4OjphWCVRJf8lG6mo=",
+            "fileLength": "794385",
+            "height": 4000,
+            "width": 6000,
+            "mediaKey": "SWXMAcEbyUSpMCzDt6SAOA6f9RVuRNVqlEhw8QHTOxs=",
+            "fileEncSha256": "vz9gL3cAj7ozNiBW6gMK2kNnLOIGeQFPGNRmP38+jL8=",
+            "directPath": "/o1/v/t24/f2/m239/AQMSOL_FEnGoW0CbVE7EnYQ8TgrC_rvvp0qPq_UJWEw5x7LKHVYyRVWcilGyBW8xX_aQ2vLMslB58FUwWq8o2IiOGMO_qXx3mZ-j8wCGPQ?ccb=9-4&oh=01_Q5Aa3wEzmiu0aZXon-8zg0PLUuoyfkPkM8S-UBIBD5f5XTFyvA&oe=69D0C120&_nc_sid=e6ed6c",
+            "mediaKeyTimestamp": "1772697191",
+            "jpegThumbnail": "/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wAARCAAVACADASIAAhEBAxEB/8QAGgAAAgIDAAAAAAAAAAAAAAAAAAUCBAEDB//EACYQAAEDAwIFBQAAAAAAAAAAAAEAAgMEERIhQQUGFCJREzFCgbH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A5+m9Py5xOoo+qhha6O1wMxc/SUDQp7wWf1cI+skiewuLYs8WvNtCSTbwECVxIJaRYjQg7KCs17QypLfkAM+7Lu3sdwqyAWWuLfY2QhBOeZ9RKZJCC4+AB+LWhCD/2Q==",
+            "contextInfo": {
+              "stanzaId": "A5C2F963765E66CC352D2F45353FF667",
+              "participant": "254732722385@s.whatsapp.net",
+              "quotedMessage": {
+                "conversation": ".menu"
+              },
+              "forwardingScore": 1,
+              "isForwarded": true,
+              "forwardedNewsletterMessageInfo": {
+                "newsletterJid": "120363319098372999@newsletter",
+                "serverMessageId": -1,
+                "newsletterName": "Mantra"
+              }
+            }
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697191,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "remoteJidAlt": "254732722385@s.whatsapp.net",
+          "fromMe": true,
+          "id": "A5D8DB7AE562067C69E43AF09C1BB557",
+          "participant": "",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": ".gpt hello"
+        },
+        "messageTimestamp": 1772697216,
+        "pushName": "Onchwa",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "116987040661634@lid",
+          "fromMe": true,
+          "id": "3EB06DCE1D0E46DE1C6D29"
+        },
+        "message": {
+          "reactionMessage": {
+            "key": {
+              "remoteJid": "116987040661634@lid",
+              "fromMe": true,
+              "id": "A5D8DB7AE562067C69E43AF09C1BB557",
+              "participant": ""
+            },
+            "text": "🤖",
+            "senderTimestampMs": "1772697216252"
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697216,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": null,
+        "pushName": null,
+        "broadcast": null
+      }
+    ],
+    "120363423331467133@g.us": [
+      {
+        "key": {
+          "remoteJid": "120363423331467133@g.us",
+          "fromMe": false,
+          "id": "1437557550",
+          "participant": "61620516597944@lid"
+        },
+        "message": null,
+        "messageTimestamp": {
+          "low": 1772696380,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": "61620516597944@lid",
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "120363423331467133@g.us",
+          "fromMe": false,
+          "id": "2425915515",
+          "participant": "61620516597944@lid"
+        },
+        "message": null,
+        "messageTimestamp": {
+          "low": 1772696460,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": "61620516597944@lid",
+        "pushName": null,
+        "broadcast": null
+      }
+    ],
+    "120363424861515536@g.us": [
+      {
+        "key": {
+          "remoteJid": "120363424861515536@g.us",
+          "fromMe": false,
+          "id": "A5E5AA724B4054CA1294E8B7F1D21672",
+          "participant": "17073031934170@lid",
+          "participantAlt": "254798732153@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772696515,
+        "pushName": "~Mwita 󱢏",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363424861515536@g.us",
+          "fromMe": false,
+          "id": "A5E5AA724B4054CA1294E8B7F1D21672",
+          "participant": "17073031934170@lid",
+          "participantAlt": "254798732153@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772696540,
+        "pushName": "~Mwita 󱢏",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363424861515536@g.us",
+          "fromMe": false,
+          "id": "A5E5AA724B4054CA1294E8B7F1D21672",
+          "participant": "17073031934170@lid",
+          "participantAlt": "254798732153@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "senderKeyDistributionMessage": {
+            "groupId": "120363424861515536@g.us",
+            "axolotlSenderKeyDistributionMessage": "Mwj2l8GWBxATGiA+mG726lrB0HysZBthpQI+V+jMtz6Gzvayj0+JI/DW2yIhBYDYa9GyMsm20KlmWAish0zBHoJMZ7/YSmcxzQWKW54m"
+          },
+          "messageContextInfo": {
+            "deviceListMetadata": {
+              "senderTimestamp": "1772541300",
+              "recipientKeyHash": "qgkCOMn/ObKZYw==",
+              "recipientTimestamp": "1772696154"
+            },
+            "deviceListMetadataVersion": 2
+          },
+          "reactionMessage": {
+            "key": {
+              "remoteJid": "120363424861515536@g.us",
+              "fromMe": false,
+              "id": "ACBB4343AE9E21B2E970852DD2BD1B6A",
+              "participant": "146149801504884@lid"
+            },
+            "text": "😂",
+            "senderTimestampMs": "1772694364205"
+          }
+        },
+        "messageTimestamp": 1772696546,
+        "pushName": "~Mwita 󱢏",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363424861515536@g.us",
+          "fromMe": false,
+          "id": "ACED63BE48C9938D5CBB7063B4A17550",
+          "participant": "244542922072084@lid",
+          "participantAlt": "254791378477@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "senderKeyDistributionMessage": {
+            "groupId": "120363424861515536@g.us",
+            "axolotlSenderKeyDistributionMessage": "Mwj/6PpZEAAaIMsA0eR5dNIie+IcSaJ2e1VTEkpqH206JWjXT63EUlFtIiEFGIhKwMVBZvxX6FYhy6rvM2mSGFgsIgp3/IPDSYEpATg="
+          },
+          "messageContextInfo": {
+            "deviceListMetadata": {
+              "senderKeyHash": "9LCYM4G/u+FhDA==",
+              "senderTimestamp": "1771569129",
+              "recipientKeyHash": "qgkCOMn/ObKZYw==",
+              "recipientTimestamp": "1772696106"
+            },
+            "deviceListMetadataVersion": 2
+          },
+          "reactionMessage": {
+            "key": {
+              "remoteJid": "120363424861515536@g.us",
+              "fromMe": false,
+              "id": "3EB008CAF1CC7805E36C25",
+              "participant": "146149801504884@lid"
+            },
+            "text": "😂",
+            "senderTimestampMs": "1772696765721"
+          }
+        },
+        "messageTimestamp": 1772696773,
+        "pushName": "@Warren10_",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363424861515536@g.us",
+          "fromMe": false,
+          "id": "3EB0291315FB0C0D19C537",
+          "participant": "146149801504884@lid",
+          "participantAlt": "254752521847@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": "links za form na pass mkujie huwezi kuwa promoted bila kujaza form, sasa nataka ni consentrate nipande cheo, from kesho  story za form sifanyi, the promoted ones congratulations",
+          "senderKeyDistributionMessage": {
+            "groupId": "120363424861515536@g.us",
+            "axolotlSenderKeyDistributionMessage": "MwiW28f/AhAEGiA1FwNMikVa4V15YLa3eJiITzTqT1LhB+LtdSSZ245PvSIhBSxReWnHk0uGAK7Uk+52kZZjJLbJnHSWdURRIhIW1Kxt"
+          },
+          "messageContextInfo": {
+            "messageSecret": "xKEhNgJO/As+J2th3eUdgCOLpAhfBS54kNSr/xwbjyo=",
+            "limitSharingV2": {
+              "trigger": "UNKNOWN",
+              "initiatedByMe": false
+            }
+          }
+        },
+        "messageTimestamp": 1772698361,
+        "pushName": "Ambrose Groups CEO",
+        "broadcast": false
+      }
+    ],
+    "120363422284445114@g.us": [
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A5C286F2DBE7C6A721BC9677EE4663DC",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772697043,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A5C286F2DBE7C6A721BC9677EE4663DC",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772697044,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A5C286F2DBE7C6A721BC9677EE4663DC",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "senderKeyDistributionMessage": {
+            "groupId": "120363422284445114@g.us",
+            "axolotlSenderKeyDistributionMessage": "MwjfmMKlBRAHGiAHFa0oY6AqbZ+5lldNRj4oVFWqYHLsiU8i8XXQ3vzmEyIhBXJmjGj+DEMqRTGxldJqug/403Z5fRE4AKfM9egZVp90"
+          },
+          "extendedTextMessage": {
+            "text": "WTB\n\nHFM NEED \n\nPHILIPPINES COUNTRY \n\n7$ \nNOT MUST A CRYPTOCURRENCY CHANNEL NEED BONUS ONLY \nUSE MALIUM MAIL/ OUTLOOK MAIL\n\nINSTANT PAYMENTS ✅\n@all",
+            "previewType": "NONE",
+            "contextInfo": {
+              "nonJidMentions": 1
+            },
+            "inviteLinkGroupTypeV2": "DEFAULT"
+          },
+          "messageContextInfo": {
+            "deviceListMetadata": {
+              "recipientKeyHash": "qgkCOMn/ObKZYw==",
+              "recipientTimestamp": "1772696154"
+            },
+            "deviceListMetadataVersion": 2,
+            "messageSecret": "UplR4aoxqayGmnR7ne77DoQUpVv91i7uV9dx/9FyR48="
+          }
+        },
+        "messageTimestamp": 1772697048,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A5C286F2DBE7C6A721BC9677EE4663DC"
+        },
+        "message": {
+          "extendedTextMessage": {
+            "text": "WTB\n\nHFM NEED \n\nPHILIPPINES COUNTRY \n\n7$ \nNOT MUST A CRYPTOCURRENCY CHANNEL NEED BONUS ONLY \nUSE MALIUM MAIL/ OUTLOOK MAIL\n\nINSTANT PAYMENTS ✅\n@all",
+            "previewType": "NONE",
+            "contextInfo": {
+              "nonJidMentions": 1
+            },
+            "inviteLinkGroupTypeV2": "DEFAULT"
+          },
+          "messageContextInfo": {
+            "messageSecret": "UplR4aoxqayGmnR7ne77DoQUpVv91i7uV9dx/9FyR48="
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772697043,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": "63926796595386@lid",
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A567D3BE69CA6BFD0D4BF3813D9D9E79",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772698224,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A567D3BE69CA6BFD0D4BF3813D9D9E79",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "messageTimestamp": 1772698225,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A567D3BE69CA6BFD0D4BF3813D9D9E79",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "conversation": "Ready-made mercado libre \nCome",
+          "senderKeyDistributionMessage": {
+            "groupId": "120363422284445114@g.us",
+            "axolotlSenderKeyDistributionMessage": "MwjfmMKlBRAIGiC1KYNtriZi4vEuEDL0YvsJj/jacGQcmvSMuQE7HXtVlyIhBXJmjGj+DEMqRTGxldJqug/403Z5fRE4AKfM9egZVp90"
+          },
+          "messageContextInfo": {
+            "deviceListMetadata": {
+              "recipientKeyHash": "qgkCOMn/ObKZYw==",
+              "recipientTimestamp": "1772696154"
+            },
+            "deviceListMetadataVersion": 2,
+            "messageSecret": "HdEdJdqQ6wT7u7WegtuD0XupWbRCLOMZynD5haeluAU="
+          }
+        },
+        "messageTimestamp": 1772698232,
+        "pushName": "big machine",
+        "broadcast": false
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A567D3BE69CA6BFD0D4BF3813D9D9E79"
+        },
+        "message": {
+          "conversation": "Ready-made mercado libre \nCome",
+          "messageContextInfo": {
+            "messageSecret": "HdEdJdqQ6wT7u7WegtuD0XupWbRCLOMZynD5haeluAU="
+          }
+        },
+        "messageTimestamp": {
+          "low": 1772698224,
+          "high": 0,
+          "unsigned": true
+        },
+        "participant": "63926796595386@lid",
+        "pushName": null,
+        "broadcast": null
+      },
+      {
+        "key": {
+          "remoteJid": "120363422284445114@g.us",
+          "fromMe": false,
+          "id": "A59DDB2C53BBDB1D138F6F3DA99EF88B",
+          "participant": "63926796595386@lid",
+          "participantAlt": "254740138926@s.whatsapp.net",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "protocolMessage": {
+            "key": {
+              "remoteJid": "120363422284445114@g.us",
+              "fromMe": true,
+              "id": "A567D3BE69CA6BFD0D4BF3813D9D9E79"
+            },
+            "type": "MESSAGE_EDIT",
+            "editedMessage": {
+              "conversation": "Ready-made mercado libre \nCome\nMexico"
+            },
+            "timestampMs": "1772698245814"
+          },
+          "messageContextInfo": {
+            "messageSecret": "HdEdJdqQ6wT7u7WegtuD0XupWbRCLOMZynD5haeluAU="
+          }
+        },
+        "messageTimestamp": 1772698246,
+        "pushName": "big machine",
+        "broadcast": false
+      }
+    ],
+    "status@broadcast": [
+      {
+        "key": {
+          "remoteJid": "status@broadcast",
+          "remoteJidAlt": "254743032398@s.whatsapp.net",
+          "fromMe": false,
+          "id": "AC7DAA84F5B5216A1A3261655B91E13E",
+          "participant": "61620516597944@lid",
+          "addressingMode": "lid"
+        },
+        "message": {
+          "senderKeyDistributionMessage": {
+            "groupId": "status@broadcast",
+            "axolotlSenderKeyDistributionMessage": "MwiEuuzbARAAGiA/KSrCzYdYQqPSCtnjwb+0x/np0dqNSDhi/2A5QIOs6yIhBW5uQaIE1AJyeNnYSVK2erHQcz+4DGLHUSamhDi+OKFx"
+          },
+          "imageMessage": {
+            "url": "https://mmg.whatsapp.net/v/t62.7118-24/553717286_1400596454686944_8294015217486792994_n.enc?ccb=11-4&oh=01_Q5Aa3wH_xL47yx6IJ97s7A0J0fLBwx8--9FiI3pLqZ5wYyuONQ&oe=69D08EF6&_nc_sid=5e03e0&mms3=true",
+            "mimetype": "image/jpeg",
+            "fileSha256": "g6YzHGTgvdveMrBBHF618QcI3DhvOSY2O59SIiT63ko=",
+            "fileLength": "89344",
+            "height": 1280,
+            "width": 960,
+            "mediaKey": "pQhvZqh54OPquv7fF8jNoEVrVXx8zSolH0vn/LNqIKA=",
+            "fileEncSha256": "2uzaoXnplRv4bL7z7rwizUo2mDfTaPcQZZ+g3DvIMug=",
+            "directPath": "/v/t62.7118-24/553717286_1400596454686944_8294015217486792994_n.enc?ccb=11-4&oh=01_Q5Aa3wH_xL47yx6IJ97s7A0J0fLBwx8--9FiI3pLqZ5wYyuONQ&oe=69D08EF6&_nc_sid=5e03e0",
+            "mediaKeyTimestamp": "1772697394",
+            "jpegThumbnail": "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",
+            "contextInfo": {
+              "pairedMediaType": "NOT_PAIRED_MEDIA",
+              "statusSourceType": "IMAGE"
+            },
+            "scansSidecar": "Cnu2V1v6eHUEcpKoL1MhlDHS6Qfyb1wCI+QztgQg0tg0uonRYkPC6g==",
+            "scanLengths": [
+              9854,
+              25199,
+              18488,
+              35803
+            ],
+            "midQualityFileSha256": "KRRActc4N/Grj5ezHk8ynddkcfR0uzkJt2ycZ3nR2Sw="
+          },
+          "messageContextInfo": {
+            "messageSecret": "Uw+z5LZMMfToPlscYgJVRVPJsoK/RYzQBwm2gxxEw+c="
+          }
+        },
+        "messageTimestamp": 1772697403,
+        "pushName": "J.a.b.e.z.",
+        "broadcast": true
+      }
+    ],
+    "120363422328492522@newsletter": [
+      {
+        "key": {
+          "remoteJid": "120363422328492522@newsletter",
+          "fromMe": false,
+          "id": "ACEED9A5A4CD728D5D1717F597A70C0B",
+          "participant": "",
+          "addressingMode": "pn",
+          "server_id": "103"
+        },
+        "message": {
+          "conversation": "Ni miaka mingi jooo"
+        },
+        "messageTimestamp": 1772697463,
+        "broadcast": false
+      }
+    ]
+  }
+}
