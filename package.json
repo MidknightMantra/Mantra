@@ -2,7 +2,7 @@
   "name": "mantra",
   "version": "1.0.0",
   "private": true,
-  "description": "WhatsApp bot built with gifted-baileys",
+  "description": "Premium WhatsApp bot built with @whiskeysockets/baileys v7",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {

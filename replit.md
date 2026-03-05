@@ -1,7 +1,7 @@
 # MANTRA WhatsApp Bot
 
 ## Overview
-MANTRA is a plugin-based WhatsApp bot built on `gifted-baileys`. It features command hot-reload, group tools, downloader tools, fun commands, and owner utilities. This is a console-only application (no web frontend).
+MANTRA is a premium, plugin-based WhatsApp bot migrated to `@whiskeysockets/baileys` v7. It features a modern web dashboard, SQLite economy, hot-reload plugins, and global moderation tools.
 
 ## Recent Changes
 - 2026-02-22: Major improvements - consolidated shared utilities into lib/helper.js, added per-user rate limiting, persistent scheduler, confirmation prompts for destructive commands, settings plugin, plugin onInit lifecycle, removed hardcoded API keys, fixed translate auto-detect, polished UI/UX across all plugins

@@ -2,13 +2,13 @@
 
 ![MANTRA](https://files.catbox.moe/2evo2f.jpg)
 
-MANTRA is a plugin-based WhatsApp bot built on `gifted-baileys` with command hot-reload, group tools, downloader tools, fun commands, and owner utilities.
+MANTRA is a premium, plugin-based WhatsApp bot built on the official `@whiskeysockets/baileys` v7 with a glassmorphism web dashboard, integrated SQLite economy, and advanced moderation tools.
 
 ## Requirements
 
-- Node.js `18+`
+- Node.js `20+` (Required for Baileys v7 & SQLite)
 - npm
-- A valid WhatsApp session string
+- A valid WhatsApp session string (Baileys v7 compatible)
 
 ## Session ID Generator
 
