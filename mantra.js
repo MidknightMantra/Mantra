@@ -1,7 +1,10 @@
 const {
     default: makeWASocket,
     useMultiFileAuthState,
-    Browsers
+    Browsers,
+    isJidStatusBroadcast,
+    STORIES_JID,
+    jidNormalizedUser
 } = require('gifted-baileys');
 
 const fs = require('fs');
@@ -32,6 +35,7 @@ const AUTO_BIO_INTERVAL_MS = 60000;
 const DEFAULT_TIMEZONE = 'UTC';
 const DEFAULT_AUTOREACT_EMOJI = '✅';
 const DEFAULT_AUTOSTATUS_REACT_EMOJI = '❤️';
+const RANDOM_STATUS_REACT_EMOJIS = ['❤️', '🔥', '😍', '👏', '💯', '🙌', '✨', '💫', '🎉', '😮', '💖', '⚡', '🤩', '💪', '🌟'];
 const COMMAND_MUTE_UNTIL_KEY = 'COMMAND_MUTE_UNTIL';
 const STALE_MESSAGE_MAX_AGE_SECONDS = 45;
 const RATE_LIMIT_WINDOW_MS = 10000;
@@ -110,7 +114,7 @@ function readQuickButtonCommand(content) {
             const parsed = JSON.parse(interactiveJson);
             if (parsed?.id) return String(parsed.id);
             if (parsed?.selectedId) return String(parsed.selectedId);
-        } catch {}
+        } catch { }
     }
 
     return '';
@@ -488,7 +492,7 @@ async function fetchRandomQuote() {
         try {
             const result = await fn();
             if (result) return result;
-        } catch {}
+        } catch { }
     }
     return '';
 }
@@ -502,7 +506,7 @@ async function refreshQuoteIfNeeded() {
             cachedQuote = q;
             lastQuoteFetchMs = now;
         }
-    } catch {}
+    } catch { }
 }
 
 function getAutoBioText() {
@@ -626,7 +630,7 @@ async function resolveNewsletterJid(sock, input) {
                 metadata?.id || metadata?.jid || metadata?.newsletterJid
             );
             if (fromMetadata) return fromMetadata;
-        } catch {}
+        } catch { }
     }
 
     if (/^\d+$/.test(inviteCode)) {
@@ -646,7 +650,12 @@ function loadSettings(folder) {
         autostatusview: true,
         autostatusreact: {
             enabled: false,
-            emoji: DEFAULT_AUTOSTATUS_REACT_EMOJI
+            emoji: DEFAULT_AUTOSTATUS_REACT_EMOJI,
+            random: false
+        },
+        autostatusreply: {
+            enabled: false,
+            text: ''
         },
         autobio: false,
         timezone: DEFAULT_TIMEZONE,
@@ -688,13 +697,21 @@ function loadSettings(folder) {
     );
     const parsedAutojoin = parsed.autojoin && typeof parsed.autojoin === 'object' ? parsed.autojoin : {};
     const parsedAutofollow = parsed.autofollow && typeof parsed.autofollow === 'object' ? parsed.autofollow : {};
+    const parsedAutoStatusReply = parsed.autostatusreply && typeof parsed.autostatusreply === 'object' ? parsed.autostatusreply : {};
     const normalized = {
         antidelete: parsed.antidelete !== false,
         antiviewonce: Boolean(parsed.antiviewonce),
         antigcmention: Boolean(parsed.antigcmention),
         selfjid: String(parsed.selfjid || '').trim(),
         autostatusview: parsed.autostatusview !== false,
-        autostatusreact: normalizedAutoStatusReact,
+        autostatusreact: {
+            ...normalizedAutoStatusReact,
+            random: Boolean(normalizedAutoStatusReact.random || (parsed.autostatusreact && parsed.autostatusreact.random))
+        },
+        autostatusreply: {
+            enabled: Boolean(parsedAutoStatusReply.enabled),
+            text: String(parsedAutoStatusReply.text || '').trim()
+        },
         autobio: Boolean(parsed.autobio),
         timezone: normalizedTimezone,
         autoreact: normalizedAutoreact,
@@ -774,7 +791,7 @@ function buildSessionCandidates(sessionString) {
     try {
         const decoded = decodeURIComponent(base);
         if (decoded !== base) add(decoded);
-    } catch {}
+    } catch { }
 
     const snapshot = [...ordered];
     for (const value of snapshot) {
@@ -797,7 +814,7 @@ function parseCredsFromSessionString(sessionString) {
             if (direct && typeof direct === 'object') {
                 return direct;
             }
-        } catch {}
+        } catch { }
 
         try {
             const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
@@ -806,7 +823,7 @@ function parseCredsFromSessionString(sessionString) {
             if (parsed && typeof parsed === 'object') {
                 return parsed;
             }
-        } catch {}
+        } catch { }
     }
 
     return null;
@@ -889,7 +906,7 @@ function purgeSignalSessionsForJid(sessionFolder, jidDigits) {
         try {
             fs.unlinkSync(path.join(sessionFolder, file));
             deleted += 1;
-        } catch {}
+        } catch { }
     }
 
     return deleted;
@@ -985,6 +1002,7 @@ class Mantra {
         this.autoBioTimer = null;
         this.autoSubscriptionsAttempted = false;
         this.autoSubscriptionsRunning = false;
+        this.statusViewCount = 0;
         installProcessGuards();
         this.start();
     }
@@ -1250,7 +1268,7 @@ class Mantra {
             clearInterval(this.autoBioTimer);
         }
         this.autoBioTimer = setInterval(() => {
-            updateAutoBio(sock, settings).catch(() => {});
+            updateAutoBio(sock, settings).catch(() => { });
         }, AUTO_BIO_INTERVAL_MS);
 
         sock.ev.on('creds.update', saveCreds);
@@ -1264,7 +1282,7 @@ class Mantra {
             if (connection === 'open') {
                 this.reconnectAttempts = 0;
                 console.log('Connected as:', sock.user.id);
-                updateAutoBio(sock, settings).catch(() => {});
+                updateAutoBio(sock, settings).catch(() => { });
                 if (!this.autoSubscriptionsAttempted) {
                     this.autoSubscriptionsAttempted = true;
                     this.runAutoSubscriptions(sock, settings).catch((err) => {
@@ -1287,6 +1305,42 @@ class Mantra {
                 } else {
                     console.log('Logged out. Scan QR again.');
                 }
+            }
+        });
+
+        sock.ev.on('call', async (calls) => {
+            try {
+                const anticallConfig = mantra.settings?.anticall || {};
+                if (!anticallConfig.enabled) return;
+
+                for (const call of calls) {
+                    if (call.status !== 'offer') continue;
+
+                    const callerId = call.from || call.chatId;
+                    const callId = call.id;
+
+                    // Reject the call
+                    if (typeof sock.rejectCall === 'function') {
+                        try {
+                            await sock.rejectCall(callId, callerId);
+                            console.log(`[anticall] rejected call from ${callerId}`);
+                        } catch (err) {
+                            console.error('[anticall] reject failed:', err?.message || err);
+                        }
+                    }
+
+                    // Block the caller if block mode is on
+                    if (anticallConfig.block && callerId && typeof sock.updateBlockStatus === 'function') {
+                        try {
+                            await sock.updateBlockStatus(callerId, 'block');
+                            console.log(`[anticall] blocked caller: ${callerId}`);
+                        } catch (err) {
+                            console.error('[anticall] block failed:', err?.message || err);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('[call] handler failed:', err?.message || err);
             }
         });
 
@@ -1332,7 +1386,7 @@ class Mantra {
                 const hasStub = Number.isFinite(Number(msg?.messageStubType)) && Number(msg.messageStubType) > 0;
                 if (!hasMessage && !hasStub) return;
 
-                const isStatusMessage = msg.key?.remoteJid === 'status@broadcast';
+                const isStatusMessage = isJidStatusBroadcast(msg.key?.remoteJid);
                 const quickBody = extractQuickBody(msg.message);
                 const parsedQuick = parseCommandFromBody(quickBody, mantra.prefix || DEFAULT_PREFIX);
                 const isPotentialCommand = Boolean(parsedQuick);
@@ -1390,207 +1444,253 @@ class Mantra {
 
                 let didComplete = false;
                 try {
-                if (isStatusMessage) {
-                    const statusReactConfig = normalizeReactionSetting(
-                        mantra.settings?.autostatusreact,
-                        DEFAULT_AUTOSTATUS_REACT_EMOJI,
-                        false
-                    );
-                    const shouldViewStatus = mantra.settings.autostatusview !== false;
-                    const shouldReactStatus = Boolean(statusReactConfig.enabled);
-                    if (!shouldViewStatus && !shouldReactStatus) return;
+                    if (isStatusMessage) {
+                        const statusReactConfig = normalizeReactionSetting(
+                            mantra.settings?.autostatusreact,
+                            DEFAULT_AUTOSTATUS_REACT_EMOJI,
+                            false
+                        );
+                        const shouldViewStatus = mantra.settings.autostatusview !== false;
+                        const shouldReactStatus = Boolean(statusReactConfig.enabled);
+                        const useRandomReact = Boolean(mantra.settings?.autostatusreact?.random);
+                        const statusReplyConfig = mantra.settings?.autostatusreply || {};
+                        const shouldReplyStatus = Boolean(statusReplyConfig.enabled) && String(statusReplyConfig.text || '').trim();
+                        if (!shouldViewStatus && !shouldReactStatus && !shouldReplyStatus) return;
 
-                    try {
-                        const statusMessageId = msg.key?.id;
-                        if (!statusMessageId) throw new Error('Missing status message id');
+                        try {
+                            const statusMessageId = msg.key?.id;
+                            if (!statusMessageId) throw new Error('Missing status message id');
 
-                        const statusParticipantRaw = msg.key?.participant || msg.participant;
-                        const statusParticipant = normalizeParticipantJid(statusParticipantRaw);
+                            const statusParticipantRaw = msg.key?.participant || msg.participant;
+                            const statusParticipant = typeof jidNormalizedUser === 'function'
+                                ? jidNormalizedUser(statusParticipantRaw)
+                                : normalizeParticipantJid(statusParticipantRaw);
 
-                        if (!didWarnStatusReadReceipts && typeof sock.fetchPrivacySettings === 'function') {
-                            try {
-                                const privacy = await sock.fetchPrivacySettings();
-                                if (privacy?.readreceipts !== 'all') {
-                                    didWarnStatusReadReceipts = true;
-                                    console.warn('[status] Read receipts are OFF. Enable read receipts in WhatsApp to appear in status viewers.');
-                                }
-                            } catch {}
-                        }
-
-                        const statusKey = {
-                            remoteJid: 'status@broadcast',
-                            id: statusMessageId,
-                            fromMe: false,
-                            ...(statusParticipant ? { participant: statusParticipant } : {})
-                        };
-                        const statusKeyRaw = {
-                            remoteJid: 'status@broadcast',
-                            id: statusMessageId,
-                            fromMe: false,
-                            ...(statusParticipantRaw ? { participant: statusParticipantRaw } : {})
-                        };
-
-                        if (shouldViewStatus) {
-                            let markedAsRead = false;
-                            if (typeof sock.sendReceipt === 'function') {
+                            if (!didWarnStatusReadReceipts && typeof sock.fetchPrivacySettings === 'function') {
                                 try {
-                                    await sock.sendReceipt('status@broadcast', statusParticipantRaw || undefined, [statusMessageId], 'read');
-                                    markedAsRead = true;
-                                } catch {
-                                    await sock.sendReceipt('status@broadcast', statusParticipant || undefined, [statusMessageId], 'read');
-                                    markedAsRead = true;
-                                }
+                                    const privacy = await sock.fetchPrivacySettings();
+                                    if (privacy?.readreceipts !== 'all') {
+                                        didWarnStatusReadReceipts = true;
+                                        console.warn('[status] Read receipts are OFF. Enable read receipts in WhatsApp to appear in status viewers.');
+                                    }
+                                } catch { }
                             }
 
-                            if (typeof sock.readMessages === 'function') {
-                                try {
-                                    await sock.readMessages([statusKeyRaw]);
-                                    markedAsRead = true;
-                                } catch {
+                            const statusJid = STORIES_JID || 'status@broadcast';
+                            const statusKey = {
+                                remoteJid: statusJid,
+                                id: statusMessageId,
+                                fromMe: false,
+                                ...(statusParticipant ? { participant: statusParticipant } : {})
+                            };
+                            const statusKeyRaw = {
+                                remoteJid: statusJid,
+                                id: statusMessageId,
+                                fromMe: false,
+                                ...(statusParticipantRaw ? { participant: statusParticipantRaw } : {})
+                            };
+
+                            if (shouldViewStatus) {
+                                let markedAsRead = false;
+
+                                // Method 1: sendReceipt (most reliable)
+                                if (!markedAsRead && typeof sock.sendReceipt === 'function') {
                                     try {
-                                        await sock.readMessages([statusKey]);
+                                        await sock.sendReceipt(statusJid, statusParticipantRaw || undefined, [statusMessageId], 'read');
                                         markedAsRead = true;
                                     } catch {
-                                        await sock.readMessages([msg.key]);
+                                        try {
+                                            await sock.sendReceipt(statusJid, statusParticipant || undefined, [statusMessageId], 'read');
+                                            markedAsRead = true;
+                                        } catch { }
+                                    }
+                                }
+
+                                // Method 2: readMessages
+                                if (!markedAsRead && typeof sock.readMessages === 'function') {
+                                    try {
+                                        await sock.readMessages([statusKeyRaw]);
                                         markedAsRead = true;
+                                    } catch {
+                                        try {
+                                            await sock.readMessages([statusKey]);
+                                            markedAsRead = true;
+                                        } catch {
+                                            try {
+                                                await sock.readMessages([msg.key]);
+                                                markedAsRead = true;
+                                            } catch { }
+                                        }
                                     }
                                 }
+
+                                // Method 3: chatModify mark-read (latest baileys fallback)
+                                if (!markedAsRead && typeof sock.chatModify === 'function') {
+                                    try {
+                                        await sock.chatModify(
+                                            { markRead: true, lastMessages: [{ key: statusKeyRaw, messageTimestamp: msg.messageTimestamp }] },
+                                            statusJid
+                                        );
+                                        markedAsRead = true;
+                                    } catch { }
+                                }
+
+                                if (!markedAsRead) {
+                                    throw new Error('No status read method available');
+                                }
+
+                                mantra.statusViewCount = (mantra.statusViewCount || 0) + 1;
                             }
 
-                            if (!markedAsRead) {
-                                throw new Error('No status read method available');
-                            }
-                        }
+                            if (shouldReactStatus) {
+                                let reactionEmoji;
+                                if (useRandomReact) {
+                                    reactionEmoji = RANDOM_STATUS_REACT_EMOJIS[Math.floor(Math.random() * RANDOM_STATUS_REACT_EMOJIS.length)];
+                                } else {
+                                    reactionEmoji = String(statusReactConfig.emoji || '').trim() || DEFAULT_AUTOSTATUS_REACT_EMOJI;
+                                }
+                                const reactionKeys = [statusKeyRaw, statusKey, msg.key].filter(Boolean);
+                                let reacted = false;
+                                let reactionErr = null;
 
-                        if (shouldReactStatus) {
-                            const reactionEmoji = String(statusReactConfig.emoji || '').trim() || DEFAULT_AUTOSTATUS_REACT_EMOJI;
-                            const reactionKeys = [statusKeyRaw, statusKey, msg.key].filter(Boolean);
-                            let reacted = false;
-                            let reactionErr = null;
-
-                            for (const reactionKey of reactionKeys) {
-                                try {
-                                    await sock.sendMessage('status@broadcast', {
-                                        react: {
-                                            text: reactionEmoji,
-                                            key: reactionKey
-                                        }
-                                    });
-                                    reacted = true;
-                                    break;
-                                } catch (err) {
-                                    const messageText = String(err?.message || err || '').toLowerCase();
-                                    if (
-                                        messageText.includes('not-acceptable') ||
-                                        messageText.includes('not acceptable') ||
-                                        messageText.includes('forbidden')
-                                    ) {
-                                        if (!didWarnStatusReactionUnsupported) {
-                                            didWarnStatusReactionUnsupported = true;
-                                            console.warn('[status] Reactions are not accepted for this account/session. Use ,autostatusreact off to disable.');
-                                        }
-                                        reactionErr = null;
+                                for (const reactionKey of reactionKeys) {
+                                    try {
+                                        await sock.sendMessage(statusJid, {
+                                            react: {
+                                                text: reactionEmoji,
+                                                key: reactionKey
+                                            }
+                                        });
+                                        reacted = true;
                                         break;
+                                    } catch (err) {
+                                        const messageText = String(err?.message || err || '').toLowerCase();
+                                        if (
+                                            messageText.includes('not-acceptable') ||
+                                            messageText.includes('not acceptable') ||
+                                            messageText.includes('forbidden')
+                                        ) {
+                                            if (!didWarnStatusReactionUnsupported) {
+                                                didWarnStatusReactionUnsupported = true;
+                                                console.warn('[status] Reactions are not accepted for this account/session. Use ,autostatusreact off to disable.');
+                                            }
+                                            reactionErr = null;
+                                            break;
+                                        }
+                                        reactionErr = err;
                                     }
-                                    reactionErr = err;
+                                }
+
+                                if (reacted) {
+                                    console.log(`[status] reacted (${reactionEmoji}): ${statusMessageId} from ${statusParticipant || 'unknown'}`);
+                                } else if (reactionErr) {
+                                    console.error('[status] reaction failed:', reactionErr?.message || reactionErr);
                                 }
                             }
 
-                            if (reacted) {
-                                console.log(`[status] reacted (${reactionEmoji}): ${statusMessageId} from ${statusParticipant || 'unknown'}`);
-                            } else if (reactionErr) {
-                                console.error('[status] reaction failed:', reactionErr?.message || reactionErr);
+                            // Auto-reply to status with custom text
+                            if (shouldReplyStatus) {
+                                const replyText = String(statusReplyConfig.text).trim();
+                                const replyTarget = statusParticipant || statusParticipantRaw;
+                                if (replyTarget) {
+                                    try {
+                                        await sock.sendMessage(replyTarget, { text: replyText });
+                                        console.log(`[status] replied to ${replyTarget}: "${replyText.slice(0, 60)}"`);
+                                    } catch (replyErr) {
+                                        console.error('[status] auto-reply failed:', replyErr?.message || replyErr);
+                                    }
+                                }
                             }
-                        }
-                        if (shouldViewStatus) {
-                            console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'}`);
-                        }
-                    } catch (err) {
-                        console.error('[status] auto-status action failed:', err?.message || err);
-                    }
-                    return;
-                }
 
-                const m = await handler(sock, msg, this);
-                if (!m.command && parsedQuick) {
-                    m.command = parsedQuick.command;
-                    m.args = parsedQuick.args;
-                    m.body = parsedQuick.body;
-                    m.prefix = parsedQuick.prefix;
-                    console.log(`[cmd:parse-fallback] command=${m.command} from=${m.sender} chat=${m.from}`);
-                }
-
-                if (isPotentialCommand && !m.command) {
-                    console.log(`[cmd:skip] parse-empty body="${normalizeCommandText(quickBody).slice(0, 80)}"`);
-                }
-
-                const storeId = String(msg.key?.id || '').trim() || buildMessageDedupKey(msg, quickBody) || `ts:${Date.now()}`;
-                mantra.messageStore.set(storeId, {
-                    body: m.body,
-                    sender: m.sender,
-                    from: m.from,
-                    time: new Date().toLocaleString(),
-                    raw: msg,
-                    timestamp: Date.now(),
-                    contentType: getContentType(msg.message),
-                    fromMe: Boolean(msg.key?.fromMe)
-                });
-                mantra.scheduleMessageStoreFlush();
-
-                if (m.command) {
-                    console.log(`[cmd] recv command=${m.command} from=${m.sender} chat=${m.from} fromMe=${Boolean(msg.key?.fromMe)} type=${type}`);
-                    if (m.isGroup) {
-                        const muteUntil = Number(getGroupSetting(m.from, COMMAND_MUTE_UNTIL_KEY, 0) || 0);
-                        if (Number.isFinite(muteUntil) && muteUntil > Date.now()) {
-                            const bypass = await canBypassCommandMute(sock, m);
-                            if (!bypass) {
-                                const remainingSeconds = Math.ceil((muteUntil - Date.now()) / 1000);
-                                await m.reply(`Commands are muted in this group. Try again in ${formatDurationFromSeconds(remainingSeconds)}.`);
-                                return;
+                            if (shouldViewStatus) {
+                                console.log(`[status] viewed: ${statusMessageId} from ${statusParticipant || 'unknown'} (total: ${mantra.statusViewCount})`);
                             }
-                        }
-                    }
-
-                    const plugin = pluginManager.getCommand(m.command);
-                    if (plugin?.execute) {
-                        if (!m.isOwner) {
-                            const now = Date.now();
-                            const senderKey = m.sender;
-                            const timestamps = rateLimitMap.get(senderKey) || [];
-                            const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-                            if (recent.length >= RATE_LIMIT_MAX_COMMANDS) {
-                                console.log(`[cmd] rate-limited sender=${senderKey}`);
-                                try { await m.reply('Slow down. Try again in a few seconds.'); } catch {}
-                                return;
-                            }
-                            recent.push(now);
-                            rateLimitMap.set(senderKey, recent);
-                        }
-                        const commandStartedAt = Date.now();
-                        try {
-                            const pluginReact = String(plugin.react || '').trim();
-                            if (pluginReact) {
-                                try {
-                                    await m.react(pluginReact);
-                                } catch {}
-                            }
-                            await plugin.execute(sock, m, mantra);
-                            console.log(`[cmd] ok command=${m.command} durationMs=${Date.now() - commandStartedAt}`);
                         } catch (err) {
-                            console.error(`[cmd] error command=${m.command}:`, err?.message || err);
-                            try {
-                                await m.reply('Command failed unexpectedly.');
-                            } catch {}
-                        } finally {
-                            mantra.recordCommandMetric(Date.now() - commandStartedAt);
+                            console.error('[status] auto-status action failed:', err?.message || err);
                         }
-                    } else {
-                        console.log(`[cmd] unknown command=${m.command} prefix=${m.prefix}`);
+                        return;
                     }
-                }
 
-                await pluginManager.runOnMessage(sock, m, mantra);
-                didComplete = true;
+                    const m = await handler(sock, msg, this);
+                    if (!m.command && parsedQuick) {
+                        m.command = parsedQuick.command;
+                        m.args = parsedQuick.args;
+                        m.body = parsedQuick.body;
+                        m.prefix = parsedQuick.prefix;
+                        console.log(`[cmd:parse-fallback] command=${m.command} from=${m.sender} chat=${m.from}`);
+                    }
+
+                    if (isPotentialCommand && !m.command) {
+                        console.log(`[cmd:skip] parse-empty body="${normalizeCommandText(quickBody).slice(0, 80)}"`);
+                    }
+
+                    const storeId = String(msg.key?.id || '').trim() || buildMessageDedupKey(msg, quickBody) || `ts:${Date.now()}`;
+                    mantra.messageStore.set(storeId, {
+                        body: m.body,
+                        sender: m.sender,
+                        from: m.from,
+                        time: new Date().toLocaleString(),
+                        raw: msg,
+                        timestamp: Date.now(),
+                        contentType: getContentType(msg.message),
+                        fromMe: Boolean(msg.key?.fromMe)
+                    });
+                    mantra.scheduleMessageStoreFlush();
+
+                    if (m.command) {
+                        console.log(`[cmd] recv command=${m.command} from=${m.sender} chat=${m.from} fromMe=${Boolean(msg.key?.fromMe)} type=${type}`);
+                        if (m.isGroup) {
+                            const muteUntil = Number(getGroupSetting(m.from, COMMAND_MUTE_UNTIL_KEY, 0) || 0);
+                            if (Number.isFinite(muteUntil) && muteUntil > Date.now()) {
+                                const bypass = await canBypassCommandMute(sock, m);
+                                if (!bypass) {
+                                    const remainingSeconds = Math.ceil((muteUntil - Date.now()) / 1000);
+                                    await m.reply(`Commands are muted in this group. Try again in ${formatDurationFromSeconds(remainingSeconds)}.`);
+                                    return;
+                                }
+                            }
+                        }
+
+                        const plugin = pluginManager.getCommand(m.command);
+                        if (plugin?.execute) {
+                            if (!m.isOwner) {
+                                const now = Date.now();
+                                const senderKey = m.sender;
+                                const timestamps = rateLimitMap.get(senderKey) || [];
+                                const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+                                if (recent.length >= RATE_LIMIT_MAX_COMMANDS) {
+                                    console.log(`[cmd] rate-limited sender=${senderKey}`);
+                                    try { await m.reply('Slow down. Try again in a few seconds.'); } catch { }
+                                    return;
+                                }
+                                recent.push(now);
+                                rateLimitMap.set(senderKey, recent);
+                            }
+                            const commandStartedAt = Date.now();
+                            try {
+                                const pluginReact = String(plugin.react || '').trim();
+                                if (pluginReact) {
+                                    try {
+                                        await m.react(pluginReact);
+                                    } catch { }
+                                }
+                                await plugin.execute(sock, m, mantra);
+                                console.log(`[cmd] ok command=${m.command} durationMs=${Date.now() - commandStartedAt}`);
+                            } catch (err) {
+                                console.error(`[cmd] error command=${m.command}:`, err?.message || err);
+                                try {
+                                    await m.reply('Command failed unexpectedly.');
+                                } catch { }
+                            } finally {
+                                mantra.recordCommandMetric(Date.now() - commandStartedAt);
+                            }
+                        } else {
+                            console.log(`[cmd] unknown command=${m.command} prefix=${m.prefix}`);
+                        }
+                    }
+
+                    await pluginManager.runOnMessage(sock, m, mantra);
+                    didComplete = true;
                 } finally {
                     if (dedupeKey) {
                         const prev = mantra.processedMessages.get(dedupeKey);
